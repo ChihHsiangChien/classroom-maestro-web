@@ -51,6 +51,8 @@ interface ResultsProps {
 }
 
 function MultipleChoiceResults({ question, submissions, students, isResponsesOpen, onResponsesToggle }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: { value: string }[], allowMultipleAnswers?: boolean }); submissions: Submission[], students: Student[], isResponsesOpen: boolean, onResponsesToggle: (isOpen: boolean) => void }) {
+  const isTrueFalse = question.type === 'true-false';
+  
   const results = useMemo(() => {
     const voteCounts = new Map<string, number>();
     question.options.forEach((option, index) => {
@@ -76,7 +78,7 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
       const letter = String.fromCharCode(65 + index);
       const optionIdentifier = option.value || letter;
       const votes = voteCounts.get(optionIdentifier) || 0;
-      const displayValue = option.value ? `${letter}. ${option.value}` : letter;
+      const displayValue = isTrueFalse ? option.value : (option.value ? `${letter}. ${option.value}` : letter);
 
       return {
         option: displayValue,
@@ -84,7 +86,7 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
         percentage: totalVotes > 0 ? (votes / (question.allowMultipleAnswers ? submissions.length : totalVotes)) * 100 : 0
       };
     });
-  }, [submissions, question.options, question.allowMultipleAnswers]);
+  }, [submissions, question.options, question.allowMultipleAnswers, isTrueFalse]);
 
   const studentAnswers = useMemo(() => {
     const answerMap = new Map<number, string | string[]>();
@@ -144,8 +146,9 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
                       <TableHead className="w-[150px]">Student</TableHead>
                       {question.options.map((option, index) => {
                          const letter = String.fromCharCode(65 + index);
+                         const headerText = isTrueFalse ? option.value : letter;
                          return (
-                            <TableHead key={`${letter}-${index}`} className="text-center">{letter}</TableHead>
+                            <TableHead key={`${letter}-${index}`} className="text-center">{headerText}</TableHead>
                          )
                       })}
                     </TableRow>
@@ -436,7 +439,7 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
                 }
                 break;
             case 'true-false':
-                mockAnswer = Math.random() > 0.5 ? 'True' : 'False';
+                mockAnswer = Math.random() > 0.5 ? 'O' : 'X';
                 break;
             case 'short-answer':
                 mockAnswer = `這是來自 ${student.name} 的模擬答案，內容是隨機產生的。`;
@@ -464,7 +467,7 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
             case 'multiple-choice':
                 return <MultipleChoiceResults question={question} students={students} {...props} />;
             case 'true-false':
-                const trueFalseAsMc = { ...question, options: [{ value: "True" }, { value: "False" }] };
+                const trueFalseAsMc = { ...question, options: [{ value: "O" }, { value: "X" }] };
                 return <MultipleChoiceResults question={trueFalseAsMc} students={students} {...props} />;
             case 'short-answer':
                 return <TextResponseResults {...props} />;

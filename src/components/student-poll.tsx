@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useRef } from 'react';
@@ -6,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import dynamic from 'next/dynamic';
 import {
-  CheckCircle, ThumbsDown, ThumbsUp
+  CheckCircle
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -119,7 +120,16 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
 }
 
 function TrueFalseForm({ onSubmit }: { onSubmit: () => void }) {
-    return (<div className="flex justify-around gap-4 pt-4"><Button onClick={onSubmit} className="w-1/2 h-24 text-2xl" variant="outline" ><ThumbsUp className="h-8 w-8 mr-4 text-green-500" /> True</Button><Button onClick={onSubmit} className="w-1/2 h-24 text-2xl" variant="outline" ><ThumbsDown className="h-8 w-8 mr-4 text-red-500" /> False</Button></div>);
+    return (
+        <div className="flex justify-around gap-4 pt-4">
+            <Button onClick={onSubmit} className="w-1/2 h-24 text-6xl font-bold" variant="outline">
+                O
+            </Button>
+            <Button onClick={onSubmit} className="w-1/2 h-24 text-6xl font-bold" variant="destructive">
+                X
+            </Button>
+        </div>
+    );
 }
 
 function ShortAnswerForm({ onSubmit }: { onSubmit: () => void }) {

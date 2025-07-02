@@ -207,19 +207,19 @@ function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
 
 export function CreateQuestionForm({ onQuestionCreate }: QuestionFormProps) {
     return (
-        <Tabs defaultValue="multiple-choice" className="w-full">
+        <Tabs defaultValue="true-false" className="w-full">
             <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="multiple-choice"><Vote className="mr-2 h-4 w-4" />Multiple Choice</TabsTrigger>
                 <TabsTrigger value="true-false"><CheckSquareIcon className="mr-2 h-4 w-4" />True/False</TabsTrigger>
+                <TabsTrigger value="multiple-choice"><Vote className="mr-2 h-4 w-4" />Multiple Choice</TabsTrigger>
                 <TabsTrigger value="short-answer"><FileText className="mr-2 h-4 w-4" />Short Answer</TabsTrigger>
                 <TabsTrigger value="drawing"><ImageIcon className="mr-2 h-4 w-4" />Drawing</TabsTrigger>
                 <TabsTrigger value="image-annotation"><PencilRuler className="mr-2 h-4 w-4" />Annotation</TabsTrigger>
             </TabsList>
-            <TabsContent value="multiple-choice" className="mt-4">
-                <MultipleChoiceForm onQuestionCreate={onQuestionCreate} />
-            </TabsContent>
             <TabsContent value="true-false" className="mt-4">
                 <SimpleQuestionForm type="true-false" onQuestionCreate={onQuestionCreate} schema={simpleQuestionSchema} label="True/False Question" placeholder="e.g. The Earth is flat." />
+            </TabsContent>
+            <TabsContent value="multiple-choice" className="mt-4">
+                <MultipleChoiceForm onQuestionCreate={onQuestionCreate} />
             </TabsContent>
             <TabsContent value="short-answer" className="mt-4">
                 <SimpleQuestionForm type="short-answer" onQuestionCreate={onQuestionCreate} schema={simpleQuestionSchema} label="Short Answer Question" placeholder="e.g. What is the capital of France?" />
