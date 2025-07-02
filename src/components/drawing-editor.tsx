@@ -357,7 +357,7 @@ export const DrawingEditor = ({ onSubmit }: DrawingEditorProps) => {
         </Button>
       </div>
       <div className="relative w-full aspect-video border rounded-md bg-white touch-none overflow-hidden">
-        <canvas ref={canvasRef} />
+        <canvas ref={canvasRef} className="h-full w-full" />
       </div>
       <div className="flex justify-end">
         <Button onClick={handleSubmit}>Submit Drawing</Button>
