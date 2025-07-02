@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Clapperboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,66 +62,68 @@ export default function TeacherPage() {
 
 
   return (
-    <main className="min-h-screen bg-muted/40 p-4 md:p-8">
-      <div className="mx-auto w-full max-w-7xl">
-        <header className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-          <Button asChild variant="outline">
-            <Link href="/">Exit Classroom</Link>
-          </Button>
-        </header>
+    <React.Fragment>
+      <main className="min-h-screen bg-muted/40 p-4 md:p-8">
+        <div className="mx-auto w-full max-w-7xl">
+          <header className="mb-6 flex items-center justify-between">
+            <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
+            <Button asChild variant="outline">
+              <Link href="/">Exit Classroom</Link>
+            </Button>
+          </header>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
-            {!activeQuestion ? (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-6">
+              {!activeQuestion ? (
+                <Card className="shadow-md">
+                  <CardHeader>
+                    <CardTitle>Create a New Question</CardTitle>
+                    <CardDescription>
+                      Engage your students with a real-time question.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <CreateQuestionForm onQuestionCreate={setActiveQuestion} />
+                  </CardContent>
+                </Card>
+              ) : (
+                <ActiveQuestion question={activeQuestion} onEndQuestion={handleEndQuestion} />
+              )}
+            </div>
+
+            <aside className="space-y-6">
+              <StudentManagement
+                  students={students}
+                  loggedInStudents={loggedInStudents}
+                  onAddStudent={handleAddStudent}
+                  onUpdateStudent={handleUpdateStudent}
+                  onDeleteStudent={handleDeleteStudent}
+                  onKickStudent={handleKickStudent}
+                  // This is a mock function to simulate a student logging in
+                  onStudentLogin={handleStudentLogin}
+              />
               <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle>Create a New Question</CardTitle>
-                  <CardDescription>
-                    Engage your students with a real-time question.
-                  </CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Lesson Status
+                  </CardTitle>
+                  <Clapperboard className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <CreateQuestionForm onQuestionCreate={setActiveQuestion} />
+                  <div className="text-lg font-bold">
+                    {activeQuestion ? "Question Active" : "Idle"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {activeQuestion
+                      ? "Waiting for responses"
+                      : "Start a question to begin"}
+                  </p>
                 </CardContent>
               </Card>
-            ) : (
-              <ActiveQuestion question={activeQuestion} onEndQuestion={handleEndQuestion} />
-            )}
+            </aside>
           </div>
-
-          <aside className="space-y-6">
-            <StudentManagement
-                students={students}
-                loggedInStudents={loggedInStudents}
-                onAddStudent={handleAddStudent}
-                onUpdateStudent={handleUpdateStudent}
-                onDeleteStudent={handleDeleteStudent}
-                onKickStudent={handleKickStudent}
-                // This is a mock function to simulate a student logging in
-                onStudentLogin={handleStudentLogin}
-            />
-            <Card className="shadow-md">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Lesson Status
-                </CardTitle>
-                <Clapperboard className="h-4 w-4 text-muted-foreground" />
-              </Header>
-              <CardContent>
-                <div className="text-lg font-bold">
-                  {activeQuestion ? "Question Active" : "Idle"}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {activeQuestion
-                    ? "Waiting for responses"
-                    : "Start a question to begin"}
-                </p>
-              </CardContent>
-            </Card>
-          </aside>
         </div>
-      </div>
-    </main>
+      </main>
+    </React.Fragment>
   );
 }
