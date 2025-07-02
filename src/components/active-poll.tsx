@@ -10,6 +10,15 @@ import React, { useMemo } from "react";
 import type { Student } from "./student-management";
 import { ScrollArea } from "./ui/scroll-area";
 import Image from "next/image";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
 
 export interface Submission {
   studentId: number;
@@ -25,7 +34,7 @@ interface ActiveQuestionProps {
   onSubmissionsChange: React.Dispatch<React.SetStateAction<Submission[]>>;
 }
 
-function MultipleChoiceResults({ question, submissions }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: { value: string }[] }); submissions: Submission[] }) {
+function MultipleChoiceResults({ question, submissions, students }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: { value: string }[] }); submissions: Submission[], students: Student[] }) {
   const results = useMemo(() => {
     const voteCounts = new Map<string, number>();
     question.options.forEach(option => voteCounts.set(option.value, 0));
@@ -47,6 +56,14 @@ function MultipleChoiceResults({ question, submissions }: { question: MultipleCh
       };
     });
   }, [submissions, question.options]);
+
+  const studentAnswers = useMemo(() => {
+    const answerMap = new Map<number, string>();
+    submissions.forEach(sub => {
+        answerMap.set(sub.studentId, sub.answer);
+    });
+    return answerMap;
+  }, [submissions]);
 
   const totalVotes = submissions.length;
 
@@ -75,21 +92,42 @@ function MultipleChoiceResults({ question, submissions }: { question: MultipleCh
         </div>
       </div>
 
-      {/* Individual Student Responses */}
-      {submissions.length > 0 && (
+      {/* Individual Student Responses Table */}
+      {students.length > 0 && (
         <div>
           <h3 className="mb-4 flex items-center text-lg font-semibold">
-            <FileText className="mr-2 h-5 w-5" /> Student Responses
+            <Users className="mr-2 h-5 w-5" /> Student Responses
           </h3>
-          <ScrollArea className="h-72 w-full rounded-md border p-4">
-              <div className="space-y-4">
-                  {submissions.map((sub, index) => (
-                      <div key={index} className="p-3 bg-muted/50 rounded-md">
-                          <p className="font-semibold text-sm">{sub.studentName}</p>
-                          <p className="text-foreground">{sub.answer}</p>
-                      </div>
+          <ScrollArea className="max-h-96 w-full rounded-md border">
+            <Table>
+              <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
+                <TableRow>
+                  <TableHead className="w-[150px]">Student</TableHead>
+                  {question.options.map(option => (
+                    <TableHead key={option.value} className="text-center">{option.value}</TableHead>
                   ))}
-              </div>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {students.map(student => {
+                  const answer = studentAnswers.get(student.id);
+                  return (
+                    <TableRow key={student.id} data-answered={!!answer} className="data-[answered=true]:bg-green-500/10">
+                      <TableCell className="font-medium">{student.name}</TableCell>
+                      {question.options.map(option => (
+                        <TableCell key={option.value} className="text-center">
+                          {answer === option.value && (
+                            <div className="flex justify-center">
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                            </div>
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </ScrollArea>
         </div>
       )}
@@ -216,10 +254,10 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
     const renderResults = () => {
         switch (question.type) {
             case 'multiple-choice':
-                return <MultipleChoiceResults question={question} submissions={submissions} />;
+                return <MultipleChoiceResults question={question} submissions={submissions} students={students} />;
             case 'true-false':
                 const trueFalseAsMc = { ...question, options: [{ value: "True" }, { value: "False" }] };
-                return <MultipleChoiceResults question={trueFalseAsMc} submissions={submissions} />;
+                return <MultipleChoiceResults question={trueFalseAsMc} submissions={submissions} students={students} />;
             case 'short-answer':
                 return <TextResponseResults submissions={submissions} />;
             case 'drawing':
@@ -258,3 +296,5 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
         </div>
     );
 }
+
+    
