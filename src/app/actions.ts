@@ -4,6 +4,10 @@ import {
   generateNickname,
   type GenerateNicknameInput,
 } from "@/ai/flows/generate-nickname";
+import {
+  generatePoll,
+  type GeneratePollInput,
+} from "@/ai/flows/generate-poll";
 
 export async function generateNicknameAction(input: GenerateNicknameInput) {
   try {
@@ -17,6 +21,23 @@ export async function generateNicknameAction(input: GenerateNicknameInput) {
     return {
       nickname: null,
       error: "Could not generate a nickname. Please try again.",
+    };
+  }
+}
+
+export async function generatePollAction(input: GeneratePollInput) {
+  try {
+    const result = await generatePoll(input);
+    if (!result || !result.question || !result.options) {
+      throw new Error("AI did not return a valid poll.");
+    }
+    return { poll: result, error: null };
+  } catch (error) {
+    console.error("Error generating poll:", error);
+    return {
+      poll: null,
+      error:
+        "Could not generate a poll. Please try again or enter one manually.",
     };
   }
 }
