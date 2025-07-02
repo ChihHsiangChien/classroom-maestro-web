@@ -107,7 +107,10 @@ const shortAnswerSchema = z.object({ answer: z.string().min(1, { message: "Your 
 
 function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQuestion, onSubmit: () => void }) {
     const form = useForm<z.infer<typeof multipleChoiceSchema>>({ resolver: zodResolver(multipleChoiceSchema) });
-    return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><FormField control={form.control} name="option" render={({ field }) => (<FormItem className="space-y-3"><FormLabel>Choose your answer:</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-2">{question.options.map((option, index) => (<FormItem key={index} className="flex items-center space-x-3 space-y-0 rounded-md border p-4 hover:bg-muted/50"><FormControl><RadioGroupItem value={option.value} /></FormControl><FormLabel className="font-normal">{option.value}</FormLabel></FormItem>))}</RadioGroup></FormControl><FormMessage /></FormItem>)} /><Button type="submit" className="w-full"><CheckCircle className="mr-2 h-4 w-4" />Submit Vote</Button></form></Form>);
+    return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><FormField control={form.control} name="option" render={({ field }) => (<FormItem className="space-y-3"><FormLabel>Choose your answer:</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-2">{question.options.map((option, index) => {
+        const displayValue = option.value || String.fromCharCode(65 + index);
+        return (<FormItem key={index} className="flex items-center space-x-3 space-y-0 rounded-md border p-4 hover:bg-muted/50"><FormControl><RadioGroupItem value={displayValue} /></FormControl><FormLabel className="font-normal">{displayValue}</FormLabel></FormItem>)
+    })}</RadioGroup></FormControl><FormMessage /></FormItem>)} /><Button type="submit" className="w-full"><CheckCircle className="mr-2 h-4 w-4" />Submit Vote</Button></form></Form>);
 }
 
 function TrueFalseForm({ onSubmit }: { onSubmit: () => void }) {

@@ -50,12 +50,12 @@ export type PollData = MultipleChoiceQuestion;
 
 // --- FORMS for each question type ---
 const multipleChoiceSchema = z.object({
-  question: z.string().min(5, { message: "Question must be at least 5 characters." }).max(200),
-  options: z.array(z.object({ value: z.string().min(1).max(50) })).min(2).max(5),
+  question: z.string().max(200),
+  options: z.array(z.object({ value: z.string().max(50) })).min(2).max(5),
 });
 
 const simpleQuestionSchema = z.object({
-    question: z.string().min(5, { message: "Question must be at least 5 characters." }),
+    question: z.string(),
 });
 
 interface QuestionFormProps {
@@ -68,7 +68,7 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
     const { toast } = useToast();
     const form = useForm<z.infer<typeof multipleChoiceSchema>>({
         resolver: zodResolver(multipleChoiceSchema),
-        defaultValues: { question: "", options: [{ value: "" }, { value: "" }] },
+        defaultValues: { question: "", options: [{ value: "" }, { value: "" }, { value: "" }, { value: "" }] },
     });
     const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "options" });
 

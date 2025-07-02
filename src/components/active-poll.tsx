@@ -46,10 +46,11 @@ function MultipleChoiceResults({ question }: { question: MultipleChoiceQuestion 
                 <div className="space-y-4">
                     {question.options.map((option, index) => {
                         const result = results[index] || { votes: 0, percentage: 0 };
+                        const displayValue = option.value || String.fromCharCode(65 + index);
                         return (
                             <div key={index}>
                                 <div className="mb-1 flex items-center justify-between">
-                                    <p className="font-medium">{option.value}</p>
+                                    <p className="font-medium">{displayValue}</p>
                                     <p className="text-sm text-muted-foreground">
                                         {result.votes} votes ({result.percentage.toFixed(0)}%)
                                     </p>
