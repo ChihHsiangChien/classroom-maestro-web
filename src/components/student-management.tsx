@@ -67,6 +67,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { useI18n } from '@/lib/i18n/provider';
+import { Skeleton } from './ui/skeleton';
 
 export type Student = {
   id: number;
@@ -195,10 +196,19 @@ export function StudentManagement({
                 <div className="space-y-2">
                   <Label htmlFor="classroom-url">{t('studentManagement.classroom_url_label')}</Label>
                   <div className="flex gap-2">
-                    <Input id="classroom-url" value={classroomUrl} readOnly />
-                    <Button size="icon" variant="outline" onClick={handleCopy}>
-                      {hasCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                    </Button>
+                    {isClient ? (
+                      <>
+                        <Input id="classroom-url" value={classroomUrl} readOnly />
+                        <Button size="icon" variant="outline" onClick={handleCopy}>
+                          {hasCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Skeleton className="h-10 flex-grow" />
+                        <Skeleton className="h-10 w-10" />
+                      </>
+                    )}
                   </div>
                 </div>
                 {isClient && classroomUrl && (
