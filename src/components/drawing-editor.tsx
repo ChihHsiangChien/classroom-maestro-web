@@ -96,9 +96,13 @@ export const DrawingEditor = ({ onSubmit }: DrawingEditorProps) => {
       canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
       canvas.freeDrawingBrush.color = brushColor;
       canvas.freeDrawingBrush.width = brushWidth;
+      // Ensure we are in normal drawing mode
+      canvas.freeDrawingBrush.globalCompositeOperation = 'source-over';
     } else if (tool === 'eraser') {
-      canvas.freeDrawingBrush = new fabric.EraserBrush(canvas);
+      // In Fabric.js v5+, the eraser is a PencilBrush with a 'destination-out' composite operation.
+      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
       canvas.freeDrawingBrush.width = brushWidth;
+      canvas.freeDrawingBrush.globalCompositeOperation = 'destination-out';
     }
   }, [tool, brushColor, brushWidth]);
 
