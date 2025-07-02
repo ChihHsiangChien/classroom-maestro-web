@@ -56,8 +56,8 @@ function MultipleChoiceResults({ question, submissions }: { question: MultipleCh
         <BarChart className="mr-2 h-5 w-5" /> Live Results
       </h3>
       <div className="space-y-4">
-        {results.map((result) => (
-          <div key={result.option}>
+        {results.map((result, index) => (
+          <div key={`${result.option}-${index}`}>
             <div className="mb-1 flex items-center justify-between">
               <p className="font-medium">{result.option}</p>
               <p className="text-sm text-muted-foreground">
