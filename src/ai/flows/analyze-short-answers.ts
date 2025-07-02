@@ -10,12 +10,12 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const AnalyzeShortAnswersInputSchema = z.object({
+const AnalyzeShortAnswersInputSchema = z.object({
   answers: z.array(z.string()).describe('A list of student answers to a short-answer question.'),
 });
 export type AnalyzeShortAnswersInput = z.infer<typeof AnalyzeShortAnswersInputSchema>;
 
-export const AnalyzeShortAnswersOutputSchema = z.object({
+const AnalyzeShortAnswersOutputSchema = z.object({
   summary: z.string().describe('A concise summary of all the student answers, identifying common themes and misconceptions.'),
   wordCloud: z.array(z.object({
     text: z.string().describe('A keyword or phrase.'),
