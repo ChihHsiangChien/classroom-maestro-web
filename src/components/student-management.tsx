@@ -11,8 +11,7 @@ import {
   LogOut,
   Copy,
   Check,
-  Eye,
-  EyeOff,
+  ChevronDown,
 } from 'lucide-react';
 import {
   Card,
@@ -65,6 +64,8 @@ import {
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 
 export type Student = {
   id: number;
@@ -81,6 +82,8 @@ interface StudentManagementProps {
   onKickStudent: (id: number) => void;
   onStudentLogin: (student: Student) => void; // Mock
   onToggleStudentFocus: (id: number) => void; // Mock
+  isRosterOpen: boolean;
+  onRosterToggle: (isOpen: boolean) => void;
 }
 
 export function StudentManagement({
@@ -92,6 +95,8 @@ export function StudentManagement({
   onKickStudent,
   onStudentLogin,
   onToggleStudentFocus,
+  isRosterOpen,
+  onRosterToggle,
 }: StudentManagementProps) {
   const [classroomUrl, setClassroomUrl] = useState('');
   const [newStudentName, setNewStudentName] = useState('');
@@ -142,113 +147,118 @@ export function StudentManagement({
 
   return (
     <>
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle>Student Management</CardTitle>
-          <CardDescription>
-            Share the link or QR code with your class.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="classroom-url">Classroom URL</Label>
-            <div className="flex gap-2">
-              <Input id="classroom-url" value={classroomUrl} readOnly />
-              <Button size="icon" variant="outline" onClick={handleCopy}>
-                {hasCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-          {classroomUrl && (
-            <div className="flex flex-col items-center gap-2 rounded-md bg-white p-4">
-              <QRCode value={classroomUrl} size={128} />
-              <p className="text-sm text-muted-foreground">Scan to Join</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      <Card className="shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium">Class Roster</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{loggedInStudents.length} / {students.length}</div>
-          <p className="text-xs text-muted-foreground">
-            {students.length - loggedInStudents.length} student(s) absent
-          </p>
-        </CardContent>
-        <Tabs defaultValue="not-logged-in" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="not-logged-in">Not Logged In ({notLoggedInStudents.length})</TabsTrigger>
-            <TabsTrigger value="logged-in">Logged In ({loggedInStudents.length})</TabsTrigger>
-          </TabsList>
-          <TabsContent value="not-logged-in">
-            <StudentTable
-                students={notLoggedInStudents}
-                actionButtons={(student) => (
-                    <>
-                        <Button variant="ghost" size="icon" onClick={() => startEditing(student)}>
-                            <Edit className="h-4 w-4" />
-                        </Button>
-                        <DeleteStudentButton student={student} onDelete={onDeleteStudent} />
-                        <Button variant="outline" size="sm" onClick={() => onStudentLogin(student)}>(Simulate Login)</Button>
-                    </>
-                )}
-                emptyMessage="All students are present!"
-            />
-          </TabsContent>
-          <TabsContent value="logged-in">
-            <TooltipProvider>
-              <StudentTable
-                  students={loggedInStudents}
-                  actionButtons={(student) => (
-                      <>
-                          <Tooltip>
-                              <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" onClick={() => onToggleStudentFocus(student.id)}>
-                                      {student.isFocused ? <Eye className="h-4 w-4 text-green-500" /> : <EyeOff className="h-4 w-4 text-yellow-500" />}
-                                  </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                  <p>{student.isFocused ? 'Focused' : 'Distracted'}</p>
-                                  <p className="text-xs text-muted-foreground">Click to toggle status for demo.</p>
-                              </TooltipContent>
-                          </Tooltip>
-                          <Button variant="ghost" size="icon" onClick={() => onKickStudent(student.id)}>
-                              <LogOut className="h-4 w-4 text-destructive" />
-                          </Button>
-                      </>
-                  )}
-                  emptyMessage="No students have logged in yet."
-              />
-            </TooltipProvider>
-          </TabsContent>
-        </Tabs>
-        <CardContent>
-          <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="w-full mt-4">
-                <UserPlus className="mr-2 h-4 w-4" /> Add Student
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Student</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">Name</Label>
-                  <Input id="name" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} className="col-span-3" />
-                </div>
+      <Collapsible asChild>
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle>Student Management</CardTitle>
+            <CardDescription>
+              Share the link or QR code with your class.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="classroom-url">Classroom URL</Label>
+              <div className="flex gap-2">
+                <Input id="classroom-url" value={classroomUrl} readOnly />
+                <Button size="icon" variant="outline" onClick={handleCopy}>
+                  {hasCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                </Button>
               </div>
-              <DialogFooter>
-                <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                <Button onClick={handleAdd}>Save</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </CardContent>
+            </div>
+            {classroomUrl && (
+              <div className="flex flex-col items-center gap-2 rounded-md bg-white p-4">
+                <QRCode value={classroomUrl} size={128} />
+                <p className="text-sm text-muted-foreground">Scan to Join</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </Collapsible>
+
+      <Card className="shadow-md">
+        <Collapsible open={isRosterOpen} onOpenChange={onRosterToggle}>
+          <CardHeader className="flex flex-row items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-medium">Class Roster</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </div>
+               <div className="text-2xl font-bold">{loggedInStudents.length} / {students.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  {students.length - loggedInStudents.length} student(s) absent
+                </p>
+            </div>
+            <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className='-mr-2 -mt-1'>
+                    <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                    <span className="sr-only">Toggle Roster</span>
+                </Button>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <Tabs defaultValue="not-logged-in" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="not-logged-in">Not Logged In ({notLoggedInStudents.length})</TabsTrigger>
+                <TabsTrigger value="logged-in">Logged In ({loggedInStudents.length})</TabsTrigger>
+              </TabsList>
+              <TabsContent value="not-logged-in">
+                <StudentTable
+                    students={notLoggedInStudents}
+                    actionButtons={(student) => (
+                        <>
+                            <Button variant="ghost" size="icon" onClick={() => startEditing(student)}>
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                            <DeleteStudentButton student={student} onDelete={onDeleteStudent} />
+                            <Button variant="outline" size="sm" onClick={() => onStudentLogin(student)}>(Simulate Login)</Button>
+                        </>
+                    )}
+                    emptyMessage="All students are present!"
+                />
+              </TabsContent>
+              <TabsContent value="logged-in">
+                <TooltipProvider>
+                  <StudentTable
+                      students={loggedInStudents}
+                      onRowClick={onToggleStudentFocus}
+                      actionButtons={(student) => (
+                          <>
+                              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onKickStudent(student.id); }}>
+                                  <LogOut className="h-4 w-4 text-destructive" />
+                              </Button>
+                          </>
+                      )}
+                      emptyMessage="No students have logged in yet."
+                  />
+                </TooltipProvider>
+              </TabsContent>
+            </Tabs>
+            <CardContent>
+              <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="w-full mt-4">
+                    <UserPlus className="mr-2 h-4 w-4" /> Add Student
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Student</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="name" className="text-right">Name</Label>
+                      <Input id="name" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} className="col-span-3" />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+                    <Button onClick={handleAdd}>Save</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
       
       <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -272,12 +282,12 @@ export function StudentManagement({
   );
 }
 
-function StudentTable({ students, actionButtons, emptyMessage }: { students: Student[], actionButtons: (s: Student) => React.ReactNode, emptyMessage: string }) {
+function StudentTable({ students, actionButtons, emptyMessage, onRowClick }: { students: Student[], actionButtons: (s: Student) => React.ReactNode, emptyMessage: string, onRowClick?: (id: number) => void }) {
     if (students.length === 0) {
         return <div className="text-center text-sm text-muted-foreground p-4">{emptyMessage}</div>
     }
     return (
-         <Table>
+        <Table>
             <TableHeader>
                 <TableRow>
                     <TableHead>Name</TableHead>
@@ -285,16 +295,39 @@ function StudentTable({ students, actionButtons, emptyMessage }: { students: Stu
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {students.map((student) => (
-                <TableRow key={student.id}>
-                    <TableCell className="font-medium">{student.name}</TableCell>
-                    <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                            {actionButtons(student)}
-                        </div>
-                    </TableCell>
-                </TableRow>
-                ))}
+                {students.map((student) => {
+                  const row = (
+                     <TableRow 
+                        key={student.id}
+                        onClick={() => onRowClick?.(student.id)}
+                        className={cn(
+                            onRowClick && 'cursor-pointer',
+                            student.isFocused === false && 'bg-amber-100 hover:bg-amber-200/80 dark:bg-amber-800/30 dark:hover:bg-amber-800/50'
+                        )}
+                      >
+                        <TableCell className="font-medium">{student.name}</TableCell>
+                        <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                                {actionButtons(student)}
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                  );
+
+                  if (onRowClick) {
+                    return (
+                        <Tooltip key={student.id}>
+                            <TooltipTrigger asChild>{row}</TooltipTrigger>
+                            <TooltipContent>
+                                <p>{student.isFocused ?? true ? 'Focused' : 'Distracted'}</p>
+                                {(student.isFocused ?? true) ? null : <p className="text-xs text-muted-foreground">Student may have switched tabs.</p> }
+                                <p className="text-xs text-muted-foreground">Click row to toggle status for demo.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    )
+                  }
+                  return row;
+                })}
             </TableBody>
         </Table>
     )
@@ -315,7 +348,7 @@ function DeleteStudentButton({ student, onDelete }: { student: Student, onDelete
     return (
         <AlertDialog>
             <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" onClick={e => e.stopPropagation()}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
             </AlertDialogTrigger>

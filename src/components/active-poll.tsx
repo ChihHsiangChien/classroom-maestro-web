@@ -1,11 +1,12 @@
+
 "use client";
 
-import { BarChart, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler } from "lucide-react";
+import { BarChart, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, Clapperboard, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { QuestionData, MultipleChoiceQuestion, ImageAnnotationQuestion } from "./create-poll-form";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import type { Student } from "./student-management";
 import { ScrollArea } from "./ui/scroll-area";
 import Image from "next/image";
@@ -17,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 
 
 export interface Submission {
@@ -31,9 +33,17 @@ interface ActiveQuestionProps {
   students: Student[];
   submissions: Submission[];
   onSubmissionsChange: React.Dispatch<React.SetStateAction<Submission[]>>;
+  isResponsesOpen: boolean;
+  onResponsesToggle: (isOpen: boolean) => void;
 }
 
-function MultipleChoiceResults({ question, submissions, students }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: { value: string }[], allowMultipleAnswers?: boolean }); submissions: Submission[], students: Student[] }) {
+interface ResultsProps {
+    submissions: Submission[];
+    isResponsesOpen: boolean;
+    onResponsesToggle: (isOpen: boolean) => void;
+}
+
+function MultipleChoiceResults({ question, submissions, students, isResponsesOpen, onResponsesToggle }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: { value: string }[], allowMultipleAnswers?: boolean }); submissions: Submission[], students: Student[], isResponsesOpen: boolean, onResponsesToggle: (isOpen: boolean) => void }) {
   const results = useMemo(() => {
     const voteCounts = new Map<string, number>();
     question.options.forEach((option, index) => {
@@ -106,106 +116,138 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
 
       {/* Individual Student Responses Table */}
       {students.length > 0 && (
-        <div>
-          <h3 className="mb-4 flex items-center text-lg font-semibold">
-            <Users className="mr-2 h-5 w-5" /> Student Responses
-          </h3>
-          <ScrollArea className="max-h-96 w-full rounded-md border">
-            <Table>
-              <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
-                <TableRow>
-                  <TableHead className="w-[150px]">Student</TableHead>
-                  {question.options.map((option, index) => {
-                     const letter = String.fromCharCode(65 + index);
-                     return (
-                        <TableHead key={`${letter}-${index}`} className="text-center">{letter}</TableHead>
-                     )
-                  })}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {students.map(student => {
-                  const answer = studentAnswers.get(student.id);
-                  return (
-                    <TableRow key={student.id} data-answered={!!answer} className="data-[answered=true]:bg-green-500/10">
-                      <TableCell className="font-medium">{student.name}</TableCell>
+        <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
+          <div className="flex items-center justify-between rounded-md border p-2">
+            <h3 className="flex items-center text-lg font-semibold">
+              <Users className="mr-2 h-5 w-5" /> Student Responses
+            </h3>
+            <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm">
+                    <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                    <span className="sr-only">Toggle Responses</span>
+                </Button>
+            </CollapsibleTrigger>
+          </div>
+          <CollapsibleContent>
+            <div className="mt-2 rounded-md border">
+              <ScrollArea className="max-h-96 w-full">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
+                    <TableRow>
+                      <TableHead className="w-[150px]">Student</TableHead>
                       {question.options.map((option, index) => {
                          const letter = String.fromCharCode(65 + index);
-                         const optionIdentifier = option.value || letter;
-                        return (
-                            <TableCell key={`${letter}-${index}`} className="text-center">
-                            {answer && (Array.isArray(answer) ? answer.includes(optionIdentifier) : answer === optionIdentifier) && (
-                                <div className="flex justify-center">
-                                <CheckCircle className="h-5 w-5 text-green-600" />
-                                </div>
-                            )}
-                            </TableCell>
-                        )
+                         return (
+                            <TableHead key={`${letter}-${index}`} className="text-center">{letter}</TableHead>
+                         )
                       })}
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </div>
+                  </TableHeader>
+                  <TableBody>
+                    {students.map(student => {
+                      const answer = studentAnswers.get(student.id);
+                      return (
+                        <TableRow key={student.id} data-answered={!!answer} className="data-[answered=true]:bg-green-500/10">
+                          <TableCell className="font-medium">{student.name}</TableCell>
+                          {question.options.map((option, index) => {
+                             const letter = String.fromCharCode(65 + index);
+                             const optionIdentifier = option.value || letter;
+                            return (
+                                <TableCell key={`${letter}-${index}`} className="text-center">
+                                {answer && (Array.isArray(answer) ? answer.includes(optionIdentifier) : answer === optionIdentifier) && (
+                                    <div className="flex justify-center">
+                                    <CheckCircle className="h-5 w-5 text-green-600" />
+                                    </div>
+                                )}
+                                </TableCell>
+                            )
+                          })}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </div>
   );
 }
 
-function TextResponseResults({ submissions }: { submissions: Submission[] }) {
+function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }: ResultsProps) {
     if (submissions.length === 0) {
         return <div className="text-center text-muted-foreground py-8">Waiting for submissions...</div>;
     }
 
     return (
-        <>
-            <h3 className="mb-4 flex items-center text-lg font-semibold">
-                <FileText className="mr-2 h-5 w-5" /> Student Responses
-            </h3>
-            <ScrollArea className="h-72 w-full rounded-md border p-4">
-                <div className="space-y-4">
-                    {submissions.map((sub, index) => (
-                        <div key={index} className="p-3 bg-muted/50 rounded-md">
-                            <p className="font-semibold text-sm">{sub.studentName}</p>
-                            <p className="text-foreground">{sub.answer as string}</p>
-                        </div>
-                    ))}
-                </div>
-            </ScrollArea>
-        </>
+        <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
+             <div className="flex items-center justify-between rounded-md border p-2 mb-2">
+                <h3 className="flex items-center text-lg font-semibold">
+                    <FileText className="mr-2 h-5 w-5" /> Student Responses
+                </h3>
+                <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                        <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                        <span className="sr-only">Toggle Responses</span>
+                    </Button>
+                </CollapsibleTrigger>
+            </div>
+            <CollapsibleContent>
+                <ScrollArea className="h-72 w-full rounded-md border p-4">
+                    <div className="space-y-4">
+                        {submissions.map((sub, index) => (
+                            <div key={index} className="p-3 bg-muted/50 rounded-md">
+                                <p className="font-semibold text-sm">{sub.studentName}</p>
+                                <p className="text-foreground">{sub.answer as string}</p>
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </CollapsibleContent>
+        </Collapsible>
     );
 }
 
-function DrawingResults({ submissions }: { submissions: Submission[] }) {
+function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: ResultsProps) {
     if (submissions.length === 0) {
         return <div className="text-center text-muted-foreground py-8">Waiting for submissions...</div>;
     }
     return (
-        <>
-            <h3 className="mb-4 flex items-center text-lg font-semibold">
-                <ImageIcon className="mr-2 h-5 w-5" /> Student Drawings
-            </h3>
-            <ScrollArea className="h-[500px] w-full">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
-                    {submissions.map((sub, index) => (
-                        <Card key={index} className="overflow-hidden">
-                           <div className="aspect-video w-full bg-muted relative">
-                             <Image src={sub.answer as string} alt={`Drawing by ${sub.studentName}`} layout="fill" objectFit="contain" data-ai-hint="student drawing" />
-                           </div>
-                           <CardFooter className="p-2 bg-muted/50 border-t">
-                             <p className="text-sm font-medium">{sub.studentName}</p>
-                           </CardFooter>
-                        </Card>
-                    ))}
-                </div>
-            </ScrollArea>
-        </>
+        <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
+            <div className="flex items-center justify-between rounded-md border p-2 mb-2">
+                <h3 className="flex items-center text-lg font-semibold">
+                    <ImageIcon className="mr-2 h-5 w-5" /> Student Drawings
+                </h3>
+                <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                        <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                        <span className="sr-only">Toggle Responses</span>
+                    </Button>
+                </CollapsibleTrigger>
+            </div>
+            <CollapsibleContent>
+                <ScrollArea className="h-[500px] w-full">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
+                        {submissions.map((sub, index) => (
+                            <Card key={index} className="overflow-hidden">
+                               <div className="aspect-video w-full bg-muted relative">
+                                 <Image src={sub.answer as string} alt={`Drawing by ${sub.studentName}`} layout="fill" objectFit="contain" data-ai-hint="student drawing" />
+                               </div>
+                               <CardFooter className="p-2 bg-muted/50 border-t">
+                                 <p className="text-sm font-medium">{sub.studentName}</p>
+                               </CardFooter>
+                            </Card>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </CollapsibleContent>
+        </Collapsible>
     );
 }
 
-function ImageAnnotationResults({ question, submissions }: { question: ImageAnnotationQuestion, submissions: Submission[] }) {
+function ImageAnnotationResults({ question, submissions, isResponsesOpen, onResponsesToggle }: { question: ImageAnnotationQuestion } & ResultsProps) {
     return (
         <div className="space-y-6">
             <div>
@@ -217,7 +259,7 @@ function ImageAnnotationResults({ question, submissions }: { question: ImageAnno
                 </div>
             </div>
             {submissions.length > 0 && <div className="border-t pt-6" />}
-            <DrawingResults submissions={submissions} />
+            <DrawingResults submissions={submissions} isResponsesOpen={isResponsesOpen} onResponsesToggle={onResponsesToggle} />
         </div>
     );
 }
@@ -260,7 +302,7 @@ function SubmissionTracker({ students, submissions, onSimulateSubmission }: { st
 }
 
 
-export function ActiveQuestion({ question, onEndQuestion, students, submissions, onSubmissionsChange }: ActiveQuestionProps) {
+export function ActiveQuestion({ question, onEndQuestion, students, submissions, onSubmissionsChange, isResponsesOpen, onResponsesToggle }: ActiveQuestionProps) {
     const handleSimulateSubmission = (student: Student) => {
         let mockAnswer: string | string[] = '';
         switch(question.type) {
@@ -299,18 +341,19 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
     };
 
     const renderResults = () => {
+        const props = { submissions, isResponsesOpen, onResponsesToggle };
         switch (question.type) {
             case 'multiple-choice':
-                return <MultipleChoiceResults question={question} submissions={submissions} students={students} />;
+                return <MultipleChoiceResults question={question} students={students} {...props} />;
             case 'true-false':
                 const trueFalseAsMc = { ...question, options: [{ value: "True" }, { value: "False" }] };
-                return <MultipleChoiceResults question={trueFalseAsMc} submissions={submissions} students={students} />;
+                return <MultipleChoiceResults question={trueFalseAsMc} students={students} {...props} />;
             case 'short-answer':
-                return <TextResponseResults submissions={submissions} />;
+                return <TextResponseResults {...props} />;
             case 'drawing':
-                return <DrawingResults submissions={submissions} />;
+                return <DrawingResults {...props} />;
             case 'image-annotation':
-                return <ImageAnnotationResults question={question} submissions={submissions} />;
+                return <ImageAnnotationResults question={question} {...props} />;
             default:
                 return null;
         }
@@ -342,6 +385,25 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
                 submissions={submissions}
                 onSimulateSubmission={handleSimulateSubmission}
             />
+
+            <Card className="shadow-md">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Lesson Status
+                  </CardTitle>
+                  <Clapperboard className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-lg font-bold">
+                    {question ? "Question Active" : "Idle"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {question
+                      ? `${submissions.length} / ${students.length} responses`
+                      : "Start a question to begin"}
+                  </p>
+                </CardContent>
+              </Card>
         </div>
     );
 }

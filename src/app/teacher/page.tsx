@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { Clapperboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,6 +30,14 @@ export default function TeacherPage() {
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [loggedInStudents, setLoggedInStudents] = useState<Student[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [openSections, setOpenSections] = useState({
+    roster: true,
+    responses: true,
+  });
+
+  const handleToggleSection = (section: keyof typeof openSections) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const handleEndQuestion = () => {
     setActiveQuestion(null);
@@ -69,7 +76,7 @@ export default function TeacherPage() {
 
   const handleToggleStudentFocus = (studentId: number) => {
     setLoggedInStudents(prev => prev.map(s => 
-      s.id === studentId ? { ...s, isFocused: !s.isFocused } : s
+      s.id === studentId ? { ...s, isFocused: !(s.isFocused ?? true) } : s
     ));
   };
 
@@ -106,6 +113,8 @@ export default function TeacherPage() {
                   students={students}
                   submissions={submissions}
                   onSubmissionsChange={setSubmissions}
+                  isResponsesOpen={openSections.responses}
+                  onResponsesToggle={() => handleToggleSection('responses')}
                 />
               )}
             </div>
@@ -118,28 +127,11 @@ export default function TeacherPage() {
                   onUpdateStudent={handleUpdateStudent}
                   onDeleteStudent={handleDeleteStudent}
                   onKickStudent={handleKickStudent}
-                  // This is a mock function to simulate a student logging in
                   onStudentLogin={handleStudentLogin}
                   onToggleStudentFocus={handleToggleStudentFocus}
+                  isRosterOpen={openSections.roster}
+                  onRosterToggle={() => handleToggleSection('roster')}
               />
-              <Card className="shadow-md">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Lesson Status
-                  </CardTitle>
-                  <Clapperboard className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-lg font-bold">
-                    {activeQuestion ? "Question Active" : "Idle"}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {activeQuestion
-                      ? `${submissions.length} / ${students.length} responses`
-                      : "Start a question to begin"}
-                  </p>
-                </CardContent>
-              </Card>
             </aside>
           </div>
         </div>
