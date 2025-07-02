@@ -126,10 +126,10 @@ export default function TeacherPage() {
             <div className="flex items-center gap-4">
               <SidebarTrigger />
               <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
+              <Button asChild variant="outline">
+                <Link href="/">Exit Classroom</Link>
+              </Button>
             </div>
-            <Button asChild variant="outline">
-              <Link href="/">Exit Classroom</Link>
-            </Button>
           </header>
 
           <div className="space-y-6">

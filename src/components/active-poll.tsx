@@ -186,12 +186,9 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
   );
 }
 
-type ModalData = { text: string; value: number, type: 'cloud' | 'bar' };
-
 function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }: ResultsProps) {
     const [isAnalyzing, startTransition] = useTransition();
     const [analysis, setAnalysis] = useState<AnalyzeShortAnswersOutput | null>(null);
-    const [modalData, setModalData] = useState<ModalData | null>(null);
     const { toast } = useToast();
 
     const handleAnalyze = () => {
@@ -218,10 +215,6 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
                 });
             }
         });
-    };
-
-    const handleWordClick = (data: ModalData) => {
-        setModalData(data);
     };
 
     if (submissions.length === 0) {
@@ -283,41 +276,49 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
                     </Card>
 
                     <div className="grid md:grid-cols-2 gap-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Keyword Cloud</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <WordCloud data={analysis.wordCloud} onWordClick={handleWordClick} />
-                            </CardContent>
-                        </Card>
-                         <Card>
-                            <CardHeader>
-                                <CardTitle>Keyword Frequency</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <KeywordBarChart data={analysis.barChart} onWordClick={handleWordClick} />
-                            </CardContent>
-                        </Card>
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Card className="cursor-pointer hover:ring-2 hover:ring-primary">
+                                    <CardHeader>
+                                        <CardTitle>Keyword Cloud</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <WordCloud data={analysis.wordCloud} />
+                                    </CardContent>
+                                </Card>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-3xl">
+                                <DialogHeader>
+                                    <DialogTitle>Keyword Cloud</DialogTitle>
+                                </DialogHeader>
+                                <div className="h-[60vh]">
+                                    <WordCloud data={analysis.wordCloud} />
+                                </div>
+                            </DialogContent>
+                        </Dialog>
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Card className="cursor-pointer hover:ring-2 hover:ring-primary">
+                                    <CardHeader>
+                                        <CardTitle>Keyword Frequency</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <KeywordBarChart data={analysis.barChart} />
+                                    </CardContent>
+                                </Card>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-3xl">
+                                <DialogHeader>
+                                    <DialogTitle>Keyword Frequency</DialogTitle>
+                                </DialogHeader>
+                                <div className="h-[60vh] py-8">
+                                    <KeywordBarChart data={analysis.barChart} />
+                                </div>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 </div>
             )}
-
-            <Dialog open={!!modalData} onOpenChange={(open) => !open && setModalData(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Keyword: {modalData?.text}</DialogTitle>
-                    </DialogHeader>
-                    {modalData && (
-                        <div className="flex flex-col items-center justify-center p-8 gap-4">
-                            <p className="text-6xl font-bold text-primary text-center">{modalData.text}</p>
-                            <p className="text-xl text-muted-foreground">
-                                {modalData.type === 'bar' ? `Count: ${modalData.value}` : `Weight: ${modalData.value}`}
-                            </p>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }
@@ -332,12 +333,12 @@ function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: Res
 
     return (
         <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-md border p-2 mb-2 gap-2">
-                <h3 className="flex items-center text-lg font-semibold">
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-md border p-2 mb-2">
+                <h3 className="flex items-center text-lg font-semibold flex-shrink-0">
                     <ImageIcon className="mr-2 h-5 w-5" /> Student Drawings
                 </h3>
-                <div className="flex items-center gap-4 self-end sm:self-auto w-full sm:w-auto justify-end">
-                    <div className="flex items-center gap-2 w-40">
+                <div className="flex items-center gap-4 flex-grow justify-end">
+                    <div className="flex items-center gap-2 w-full max-w-xs">
                         <Label htmlFor="zoom-slider" className="text-sm whitespace-nowrap">Thumbnail Size</Label>
                         <Slider
                             id="zoom-slider"
@@ -346,7 +347,6 @@ function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: Res
                             step={1}
                             value={[sliderValue]}
                             onValueChange={(value) => setSliderValue(value[0])}
-                            inverted
                         />
                     </div>
                     <CollapsibleTrigger asChild>
@@ -484,7 +484,7 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
             answer: mockAnswer,
         };
         
-        onSubmissionsChange(prev => [...prev, newSubmission]);
+        onSubmissionsChange(prev => [...prev.filter(s => s.studentId !== student.id), newSubmission]);
     };
 
     const renderResults = () => {
@@ -555,7 +555,7 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
     );
 }
 
-function WordCloud({ data, onWordClick }: { data: { text: string; value: number }[], onWordClick: (data: ModalData) => void }) {
+function WordCloud({ data }: { data: { text: string; value: number }[] }) {
     if (!data || data.length === 0) {
         return <div className="text-center text-muted-foreground">No keywords found.</div>;
     }
@@ -573,42 +573,35 @@ function WordCloud({ data, onWordClick }: { data: { text: string; value: number 
     };
 
     return (
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 p-4 min-h-[250px] rounded-md bg-muted/50">
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 p-4 min-h-[250px] rounded-md bg-muted/50 h-full">
             {data.map(({ text, value }) => (
-                <button
+                <span
                     key={text}
-                    onClick={() => onWordClick({ text, value, type: 'cloud' })}
                     style={{
                         fontSize: getFontSize(value),
                         fontWeight: Math.round(parseFloat(getFontSize(value))) > 2 ? 600 : 400,
                     }}
-                    className="p-1 leading-tight text-foreground transition-all duration-300 rounded-md hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="p-1 leading-tight text-foreground transition-all duration-300"
                 >
                     {text}
-                </button>
+                </span>
             ))}
         </div>
     );
 }
 
-function KeywordBarChart({ data, onWordClick }: { data: { word: string; count: number }[], onWordClick: (data: ModalData) => void }) {
+function KeywordBarChart({ data }: { data: { word: string; count: number }[] }) {
     if (!data || data.length === 0) {
         return <div className="text-center text-muted-foreground">No data for chart.</div>;
     }
 
     return (
-      <div className="w-full h-auto min-h-[250px]">
+      <div className="w-full h-auto min-h-[250px] h-full">
         <ChartContainer config={{}} className="h-full w-full">
             <BarChart
                 data={data}
                 layout="vertical"
                 margin={{ left: 10, right: 40 }}
-                onClick={(payload) => {
-                    if (payload && payload.activePayload && payload.activePayload[0]) {
-                        const { word, count } = payload.activePayload[0].payload;
-                        onWordClick({ text: word, value: count, type: 'bar' });
-                    }
-                }}
             >
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" hide />
@@ -617,7 +610,7 @@ function KeywordBarChart({ data, onWordClick }: { data: { word: string; count: n
                     cursor={{ fill: 'hsl(var(--muted))' }}
                     content={<ChartTooltipContent />}
                 />
-                <Bar dataKey="count" fill="hsl(var(--primary))" radius={4} className="cursor-pointer">
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={4}>
                     <LabelList dataKey="count" position="right" offset={8} className="fill-foreground" fontSize={12} />
                 </Bar>
             </BarChart>
