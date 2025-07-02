@@ -101,7 +101,7 @@ export default function TeacherPage() {
 
   return (
     <SidebarProvider>
-      <Sidebar side="right">
+      <Sidebar side="left">
         <SidebarContent className="space-y-6 p-2">
            <StudentManagement
                 students={students}
@@ -123,13 +123,13 @@ export default function TeacherPage() {
       <SidebarInset>
         <div className="mx-auto w-full max-w-7xl p-4 md:p-8">
           <header className="mb-6 flex items-center justify-between">
-            <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-            <div className="flex items-center gap-2">
-              <Button asChild variant="outline">
-                <Link href="/">Exit Classroom</Link>
-              </Button>
+            <div className="flex items-center gap-4">
               <SidebarTrigger />
+              <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
             </div>
+            <Button asChild variant="outline">
+              <Link href="/">Exit Classroom</Link>
+            </Button>
           </header>
 
           <div className="space-y-6">

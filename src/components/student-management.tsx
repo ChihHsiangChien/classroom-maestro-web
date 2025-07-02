@@ -211,20 +211,11 @@ export function StudentManagement({
                   {students.length - loggedInStudents.length} student(s) absent
                 </p>
             </div>
-            <div className="flex items-center gap-1">
-              <TooltipProvider>
-                  <Tooltip>
-                      <TooltipTrigger asChild>
-                           <Button variant="ghost" size="icon" className="-mr-2 -mt-1" onClick={onPickStudent} disabled={loggedInStudents.length === 0}>
-                              <Ticket className="h-4 w-4" />
-                              <span className="sr-only">Pick Random Student</span>
-                          </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                          <p>Pick Random Student</p>
-                      </TooltipContent>
-                  </Tooltip>
-              </TooltipProvider>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={onPickStudent} disabled={loggedInStudents.length === 0}>
+                  <Ticket />
+                  抽籤
+              </Button>
               <CollapsibleTrigger asChild>
                   <Button variant="ghost" size="sm" className='-mr-2 -mt-1'>
                       <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
