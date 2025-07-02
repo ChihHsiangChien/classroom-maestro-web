@@ -112,6 +112,7 @@ export function StudentManagement({
   onRosterToggle,
 }: StudentManagementProps) {
   const [classroomUrl, setClassroomUrl] = useState('');
+  const [isClient, setIsClient] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
@@ -124,8 +125,9 @@ export function StudentManagement({
   );
 
   useEffect(() => {
-    // This ensures window is defined, preventing SSR errors.
+    // This ensures window is defined, preventing SSR errors, and sets isClient to true.
     setClassroomUrl(`${window.location.origin}/join`);
+    setIsClient(true);
   }, []);
 
   const handleCopy = () => {
@@ -187,7 +189,7 @@ export function StudentManagement({
                   </Button>
                 </div>
               </div>
-              {classroomUrl && (
+              {isClient && classroomUrl && (
                 <div className="flex flex-col items-center gap-2 rounded-md bg-white p-4">
                   <QRCode value={classroomUrl} size={128} />
                   <p className="text-sm text-muted-foreground">Scan to Join</p>
