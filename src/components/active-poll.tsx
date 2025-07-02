@@ -19,6 +19,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
 
 
 export interface Submission {
@@ -211,34 +220,65 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
 }
 
 function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: ResultsProps) {
+    const [gridCols, setGridCols] = useState(3);
+
     if (submissions.length === 0) {
         return <div className="text-center text-muted-foreground py-8">Waiting for submissions...</div>;
     }
+
     return (
         <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
             <div className="flex items-center justify-between rounded-md border p-2 mb-2">
                 <h3 className="flex items-center text-lg font-semibold">
                     <ImageIcon className="mr-2 h-5 w-5" /> Student Drawings
                 </h3>
-                <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                        <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                        <span className="sr-only">Toggle Responses</span>
-                    </Button>
-                </CollapsibleTrigger>
+                <div className="flex items-center gap-4">
+                    <div className="hidden md:flex items-center gap-2 w-40">
+                        <Label htmlFor="zoom-slider" className="text-sm whitespace-nowrap">Thumbnail Size</Label>
+                        <Slider
+                            id="zoom-slider"
+                            min={1}
+                            max={5}
+                            step={1}
+                            defaultValue={[gridCols]}
+                            onValueChange={(value) => setGridCols(value[0])}
+                        />
+                    </div>
+                    <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                            <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                            <span className="sr-only">Toggle Responses</span>
+                        </Button>
+                    </CollapsibleTrigger>
+                </div>
             </div>
             <CollapsibleContent>
                 <ScrollArea className="h-[500px] w-full">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
+                    <div
+                        className="grid gap-4 p-1"
+                        style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}
+                    >
                         {submissions.map((sub, index) => (
-                            <Card key={index} className="overflow-hidden">
-                               <div className="aspect-video w-full bg-muted relative">
-                                 <Image src={sub.answer as string} alt={`Drawing by ${sub.studentName}`} layout="fill" objectFit="contain" data-ai-hint="student drawing" />
-                               </div>
-                               <CardFooter className="p-2 bg-muted/50 border-t">
-                                 <p className="text-sm font-medium">{sub.studentName}</p>
-                               </CardFooter>
-                            </Card>
+                            <Dialog key={index}>
+                                <DialogTrigger asChild>
+                                    <Card className="overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+                                       <div className="aspect-video w-full bg-muted relative">
+                                         <Image src={sub.answer as string} alt={`Drawing by ${sub.studentName}`} layout="fill" objectFit="contain" data-ai-hint="student drawing" />
+                                       </div>
+                                       <CardFooter className="p-2 bg-muted/50 border-t">
+                                         <p className="text-sm font-medium truncate">{sub.studentName}</p>
+                                       </CardFooter>
+                                    </Card>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-3xl">
+                                    <DialogHeader>
+                                        <DialogTitle>Submission by {sub.studentName}</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="relative w-full aspect-video bg-muted rounded-md overflow-hidden">
+                                        <Image src={sub.answer as string} alt={`Drawing by ${sub.studentName}`} layout="fill" objectFit="contain" />
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
                         ))}
                     </div>
                 </ScrollArea>
