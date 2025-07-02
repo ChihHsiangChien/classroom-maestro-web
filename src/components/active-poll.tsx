@@ -1,7 +1,7 @@
 
 "use client";
 
-import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, Clapperboard, ChevronDown, Wand2, Loader2, BrainCircuit } from "lucide-react";
+import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, Clapperboard, ChevronDown, Wand2, Loader2, BrainCircuit, Eye, EyeOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -313,7 +313,7 @@ function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: Res
                 <h3 className="flex items-center text-lg font-semibold">
                     <ImageIcon className="mr-2 h-5 w-5" /> Student Drawings
                 </h3>
-                <div className="flex items-center gap-4 self-end sm:self-auto">
+                <div className="flex items-center gap-4 self-end sm:self-auto w-full sm:w-auto justify-end">
                     <div className="flex items-center gap-2 w-40">
                         <Label htmlFor="zoom-slider" className="text-sm whitespace-nowrap">Thumbnail Size</Label>
                         <Slider
@@ -323,6 +323,7 @@ function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: Res
                             step={1}
                             value={[sliderValue]}
                             onValueChange={(value) => setSliderValue(value[0])}
+                            inverted
                         />
                     </div>
                     <CollapsibleTrigger asChild>
@@ -442,7 +443,9 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
                 mockAnswer = Math.random() > 0.5 ? 'O' : 'X';
                 break;
             case 'short-answer':
-                mockAnswer = `這是來自 ${student.name} 的模擬答案，內容是隨機產生的。`;
+                const fruits = ['蘋果', '香蕉', '櫻桃', '榴槤', '草莓', '橘子', '西瓜'];
+                const shuffled = fruits.sort(() => 0.5 - Math.random());
+                mockAnswer = shuffled.slice(0, 2).join('、');
                 break;
             case 'drawing':
                 mockAnswer = `https://placehold.co/400x300.png`;
