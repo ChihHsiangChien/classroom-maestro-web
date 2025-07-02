@@ -1,7 +1,6 @@
 'use client';
 
 import { School, User } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -27,12 +26,10 @@ const students: Student[] = [
 ];
 
 export default function JoinPage() {
-  const router = useRouter();
-
   const handleStudentClick = (student: Student) => {
     const url = `/classroom/${encodeURIComponent(student.name)}`;
-    console.log(`[JoinPage] Navigating to: ${url}`);
-    router.push(url);
+    // Use window.location.href for robust navigation when router.push fails.
+    window.location.href = url;
   };
 
   return (
