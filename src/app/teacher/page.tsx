@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Clapperboard } from "lucide-react";
+import { Clapperboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,18 +14,56 @@ import Link from "next/link";
 import { CreateQuestionForm } from "@/components/create-poll-form";
 import { ActiveQuestion } from "@/components/active-poll";
 import type { QuestionData } from "@/components/create-poll-form";
+import { StudentManagement } from "@/components/student-management";
+import type { Student } from "@/components/student-management";
 
+const initialStudents: Student[] = [
+    { id: 1, name: 'Alice' },
+    { id: 2, name: 'Bob' },
+    { id: 3, name: 'Charlie' },
+    { id: 4, name: 'David' },
+    { id: 5, name: 'Eve' },
+];
 
 export default function TeacherPage() {
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
+  const [students, setStudents] = useState<Student[]>(initialStudents);
+  const [loggedInStudents, setLoggedInStudents] = useState<Student[]>([]);
 
   const handleEndQuestion = () => {
     setActiveQuestion(null);
   };
+  
+  // These functions simulate what would be API calls to a backend
+  const handleAddStudent = (name: string) => {
+    setStudents(prev => [...prev, { id: Date.now(), name }]);
+  };
+
+  const handleUpdateStudent = (id: number, name: string) => {
+    setStudents(prev => prev.map(s => s.id === id ? { ...s, name } : s));
+    setLoggedInStudents(prev => prev.map(s => s.id === id ? { ...s, name } : s));
+  };
+  
+  const handleDeleteStudent = (id: number) => {
+    setStudents(prev => prev.filter(s => s.id !== id));
+    setLoggedInStudents(prev => prev.filter(s => s.id !== id));
+  };
+  
+  const handleKickStudent = (id: number) => {
+    setLoggedInStudents(prev => prev.filter(s => s.id !== id));
+  };
+  
+  // This would be triggered by a websocket/realtime event from students
+  const handleStudentLogin = (student: Student) => {
+    if (!loggedInStudents.find(s => s.id === student.id)) {
+      setLoggedInStudents(prev => [...prev, student]);
+    }
+  };
+
 
   return (
     <main className="min-h-screen bg-muted/40 p-4 md:p-8">
-      <div className="mx-auto w-full max-w-6xl">
+      <div className="mx-auto w-full max-w-7xl">
         <header className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
           <Button asChild variant="outline">
@@ -33,8 +71,8 @@ export default function TeacherPage() {
           </Button>
         </header>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <div className="md:col-span-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
             {!activeQuestion ? (
               <Card className="shadow-md">
                 <CardHeader>
@@ -53,20 +91,16 @@ export default function TeacherPage() {
           </div>
 
           <aside className="space-y-6">
-            <Card className="shadow-md">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Live Students
-                </CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">0</div>
-                <p className="text-xs text-muted-foreground">
-                  No students have joined yet.
-                </p>
-              </CardContent>
-            </Card>
+            <StudentManagement
+                students={students}
+                loggedInStudents={loggedInStudents}
+                onAddStudent={handleAddStudent}
+                onUpdateStudent={handleUpdateStudent}
+                onDeleteStudent={handleDeleteStudent}
+                onKickStudent={handleKickStudent}
+                // This is a mock function to simulate a student logging in
+                onStudentLogin={handleStudentLogin}
+            />
             <Card className="shadow-md">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">

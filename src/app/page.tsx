@@ -12,7 +12,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { JoinClassroomForm } from "@/components/join-classroom-form";
 import { TeacherLoginForm } from "@/components/teacher-login-form";
 
 export default function Home() {
@@ -46,11 +45,14 @@ export default function Home() {
             <CardHeader>
               <CardTitle>Join the Classroom</CardTitle>
               <CardDescription>
-                Enter a nickname below or generate one to get started.
+                Please use the unique URL provided by your teacher to join the
+                classroom.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <JoinClassroomForm />
+              <div className="text-center text-muted-foreground p-4 bg-muted/50 rounded-md">
+                Ask your teacher for the link!
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

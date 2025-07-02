@@ -10,13 +10,13 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Hourglass, CheckSquare } from "lucide-react";
-import Link from "next/link";
 import { StudentQuestionForm } from "@/components/student-poll";
 import type { QuestionData } from "@/components/create-poll-form";
 
 interface ClassroomPageProps {
   params: {
-    nickname: string;
+    studentId: string;
+    classroomId: string;
   };
 }
 
@@ -36,7 +36,7 @@ const mockDrawing: QuestionData = { type: 'drawing', question: 'Draw your favori
 
 export default function ClassroomPage({ params }: ClassroomPageProps) {
   const resolvedParams = use(params);
-  const nickname = decodeURIComponent(resolvedParams.nickname);
+  const studentName = decodeURIComponent(resolvedParams.studentId);
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
 
@@ -78,7 +78,7 @@ export default function ClassroomPage({ params }: ClassroomPageProps) {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Hourglass className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle>Welcome, {nickname}!</CardTitle>
+          <CardTitle>Welcome, {studentName}!</CardTitle>
           <CardDescription>
             The lesson will begin shortly. Please wait for the teacher to
             start an activity.
