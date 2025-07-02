@@ -4,7 +4,7 @@ import { BarChart, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import type { QuestionData, MultipleChoiceQuestion } from "./create-poll-form";
+import type { QuestionData, MultipleChoiceQuestion, ImageAnnotationQuestion } from "./create-poll-form";
 import React, { useMemo } from "react";
 import type { Student } from "./student-management";
 import { ScrollArea } from "./ui/scroll-area";
@@ -67,7 +67,7 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
         percentage: totalVotes > 0 ? (votes / (question.allowMultipleAnswers ? submissions.length : totalVotes)) * 100 : 0
       };
     });
-  }, [submissions, question.options, question.allowMultipleAnswers, students.length]);
+  }, [submissions, question.options, question.allowMultipleAnswers]);
 
   const studentAnswers = useMemo(() => {
     const answerMap = new Map<number, string | string[]>();
@@ -205,6 +205,23 @@ function DrawingResults({ submissions }: { submissions: Submission[] }) {
     );
 }
 
+function ImageAnnotationResults({ question, submissions }: { question: ImageAnnotationQuestion, submissions: Submission[] }) {
+    return (
+        <div className="space-y-6">
+            <div>
+                <h3 className="mb-2 flex items-center text-lg font-semibold">
+                    <PencilRuler className="mr-2 h-5 w-5" /> Original Image
+                </h3>
+                <div className="aspect-video w-full rounded-md border bg-muted relative">
+                    <Image src={question.imageUrl} alt="Original image for annotation" layout="fill" objectFit="contain" data-ai-hint="diagram chart" />
+                </div>
+            </div>
+            {submissions.length > 0 && <div className="border-t pt-6" />}
+            <DrawingResults submissions={submissions} />
+        </div>
+    );
+}
+
 function SubmissionTracker({ students, submissions, onSimulateSubmission }: { students: Student[], submissions: Submission[], onSimulateSubmission: (student: Student) => void }) {
     const submittedIds = new Set(submissions.map(s => s.studentId));
     
@@ -267,6 +284,9 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
             case 'drawing':
                 mockAnswer = `https://placehold.co/400x300.png`;
                 break;
+            case 'image-annotation':
+                mockAnswer = `https://placehold.co/400x300.png`;
+                break;
         }
         
         const newSubmission: Submission = {
@@ -289,6 +309,8 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
                 return <TextResponseResults submissions={submissions} />;
             case 'drawing':
                 return <DrawingResults submissions={submissions} />;
+            case 'image-annotation':
+                return <ImageAnnotationResults question={question} submissions={submissions} />;
             default:
                 return null;
         }

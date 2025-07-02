@@ -3,8 +3,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
-import { PlusCircle, XCircle, Wand2, Loader2, FileText, Vote, Image as ImageIcon, CheckSquare as CheckSquareIcon } from "lucide-react";
-import { useState, useTransition } from "react";
+import { PlusCircle, XCircle, Wand2, Loader2, FileText, Vote, Image as ImageIcon, CheckSquare as CheckSquareIcon, PencilRuler } from "lucide-react";
+import { useState, useTransition, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,8 @@ import { useToast } from "@/hooks/use-toast";
 import { generatePollAction } from "@/app/actions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { DrawingEditor, type DrawingEditorRef } from "./drawing-editor";
+
 
 // --- SHARED TYPES ---
 export interface MultipleChoiceQuestion {
@@ -43,11 +45,17 @@ export interface DrawingQuestion {
   type: 'drawing';
   question: string;
 }
+export interface ImageAnnotationQuestion {
+  type: 'image-annotation';
+  question: string;
+  imageUrl: string;
+}
 export type QuestionData = 
   | MultipleChoiceQuestion 
   | TrueFalseQuestion 
   | ShortAnswerQuestion 
-  | DrawingQuestion;
+  | DrawingQuestion
+  | ImageAnnotationQuestion;
 export type PollData = MultipleChoiceQuestion;
 
 
@@ -139,14 +147,62 @@ function SimpleQuestionForm({ type, onQuestionCreate, schema, placeholder, label
     );
 }
 
+function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
+    const editorRef = useRef<DrawingEditorRef>(null);
+    const [question, setQuestion] = useState("");
+    const { toast } = useToast();
+
+    function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        const imageUrl = editorRef.current?.getCanvasDataUrl();
+        if (!question.trim()) {
+             toast({ variant: "destructive", title: "Error", description: "Please enter a prompt for the annotation." });
+             return;
+        }
+        if (imageUrl) {
+            onQuestionCreate({
+                type: 'image-annotation',
+                question: question.trim(),
+                imageUrl,
+            });
+        } else {
+            toast({ variant: "destructive", title: "Error", description: "Could not get image data from the editor." });
+        }
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+                <Label htmlFor="annotation-prompt">Annotation Prompt</Label>
+                <Textarea 
+                    id="annotation-prompt"
+                    placeholder="e.g., 'Circle the mitochondria in the cell diagram.'"
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    rows={2}
+                />
+            </div>
+            <div className="space-y-2">
+                <Label>Canvas</Label>
+                <p className="text-sm text-muted-foreground">
+                    Upload, paste, or draw the image you want students to annotate.
+                </p>
+                <DrawingEditor ref={editorRef} />
+            </div>
+            <Button type="submit" className="w-full md:w-auto">Start Question</Button>
+        </form>
+    );
+}
+
 export function CreateQuestionForm({ onQuestionCreate }: QuestionFormProps) {
     return (
         <Tabs defaultValue="multiple-choice" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="multiple-choice"><Vote className="mr-2 h-4 w-4" />Multiple Choice</TabsTrigger>
                 <TabsTrigger value="true-false"><CheckSquareIcon className="mr-2 h-4 w-4" />True/False</TabsTrigger>
                 <TabsTrigger value="short-answer"><FileText className="mr-2 h-4 w-4" />Short Answer</TabsTrigger>
                 <TabsTrigger value="drawing"><ImageIcon className="mr-2 h-4 w-4" />Drawing</TabsTrigger>
+                <TabsTrigger value="image-annotation"><PencilRuler className="mr-2 h-4 w-4" />Annotation</TabsTrigger>
             </TabsList>
             <TabsContent value="multiple-choice" className="mt-4">
                 <MultipleChoiceForm onQuestionCreate={onQuestionCreate} />
@@ -159,6 +215,9 @@ export function CreateQuestionForm({ onQuestionCreate }: QuestionFormProps) {
             </TabsContent>
             <TabsContent value="drawing" className="mt-4">
                  <SimpleQuestionForm type="drawing" onQuestionCreate={onQuestionCreate} schema={simpleQuestionSchema} label="Drawing Prompt" placeholder="e.g. Draw a diagram of the water cycle." />
+            </TabsContent>
+            <TabsContent value="image-annotation" className="mt-4">
+                 <ImageAnnotationForm onQuestionCreate={onQuestionCreate} />
             </TabsContent>
         </Tabs>
     );

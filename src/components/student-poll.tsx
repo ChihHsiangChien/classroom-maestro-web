@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -14,10 +14,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import type { QuestionData, MultipleChoiceQuestion } from "./create-poll-form";
+import type { QuestionData, MultipleChoiceQuestion, ImageAnnotationQuestion } from "./create-poll-form";
 import { Textarea } from "./ui/textarea";
 import { Label } from '@/components/ui/label';
 import { Checkbox } from './ui/checkbox';
+import type { DrawingEditorRef } from './drawing-editor';
 
 const DrawingEditor = dynamic(
   () => import('./drawing-editor').then((mod) => mod.DrawingEditor),
@@ -65,7 +66,7 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
                                             const displayValue = option.value ? `${letter}. ${option.value}` : letter;
                                             const submittedValue = option.value || letter;
                                             return (
-                                                <Label key={index} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[button[data-state=checked]]:bg-primary/10 has-[button[data-state=checked]]:border-primary">
+                                                <Label key={`${submittedValue}-${index}`} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[button[data-state=checked]]:bg-primary/10 has-[button[data-state=checked]]:border-primary">
                                                     <Checkbox
                                                         checked={field.value?.includes(submittedValue)}
                                                         onCheckedChange={(checked) => {
@@ -94,7 +95,7 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
                                                 const displayValue = option.value ? `${letter}. ${option.value}` : letter;
                                                 const submittedValue = option.value || letter;
                                                 return (
-                                                    <Label key={index} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
+                                                    <Label key={`${submittedValue}-${index}`} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
                                                         <RadioGroupItem value={submittedValue} />
                                                         <span>{displayValue}</span>
                                                     </Label>
@@ -126,6 +127,33 @@ function ShortAnswerForm({ onSubmit }: { onSubmit: () => void }) {
     return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><FormField control={form.control} name="answer" render={({ field }) => (<FormItem><FormLabel>Your Answer</FormLabel><FormControl><Textarea placeholder="Type your answer here..." {...field} rows={4} /></FormControl><FormMessage /></FormItem>)} /><Button type="submit" className="w-full">Submit Answer</Button></form></Form>);
 }
 
+function CanvasSubmissionForm({
+  onSubmit,
+  backgroundImageUrl,
+}: {
+  onSubmit: (dataUrl: string) => void;
+  backgroundImageUrl?: string;
+}) {
+  const editorRef = useRef<DrawingEditorRef>(null);
+
+  const handleSubmitClick = () => {
+    const dataUrl = editorRef.current?.getCanvasDataUrl();
+    if (dataUrl) {
+      onSubmit(dataUrl);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <DrawingEditor ref={editorRef} backgroundImageUrl={backgroundImageUrl} />
+      <div className="flex justify-end">
+        <Button onClick={handleSubmitClick}>Submit</Button>
+      </div>
+    </div>
+  );
+}
+
+
 // --- Main Component ---
 export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionFormProps) {
   const { toast } = useToast();
@@ -137,7 +165,7 @@ export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionF
 
   function handleDrawingSubmit(dataUrl: string) {
     // In a real app, you would upload the dataUrl to a server
-    console.log("Drawing submitted:", dataUrl.substring(0, 50) + "...");
+    console.log("Drawing/Annotation submitted:", dataUrl.substring(0, 50) + "...");
     handleSubmit();
   }
 
@@ -146,7 +174,8 @@ export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionF
           case 'multiple-choice': return <MultipleChoiceForm question={question} onSubmit={handleSubmit} />;
           case 'true-false': return <TrueFalseForm onSubmit={handleSubmit} />;
           case 'short-answer': return <ShortAnswerForm onSubmit={handleSubmit} />;
-          case 'drawing': return <DrawingEditor onSubmit={handleDrawingSubmit} />;
+          case 'drawing': return <CanvasSubmissionForm onSubmit={handleDrawingSubmit} />;
+          case 'image-annotation': return <CanvasSubmissionForm onSubmit={handleDrawingSubmit} backgroundImageUrl={question.imageUrl} />;
           default: return <p>Unknown question type.</p>;
       }
   }
@@ -155,7 +184,7 @@ export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionF
     <Card className="w-full max-w-2xl animate-in fade-in shadow-lg">
       <CardHeader>
         <CardTitle className="text-2xl">{question.question}</CardTitle>
-        {question.type === 'drawing' && <CardDescription>Use the editor below to create your response.</CardDescription>}
+        {(question.type === 'drawing' || question.type === 'image-annotation') && <CardDescription>Use the editor below to create your response.</CardDescription>}
       </CardHeader>
       <CardContent>{renderForm()}</CardContent>
     </Card>
