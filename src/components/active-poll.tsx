@@ -36,7 +36,11 @@ interface ActiveQuestionProps {
 function MultipleChoiceResults({ question, submissions, students }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: { value: string }[], allowMultipleAnswers?: boolean }); submissions: Submission[], students: Student[] }) {
   const results = useMemo(() => {
     const voteCounts = new Map<string, number>();
-    question.options.forEach(option => voteCounts.set(option.value, 0));
+    question.options.forEach((option, index) => {
+        const letter = String.fromCharCode(65 + index);
+        const optionIdentifier = option.value || letter;
+        voteCounts.set(optionIdentifier, 0);
+    });
     
     submissions.forEach(sub => {
       const answers = Array.isArray(sub.answer) ? sub.answer : [sub.answer];
@@ -51,15 +55,19 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
         return acc + (Array.isArray(sub.answer) ? sub.answer.length : 1);
     }, 0);
 
-    return question.options.map(option => {
-      const votes = voteCounts.get(option.value) || 0;
+    return question.options.map((option, index) => {
+      const letter = String.fromCharCode(65 + index);
+      const optionIdentifier = option.value || letter;
+      const votes = voteCounts.get(optionIdentifier) || 0;
+      const displayValue = option.value ? `${letter}. ${option.value}` : letter;
+
       return {
-        option: option.value,
+        option: displayValue,
         votes,
         percentage: totalVotes > 0 ? (votes / (question.allowMultipleAnswers ? submissions.length : totalVotes)) * 100 : 0
       };
     });
-  }, [submissions, question.options, question.allowMultipleAnswers]);
+  }, [submissions, question.options, question.allowMultipleAnswers, students.length]);
 
   const studentAnswers = useMemo(() => {
     const answerMap = new Map<number, string | string[]>();
@@ -107,9 +115,12 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
               <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
                 <TableRow>
                   <TableHead className="w-[150px]">Student</TableHead>
-                  {question.options.map((option, index) => (
-                    <TableHead key={`${option.value}-${index}`} className="text-center">{option.value}</TableHead>
-                  ))}
+                  {question.options.map((option, index) => {
+                     const letter = String.fromCharCode(65 + index);
+                     return (
+                        <TableHead key={`${letter}-${index}`} className="text-center">{letter}</TableHead>
+                     )
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -118,15 +129,19 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
                   return (
                     <TableRow key={student.id} data-answered={!!answer} className="data-[answered=true]:bg-green-500/10">
                       <TableCell className="font-medium">{student.name}</TableCell>
-                      {question.options.map((option, index) => (
-                        <TableCell key={`${option.value}-${index}`} className="text-center">
-                          {answer && (Array.isArray(answer) ? answer.includes(option.value) : answer === option.value) && (
-                            <div className="flex justify-center">
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                            </div>
-                          )}
-                        </TableCell>
-                      ))}
+                      {question.options.map((option, index) => {
+                         const letter = String.fromCharCode(65 + index);
+                         const optionIdentifier = option.value || letter;
+                        return (
+                            <TableCell key={`${letter}-${index}`} className="text-center">
+                            {answer && (Array.isArray(answer) ? answer.includes(optionIdentifier) : answer === optionIdentifier) && (
+                                <div className="flex justify-center">
+                                <CheckCircle className="h-5 w-5 text-green-600" />
+                                </div>
+                            )}
+                            </TableCell>
+                        )
+                      })}
                     </TableRow>
                   );
                 })}
@@ -234,11 +249,13 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
         switch(question.type) {
             case 'multiple-choice':
                 if (question.allowMultipleAnswers) {
-                    const options = question.options.map(o => o.value);
+                    const options = question.options.map((o, i) => (o.value || String.fromCharCode(65 + i)));
                     const numAnswers = Math.floor(Math.random() * options.length) + 1;
                     mockAnswer = [...options].sort(() => 0.5 - Math.random()).slice(0, numAnswers);
                 } else {
-                    mockAnswer = question.options[Math.floor(Math.random() * question.options.length)].value;
+                    const randomIndex = Math.floor(Math.random() * question.options.length);
+                    const randomOption = question.options[randomIndex];
+                    mockAnswer = randomOption.value || String.fromCharCode(65 + randomIndex);
                 }
                 break;
             case 'true-false':

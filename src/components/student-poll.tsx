@@ -61,18 +61,20 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
                                 <div className="flex flex-col space-y-2">
                                     {question.allowMultipleAnswers ? (
                                         question.options.map((option, index) => {
-                                            const displayValue = option.value || String.fromCharCode(65 + index);
+                                            const letter = String.fromCharCode(65 + index);
+                                            const displayValue = option.value ? `${letter}. ${option.value}` : letter;
+                                            const submittedValue = option.value || letter;
                                             return (
                                                 <Label key={index} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[button[data-state=checked]]:bg-primary/10 has-[button[data-state=checked]]:border-primary">
                                                     <Checkbox
-                                                        checked={field.value?.includes(displayValue)}
+                                                        checked={field.value?.includes(submittedValue)}
                                                         onCheckedChange={(checked) => {
                                                             const newAnswers = field.value || [];
                                                             if (checked) {
-                                                                field.onChange([...newAnswers, displayValue]);
+                                                                field.onChange([...newAnswers, submittedValue]);
                                                             } else {
                                                                 field.onChange(
-                                                                    newAnswers.filter((value) => value !== displayValue)
+                                                                    newAnswers.filter((value) => value !== submittedValue)
                                                                 );
                                                             }
                                                         }}
@@ -88,10 +90,12 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
                                             className="w-full space-y-2"
                                         >
                                             {question.options.map((option, index) => {
-                                                const displayValue = option.value || String.fromCharCode(65 + index);
+                                                const letter = String.fromCharCode(65 + index);
+                                                const displayValue = option.value ? `${letter}. ${option.value}` : letter;
+                                                const submittedValue = option.value || letter;
                                                 return (
                                                     <Label key={index} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
-                                                        <RadioGroupItem value={displayValue} />
+                                                        <RadioGroupItem value={submittedValue} />
                                                         <span>{displayValue}</span>
                                                     </Label>
                                                 );
