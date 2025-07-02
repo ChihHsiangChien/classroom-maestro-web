@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { QuestionData, MultipleChoiceQuestion, ImageAnnotationQuestion } from "./create-poll-form";
 import React, { useMemo, useState } from "react";
-import type { Student } from "./student-management";
+import type { Student, Submission } from "./student-management";
 import { ScrollArea } from "./ui/scroll-area";
 import Image from "next/image";
 import {
@@ -28,13 +28,6 @@ import {
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-
-
-export interface Submission {
-  studentId: number;
-  studentName: string;
-  answer: string | string[];
-}
 
 interface ActiveQuestionProps {
   question: QuestionData;

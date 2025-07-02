@@ -12,11 +12,11 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 import { CreateQuestionForm } from "@/components/create-poll-form";
-import { ActiveQuestion, type Submission } from "@/components/active-poll";
+import { ActiveQuestion } from "@/components/active-poll";
 import type { QuestionData } from "@/components/create-poll-form";
-import { StudentManagement } from "@/components/student-management";
-import type { Student } from "@/components/student-management";
+import { StudentManagement, type Student, type Submission } from "@/components/student-management";
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { LotteryModal } from "@/components/lottery-modal";
 
 const initialStudents: Student[] = [
     { id: 1, name: '01王大明' },
@@ -36,6 +36,7 @@ export default function TeacherPage() {
     responses: true,
     management: true,
   });
+  const [lotteryStudent, setLotteryStudent] = useState<(Student & { submission?: Submission }) | null>(null);
 
   const handleToggleSection = (section: keyof typeof openSections) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -82,6 +83,21 @@ export default function TeacherPage() {
     ));
   };
 
+  const handlePickStudent = () => {
+    if (loggedInStudents.length === 0) {
+      return;
+    }
+    const randomIndex = Math.floor(Math.random() * loggedInStudents.length);
+    const student = loggedInStudents[randomIndex];
+    const submission = submissions.find(s => s.studentId === student.id);
+    setLotteryStudent({ ...student, submission });
+  };
+
+  const handleCloseLottery = (open: boolean) => {
+    if (!open) {
+      setLotteryStudent(null);
+    }
+  };
 
   return (
     <SidebarProvider>
@@ -96,6 +112,7 @@ export default function TeacherPage() {
                 onKickStudent={handleKickStudent}
                 onStudentLogin={handleStudentLogin}
                 onToggleStudentFocus={handleToggleStudentFocus}
+                onPickStudent={handlePickStudent}
                 isManagementOpen={openSections.management}
                 onManagementToggle={() => handleToggleSection('management')}
                 isRosterOpen={openSections.roster}
@@ -140,9 +157,14 @@ export default function TeacherPage() {
               />
             )}
           </div>
-
         </div>
       </SidebarInset>
+       <LotteryModal 
+          studentData={lotteryStudent} 
+          onOpenChange={handleCloseLottery}
+          onPickAgain={handlePickStudent} 
+          activeQuestion={activeQuestion}
+      />
     </SidebarProvider>
   );
 }

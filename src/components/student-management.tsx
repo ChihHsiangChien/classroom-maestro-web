@@ -12,6 +12,7 @@ import {
   Copy,
   Check,
   ChevronDown,
+  Ticket,
 } from 'lucide-react';
 import {
   Card,
@@ -73,6 +74,12 @@ export type Student = {
   isFocused?: boolean;
 };
 
+export interface Submission {
+  studentId: number;
+  studentName: string;
+  answer: string | string[];
+}
+
 interface StudentManagementProps {
   students: Student[];
   loggedInStudents: Student[];
@@ -82,6 +89,7 @@ interface StudentManagementProps {
   onKickStudent: (id: number) => void;
   onStudentLogin: (student: Student) => void; // Mock
   onToggleStudentFocus: (id: number) => void; // Mock
+  onPickStudent: () => void;
   isManagementOpen: boolean;
   onManagementToggle: (isOpen: boolean) => void;
   isRosterOpen: boolean;
@@ -97,6 +105,7 @@ export function StudentManagement({
   onKickStudent,
   onStudentLogin,
   onToggleStudentFocus,
+  onPickStudent,
   isManagementOpen,
   onManagementToggle,
   isRosterOpen,
@@ -202,12 +211,27 @@ export function StudentManagement({
                   {students.length - loggedInStudents.length} student(s) absent
                 </p>
             </div>
-            <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className='-mr-2 -mt-1'>
-                    <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                    <span className="sr-only">Toggle Roster</span>
-                </Button>
-            </CollapsibleTrigger>
+            <div className="flex items-center gap-1">
+              <TooltipProvider>
+                  <Tooltip>
+                      <TooltipTrigger asChild>
+                           <Button variant="ghost" size="icon" className="-mr-2 -mt-1" onClick={onPickStudent} disabled={loggedInStudents.length === 0}>
+                              <Ticket className="h-4 w-4" />
+                              <span className="sr-only">Pick Random Student</span>
+                          </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                          <p>Pick Random Student</p>
+                      </TooltipContent>
+                  </Tooltip>
+              </TooltipProvider>
+              <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className='-mr-2 -mt-1'>
+                      <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                      <span className="sr-only">Toggle Roster</span>
+                  </Button>
+              </CollapsibleTrigger>
+            </div>
           </CardHeader>
           <CollapsibleContent>
             <Tabs defaultValue="not-logged-in" className="w-full">
