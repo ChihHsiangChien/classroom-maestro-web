@@ -1,120 +1,238 @@
+
 "use client";
 
-import { BarChart, Users, Loader2, FileText, Image as ImageIcon } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { BarChart, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { QuestionData, MultipleChoiceQuestion } from "./create-poll-form";
-import { useEffect, useState } from "react";
+import React, { useMemo } from "react";
+import type { Student } from "./student-management";
+import { ScrollArea } from "./ui/scroll-area";
+import Image from "next/image";
+
+export interface Submission {
+  studentId: number;
+  studentName: string;
+  answer: string;
+}
 
 interface ActiveQuestionProps {
   question: QuestionData;
   onEndQuestion: () => void;
+  students: Student[];
+  submissions: Submission[];
+  onSubmissionsChange: React.Dispatch<React.SetStateAction<Submission[]>>;
 }
 
-function MultipleChoiceResults({ question }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: {value: string}[]}) }) {
-    const [results, setResults] = useState<{ votes: number; percentage: number }[]>([]);
+function MultipleChoiceResults({ question, submissions }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: { value: string }[] }); submissions: Submission[] }) {
+  const results = useMemo(() => {
+    const voteCounts = new Map<string, number>();
+    question.options.forEach(option => voteCounts.set(option.value, 0));
+    
+    submissions.forEach(sub => {
+      if (voteCounts.has(sub.answer)) {
+        voteCounts.set(sub.answer, (voteCounts.get(sub.answer) || 0) + 1);
+      }
+    });
 
-    useEffect(() => {
-        let totalVotes = 0;
-        const initialResults = question.options.map(() => {
-            const votes = Math.floor(Math.random() * 20);
-            totalVotes += votes;
-            return { votes, percentage: 0 };
-        });
+    const totalVotes = submissions.length;
 
-        const finalResults = initialResults.map((result) => ({
-            ...result,
-            percentage: totalVotes > 0 ? (result.votes / totalVotes) * 100 : 0,
-        }));
+    return question.options.map(option => {
+      const votes = voteCounts.get(option.value) || 0;
+      return {
+        option: option.value,
+        votes,
+        percentage: totalVotes > 0 ? (votes / totalVotes) * 100 : 0
+      };
+    });
+  }, [submissions, question.options]);
 
-        setResults(finalResults);
-    }, [question.options]);
+  const totalVotes = submissions.length;
+
+  return (
+    <>
+      <h3 className="mb-4 flex items-center text-lg font-semibold">
+        <BarChart className="mr-2 h-5 w-5" /> Live Results
+      </h3>
+      <div className="space-y-4">
+        {results.map((result) => (
+          <div key={result.option}>
+            <div className="mb-1 flex items-center justify-between">
+              <p className="font-medium">{result.option}</p>
+              <p className="text-sm text-muted-foreground">
+                {result.votes} votes ({result.percentage.toFixed(0)}%)
+              </p>
+            </div>
+            <Progress value={result.percentage} className="h-3" />
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex items-center justify-between border-t pt-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2"><Users className="h-4 w-4" /><span>{totalVotes} total votes</span></div>
+      </div>
+    </>
+  );
+}
+
+function TextResponseResults({ submissions }: { submissions: Submission[] }) {
+    if (submissions.length === 0) {
+        return <div className="text-center text-muted-foreground py-8">Waiting for submissions...</div>;
+    }
 
     return (
         <>
-            <div>
-                <h3 className="mb-4 flex items-center text-lg font-semibold">
-                    <BarChart className="mr-2 h-5 w-5" /> Live Results
-                </h3>
+            <h3 className="mb-4 flex items-center text-lg font-semibold">
+                <FileText className="mr-2 h-5 w-5" /> Student Responses
+            </h3>
+            <ScrollArea className="h-72 w-full rounded-md border p-4">
                 <div className="space-y-4">
-                    {question.options.map((option, index) => {
-                        const result = results[index] || { votes: 0, percentage: 0 };
-                        const displayValue = option.value || String.fromCharCode(65 + index);
-                        return (
-                            <div key={index}>
-                                <div className="mb-1 flex items-center justify-between">
-                                    <p className="font-medium">{displayValue}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {result.votes} votes ({result.percentage.toFixed(0)}%)
-                                    </p>
-                                </div>
-                                <Progress value={result.percentage} className="h-3" />
-                            </div>
-                        );
-                    })}
+                    {submissions.map((sub, index) => (
+                        <div key={index} className="p-3 bg-muted/50 rounded-md">
+                            <p className="font-semibold text-sm">{sub.studentName}</p>
+                            <p className="text-foreground">{sub.answer}</p>
+                        </div>
+                    ))}
                 </div>
-            </div>
-            <div className="flex items-center justify-between border-t pt-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2"><Users className="h-4 w-4" /><span>{results.reduce((acc, r) => acc + r.votes, 0)} total votes</span></div>
-                <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span>Real-time updates</span></div>
-            </div>
+            </ScrollArea>
         </>
     );
 }
 
-function OtherResults({ icon, title }: { icon: React.ReactNode, title: string }) {
+function DrawingResults({ submissions }: { submissions: Submission[] }) {
+    if (submissions.length === 0) {
+        return <div className="text-center text-muted-foreground py-8">Waiting for submissions...</div>;
+    }
     return (
-        <div className="text-center py-8">
-            {icon}
-            <h3 className="mt-2 text-lg font-semibold">{title} Responses</h3>
-            <p className="text-muted-foreground">Waiting for student submissions...</p>
-            <div className="mt-4 text-sm text-muted-foreground flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span>Real-time updates</span></div>
-        </div>
+        <>
+            <h3 className="mb-4 flex items-center text-lg font-semibold">
+                <ImageIcon className="mr-2 h-5 w-5" /> Student Drawings
+            </h3>
+            <ScrollArea className="h-[500px] w-full">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
+                    {submissions.map((sub, index) => (
+                        <Card key={index} className="overflow-hidden">
+                           <div className="aspect-video w-full bg-muted relative">
+                             <Image src={sub.answer} alt={`Drawing by ${sub.studentName}`} layout="fill" objectFit="contain" data-ai-hint="student drawing" />
+                           </div>
+                           <CardFooter className="p-2 bg-muted/50 border-t">
+                             <p className="text-sm font-medium">{sub.studentName}</p>
+                           </CardFooter>
+                        </Card>
+                    ))}
+                </div>
+            </ScrollArea>
+        </>
     );
 }
 
-export function ActiveQuestion({ question, onEndQuestion }: ActiveQuestionProps) {
-  const renderResults = () => {
-    switch(question.type) {
-        case 'multiple-choice':
-            return <MultipleChoiceResults question={question} />;
-        case 'true-false':
-            const trueFalseAsMc = { ...question, options: [{value: "True"}, {value: "False"}] };
-            return <MultipleChoiceResults question={trueFalseAsMc} />;
-        case 'short-answer':
-            return <OtherResults icon={<FileText className="mx-auto h-10 w-10 text-muted-foreground" />} title="Short Answer" />;
-        case 'drawing':
-            return <OtherResults icon={<ImageIcon className="mx-auto h-10 w-10 text-muted-foreground" />} title="Drawing" />;
-        default:
-            return null;
-    }
-  }
+function SubmissionTracker({ students, submissions, onSimulateSubmission }: { students: Student[], submissions: Submission[], onSimulateSubmission: (student: Student) => void }) {
+    const submittedIds = new Set(submissions.map(s => s.studentId));
+    
+    return (
+        <Card className="shadow-md">
+            <CardHeader>
+                <CardTitle>Submission Status</CardTitle>
+                <CardDescription>{submissions.length} / {students.length} students have responded.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ScrollArea className="h-48">
+                    <div className="space-y-2">
+                        {students.map(student => {
+                            const hasSubmitted = submittedIds.has(student.id);
+                            return (
+                                <div key={student.id} className="flex items-center justify-between rounded-md p-2 bg-muted/50">
+                                    <p className="font-medium">{student.name}</p>
+                                    {hasSubmitted ? (
+                                        <div className="flex items-center gap-2 text-green-600">
+                                            <CheckCircle className="h-5 w-5" />
+                                            <span>Submitted</span>
+                                        </div>
+                                    ) : (
+                                        <Button size="sm" variant="outline" onClick={() => onSimulateSubmission(student)}>
+                                            Simulate Submission
+                                        </Button>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
+                </ScrollArea>
+            </CardContent>
+        </Card>
+    );
+}
 
-  return (
-    <Card className="shadow-lg">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-2xl">{question.question}</CardTitle>
-            <CardDescription>
-              The question is live. Waiting for student responses.
-            </CardDescription>
-          </div>
-          <Button variant="destructive" onClick={onEndQuestion}>
-            End Question
-          </Button>
+
+export function ActiveQuestion({ question, onEndQuestion, students, submissions, onSubmissionsChange }: ActiveQuestionProps) {
+    const handleSimulateSubmission = (student: Student) => {
+        let mockAnswer = '';
+        switch(question.type) {
+            case 'multiple-choice':
+                mockAnswer = question.options[Math.floor(Math.random() * question.options.length)].value;
+                break;
+            case 'true-false':
+                mockAnswer = Math.random() > 0.5 ? 'True' : 'False';
+                break;
+            case 'short-answer':
+                mockAnswer = `這是來自 ${student.name} 的模擬答案，內容是隨機產生的。`;
+                break;
+            case 'drawing':
+                mockAnswer = `https://placehold.co/400x300.png`;
+                break;
+        }
+        
+        const newSubmission: Submission = {
+            studentId: student.id,
+            studentName: student.name,
+            answer: mockAnswer,
+        };
+        
+        onSubmissionsChange(prev => [...prev, newSubmission]);
+    };
+
+    const renderResults = () => {
+        switch (question.type) {
+            case 'multiple-choice':
+                return <MultipleChoiceResults question={question} submissions={submissions} />;
+            case 'true-false':
+                const trueFalseAsMc = { ...question, options: [{ value: "True" }, { value: "False" }] };
+                return <MultipleChoiceResults question={trueFalseAsMc} submissions={submissions} />;
+            case 'short-answer':
+                return <TextResponseResults submissions={submissions} />;
+            case 'drawing':
+                return <DrawingResults submissions={submissions} />;
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <Card className="shadow-lg">
+                <CardHeader>
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <CardTitle className="text-2xl">{question.question}</CardTitle>
+                            <CardDescription>
+                                The question is live. View student responses below.
+                            </CardDescription>
+                        </div>
+                        <Button variant="destructive" onClick={onEndQuestion}>
+                            End Question
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {renderResults()}
+                </CardContent>
+            </Card>
+
+            <SubmissionTracker 
+                students={students}
+                submissions={submissions}
+                onSimulateSubmission={handleSimulateSubmission}
+            />
         </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {renderResults()}
-      </CardContent>
-    </Card>
-  );
+    );
 }

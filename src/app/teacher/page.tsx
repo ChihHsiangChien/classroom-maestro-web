@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from "react";
@@ -12,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 import { CreateQuestionForm } from "@/components/create-poll-form";
-import { ActiveQuestion } from "@/components/active-poll";
+import { ActiveQuestion, type Submission } from "@/components/active-poll";
 import type { QuestionData } from "@/components/create-poll-form";
 import { StudentManagement } from "@/components/student-management";
 import type { Student } from "@/components/student-management";
@@ -29,9 +30,15 @@ export default function TeacherPage() {
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [loggedInStudents, setLoggedInStudents] = useState<Student[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
 
   const handleEndQuestion = () => {
     setActiveQuestion(null);
+  };
+  
+  const handleQuestionCreate = (question: QuestionData) => {
+    setActiveQuestion(question);
+    setSubmissions([]);
   };
   
   // These functions simulate what would be API calls to a backend
@@ -83,11 +90,17 @@ export default function TeacherPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <CreateQuestionForm onQuestionCreate={setActiveQuestion} />
+                    <CreateQuestionForm onQuestionCreate={handleQuestionCreate} />
                   </CardContent>
                 </Card>
               ) : (
-                <ActiveQuestion question={activeQuestion} onEndQuestion={handleEndQuestion} />
+                <ActiveQuestion 
+                  question={activeQuestion} 
+                  onEndQuestion={handleEndQuestion}
+                  students={students}
+                  submissions={submissions}
+                  onSubmissionsChange={setSubmissions}
+                />
               )}
             </div>
 
@@ -115,7 +128,7 @@ export default function TeacherPage() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {activeQuestion
-                      ? "Waiting for responses"
+                      ? `${submissions.length} / ${students.length} responses`
                       : "Start a question to begin"}
                   </p>
                 </CardContent>
