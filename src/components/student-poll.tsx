@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import type { QuestionData, MultipleChoiceQuestion } from "./create-poll-form";
 import { Textarea } from "./ui/textarea";
+import { Label } from '@/components/ui/label';
 
 // --- Drawing Canvas Component (inlined) ---
 interface DrawingCanvasProps {
@@ -109,7 +110,12 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
     const form = useForm<z.infer<typeof multipleChoiceSchema>>({ resolver: zodResolver(multipleChoiceSchema) });
     return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><FormField control={form.control} name="option" render={({ field }) => (<FormItem className="space-y-3"><FormLabel>Choose your answer:</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-2">{question.options.map((option, index) => {
         const displayValue = option.value || String.fromCharCode(65 + index);
-        return (<FormItem key={index} className="flex items-center space-x-3 space-y-0 rounded-md border p-4 hover:bg-muted/50"><FormControl><RadioGroupItem value={displayValue} /></FormControl><FormLabel className="font-normal">{displayValue}</FormLabel></FormItem>)
+        return (
+            <Label key={index} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50">
+                <RadioGroupItem value={displayValue} />
+                <span>{displayValue}</span>
+            </Label>
+        )
     })}</RadioGroup></FormControl><FormMessage /></FormItem>)} /><Button type="submit" className="w-full"><CheckCircle className="mr-2 h-4 w-4" />Submit Vote</Button></form></Form>);
 }
 
