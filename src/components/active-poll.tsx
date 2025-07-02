@@ -1,12 +1,12 @@
 
 "use client";
 
-import { BarChart, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, Clapperboard, ChevronDown } from "lucide-react";
+import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, Clapperboard, ChevronDown, Wand2, Loader2, BrainCircuit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { QuestionData, MultipleChoiceQuestion, ImageAnnotationQuestion } from "./create-poll-form";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useTransition } from "react";
 import type { Student, Submission } from "./student-management";
 import { ScrollArea } from "./ui/scroll-area";
 import Image from "next/image";
@@ -28,6 +28,11 @@ import {
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { analyzeShortAnswersAction } from "@/app/actions";
+import type { AnalyzeShortAnswersOutput } from "@/ai/flows/analyze-short-answers";
+import { Bar, XAxis, YAxis, CartesianGrid, BarChart, Tooltip as ChartTooltip } from "recharts";
+import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 
 interface ActiveQuestionProps {
   question: QuestionData;
@@ -96,7 +101,7 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
       {/* Aggregate Results */}
       <div>
         <h3 className="mb-4 flex items-center text-lg font-semibold">
-          <BarChart className="mr-2 h-5 w-5" /> Live Results
+          <BarChartIcon className="mr-2 h-5 w-5" /> Live Results
         </h3>
         <div className="space-y-4">
           {results.map((result, index) => (
@@ -179,36 +184,115 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
 }
 
 function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }: ResultsProps) {
+    const [isAnalyzing, startTransition] = useTransition();
+    const [analysis, setAnalysis] = useState<AnalyzeShortAnswersOutput | null>(null);
+    const { toast } = useToast();
+
+    const handleAnalyze = () => {
+        const answers = submissions.map(sub => sub.answer as string).filter(a => a.trim() !== "");
+        if (answers.length < 2) {
+             toast({
+                variant: "destructive",
+                title: "Not enough data",
+                description: "Need at least two answers to perform an analysis.",
+            });
+            return;
+        }
+
+        startTransition(async () => {
+            setAnalysis(null);
+            const result = await analyzeShortAnswersAction({ answers });
+            if (result.analysis) {
+                setAnalysis(result.analysis);
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Analysis Failed",
+                    description: result.error,
+                });
+            }
+        });
+    };
+
     if (submissions.length === 0) {
         return <div className="text-center text-muted-foreground py-8">Waiting for submissions...</div>;
     }
 
     return (
-        <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
-             <div className="flex items-center justify-between rounded-md border p-2 mb-2">
-                <h3 className="flex items-center text-lg font-semibold">
-                    <FileText className="mr-2 h-5 w-5" /> Student Responses
-                </h3>
-                <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                        <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                        <span className="sr-only">Toggle Responses</span>
-                    </Button>
-                </CollapsibleTrigger>
+        <div className="space-y-4">
+            <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
+                 <div className="flex items-center justify-between rounded-md border p-2 mb-2">
+                    <h3 className="flex items-center text-lg font-semibold">
+                        <FileText className="mr-2 h-5 w-5" /> Student Responses
+                    </h3>
+                    <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                            <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                            <span className="sr-only">Toggle Responses</span>
+                        </Button>
+                    </CollapsibleTrigger>
+                </div>
+                <CollapsibleContent>
+                    <ScrollArea className="h-72 w-full rounded-md border p-4">
+                        <div className="space-y-4">
+                            {submissions.map((sub, index) => (
+                                <div key={index} className="p-3 bg-muted/50 rounded-md">
+                                    <p className="font-semibold text-sm">{sub.studentName}</p>
+                                    <p className="text-foreground">{sub.answer as string}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                </CollapsibleContent>
+            </Collapsible>
+
+            <div className="flex items-center gap-4 border-t pt-4">
+                <Button onClick={handleAnalyze} disabled={isAnalyzing || submissions.length < 2}>
+                    {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                    Analyze Answers with AI
+                </Button>
+                {submissions.length < 2 && <p className="text-sm text-muted-foreground">Need at least 2 submissions to analyze.</p>}
             </div>
-            <CollapsibleContent>
-                <ScrollArea className="h-72 w-full rounded-md border p-4">
-                    <div className="space-y-4">
-                        {submissions.map((sub, index) => (
-                            <div key={index} className="p-3 bg-muted/50 rounded-md">
-                                <p className="font-semibold text-sm">{sub.studentName}</p>
-                                <p className="text-foreground">{sub.answer as string}</p>
-                            </div>
-                        ))}
+
+            {isAnalyzing && (
+                <div className="text-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                    <p className="mt-2 text-muted-foreground">AI is analyzing the answers...</p>
+                </div>
+            )}
+            
+            {analysis && (
+                <div className="space-y-6 animate-in fade-in-50">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><BrainCircuit className="h-5 w-5 text-primary"/> AI Summary & Analysis</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-muted-foreground">{analysis.summary}</p>
+                        </CardContent>
+                    </Card>
+
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Keyword Cloud</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <WordCloud data={analysis.wordCloud} />
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader>
+                                <CardTitle>Keyword Frequency</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <KeywordBarChart data={analysis.barChart} />
+                            </CardContent>
+                        </Card>
                     </div>
-                </ScrollArea>
-            </CollapsibleContent>
-        </Collapsible>
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -439,5 +523,63 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
                 </CardContent>
               </Card>
         </div>
+    );
+}
+
+function WordCloud({ data }: { data: { text: string; value: number }[] }) {
+    if (!data || data.length === 0) {
+        return <div className="text-center text-muted-foreground">No keywords found.</div>;
+    }
+
+    const values = data.map(d => d.value);
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+    const minFontSize = 1; // in rem
+    const maxFontSize = 3.5; // in rem
+
+    const getFontSize = (value: number) => {
+        if (maxVal === minVal) return (minFontSize + maxFontSize) / 2 + 'rem';
+        const size = minFontSize + ((value - minVal) / (maxVal - minVal)) * (maxFontSize - minFontSize);
+        return `${size.toFixed(2)}rem`;
+    };
+
+    return (
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 p-4 min-h-[250px] rounded-md bg-muted/50">
+            {data.map(({ text, value }) => (
+                <span 
+                    key={text} 
+                    style={{ 
+                        fontSize: getFontSize(value),
+                        fontWeight: Math.round(parseFloat(getFontSize(value))) > 2 ? 600 : 400
+                    }}
+                    className="leading-tight text-foreground transition-all duration-300"
+                >
+                    {text}
+                </span>
+            ))}
+        </div>
+    );
+}
+
+function KeywordBarChart({ data }: { data: { word: string; count: number }[] }) {
+    if (!data || data.length === 0) {
+        return <div className="text-center text-muted-foreground">No data for chart.</div>;
+    }
+
+    return (
+      <div className="w-full h-[250px]">
+        <ChartContainer config={{}} className="h-full w-full">
+            <BarChart data={data} layout="vertical" margin={{ left: 10, right: 30 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" hide />
+                <YAxis dataKey="word" type="category" width={80} tickLine={false} axisLine={false} />
+                <ChartTooltip
+                    cursor={{ fill: 'hsl(var(--muted))' }}
+                    content={<ChartTooltipContent />}
+                />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={4} />
+            </BarChart>
+        </ChartContainer>
+      </div>
     );
 }
