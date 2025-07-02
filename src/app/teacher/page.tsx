@@ -11,14 +11,16 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import Link from "next/link";
-import { CreatePollForm, type PollData } from "@/components/create-poll-form";
-import { ActivePoll } from "@/components/active-poll";
+import { CreateQuestionForm } from "@/components/create-poll-form";
+import { ActiveQuestion } from "@/components/active-poll";
+import type { QuestionData } from "@/components/create-poll-form";
+
 
 export default function TeacherPage() {
-  const [activePoll, setActivePoll] = useState<PollData | null>(null);
+  const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
 
-  const handleEndPoll = () => {
-    setActivePoll(null);
+  const handleEndQuestion = () => {
+    setActiveQuestion(null);
   };
 
   return (
@@ -33,20 +35,20 @@ export default function TeacherPage() {
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <div className="md:col-span-2">
-            {!activePoll ? (
+            {!activeQuestion ? (
               <Card className="shadow-md">
                 <CardHeader>
-                  <CardTitle>Create a New Poll</CardTitle>
+                  <CardTitle>Create a New Question</CardTitle>
                   <CardDescription>
                     Engage your students with a real-time question.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <CreatePollForm onPollCreate={setActivePoll} />
+                  <CreateQuestionForm onQuestionCreate={setActiveQuestion} />
                 </CardContent>
               </Card>
             ) : (
-              <ActivePoll poll={activePoll} onEndPoll={handleEndPoll} />
+              <ActiveQuestion question={activeQuestion} onEndQuestion={handleEndQuestion} />
             )}
           </div>
 
@@ -74,12 +76,12 @@ export default function TeacherPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-lg font-bold">
-                  {activePoll ? "Poll Active" : "Idle"}
+                  {activeQuestion ? "Question Active" : "Idle"}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {activePoll
+                  {activeQuestion
                     ? "Waiting for responses"
-                    : "Start a poll to begin"}
+                    : "Start a question to begin"}
                 </p>
               </CardContent>
             </Card>
