@@ -309,12 +309,12 @@ function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: Res
 
     return (
         <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
-            <div className="flex items-center justify-between rounded-md border p-2 mb-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-md border p-2 mb-2 gap-2">
                 <h3 className="flex items-center text-lg font-semibold">
                     <ImageIcon className="mr-2 h-5 w-5" /> Student Drawings
                 </h3>
-                <div className="flex items-center gap-4">
-                    <div className="hidden md:flex items-center gap-2 w-40">
+                <div className="flex items-center gap-4 self-end sm:self-auto">
+                    <div className="flex items-center gap-2 w-40">
                         <Label htmlFor="zoom-slider" className="text-sm whitespace-nowrap">Thumbnail Size</Label>
                         <Slider
                             id="zoom-slider"
