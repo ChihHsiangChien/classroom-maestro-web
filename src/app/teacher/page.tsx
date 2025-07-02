@@ -63,8 +63,14 @@ export default function TeacherPage() {
   // This would be triggered by a websocket/realtime event from students
   const handleStudentLogin = (student: Student) => {
     if (!loggedInStudents.find(s => s.id === student.id)) {
-      setLoggedInStudents(prev => [...prev, student]);
+      setLoggedInStudents(prev => [...prev, { ...student, isFocused: true }]);
     }
+  };
+
+  const handleToggleStudentFocus = (studentId: number) => {
+    setLoggedInStudents(prev => prev.map(s => 
+      s.id === studentId ? { ...s, isFocused: !s.isFocused } : s
+    ));
   };
 
 
@@ -114,6 +120,7 @@ export default function TeacherPage() {
                   onKickStudent={handleKickStudent}
                   // This is a mock function to simulate a student logging in
                   onStudentLogin={handleStudentLogin}
+                  onToggleStudentFocus={handleToggleStudentFocus}
               />
               <Card className="shadow-md">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -10,6 +11,8 @@ import {
   LogOut,
   Copy,
   Check,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import {
   Card,
@@ -53,6 +56,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -60,6 +69,7 @@ import { useToast } from '@/hooks/use-toast';
 export type Student = {
   id: number;
   name: string;
+  isFocused?: boolean;
 };
 
 interface StudentManagementProps {
@@ -70,6 +80,7 @@ interface StudentManagementProps {
   onDeleteStudent: (id: number) => void;
   onKickStudent: (id: number) => void;
   onStudentLogin: (student: Student) => void; // Mock
+  onToggleStudentFocus: (id: number) => void; // Mock
 }
 
 export function StudentManagement({
@@ -80,6 +91,7 @@ export function StudentManagement({
   onDeleteStudent,
   onKickStudent,
   onStudentLogin,
+  onToggleStudentFocus,
 }: StudentManagementProps) {
   const [classroomUrl, setClassroomUrl] = useState('');
   const [newStudentName, setNewStudentName] = useState('');
@@ -187,15 +199,30 @@ export function StudentManagement({
             />
           </TabsContent>
           <TabsContent value="logged-in">
-             <StudentTable
-                students={loggedInStudents}
-                actionButtons={(student) => (
-                    <Button variant="ghost" size="icon" onClick={() => onKickStudent(student.id)}>
-                        <LogOut className="h-4 w-4 text-destructive" />
-                    </Button>
-                )}
-                emptyMessage="No students have logged in yet."
-            />
+            <TooltipProvider>
+              <StudentTable
+                  students={loggedInStudents}
+                  actionButtons={(student) => (
+                      <>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => onToggleStudentFocus(student.id)}>
+                                      {student.isFocused ? <Eye className="h-4 w-4 text-green-500" /> : <EyeOff className="h-4 w-4 text-yellow-500" />}
+                                  </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                  <p>{student.isFocused ? 'Focused' : 'Distracted'}</p>
+                                  <p className="text-xs text-muted-foreground">Click to toggle status for demo.</p>
+                              </TooltipContent>
+                          </Tooltip>
+                          <Button variant="ghost" size="icon" onClick={() => onKickStudent(student.id)}>
+                              <LogOut className="h-4 w-4 text-destructive" />
+                          </Button>
+                      </>
+                  )}
+                  emptyMessage="No students have logged in yet."
+              />
+            </TooltipProvider>
           </TabsContent>
         </Tabs>
         <CardContent>

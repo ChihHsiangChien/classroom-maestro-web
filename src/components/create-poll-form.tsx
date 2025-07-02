@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -155,10 +156,6 @@ function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         const imageUrl = editorRef.current?.getCanvasDataUrl();
-        if (!question.trim()) {
-             toast({ variant: "destructive", title: "Error", description: "Please enter a prompt for the annotation." });
-             return;
-        }
         if (imageUrl) {
             onQuestionCreate({
                 type: 'image-annotation',
@@ -173,7 +170,7 @@ function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-                <Label htmlFor="annotation-prompt">Annotation Prompt</Label>
+                <Label htmlFor="annotation-prompt">Annotation Prompt (Optional)</Label>
                 <Textarea 
                     id="annotation-prompt"
                     placeholder="e.g., 'Circle the mitochondria in the cell diagram.'"
