@@ -33,6 +33,7 @@ export default function TeacherPage() {
   const [openSections, setOpenSections] = useState({
     roster: true,
     responses: true,
+    management: true,
   });
 
   const handleToggleSection = (section: keyof typeof openSections) => {
@@ -129,6 +130,8 @@ export default function TeacherPage() {
                   onKickStudent={handleKickStudent}
                   onStudentLogin={handleStudentLogin}
                   onToggleStudentFocus={handleToggleStudentFocus}
+                  isManagementOpen={openSections.management}
+                  onManagementToggle={() => handleToggleSection('management')}
                   isRosterOpen={openSections.roster}
                   onRosterToggle={() => handleToggleSection('roster')}
               />

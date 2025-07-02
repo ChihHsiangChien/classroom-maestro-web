@@ -28,10 +28,17 @@ const mockMultipleChoice: QuestionData = {
     { value: "Mitochondria" },
     { value: "Chloroplast" },
   ],
+  allowMultipleAnswers: false
 };
 const mockTrueFalse: QuestionData = { type: 'true-false', question: 'The Great Wall of China is visible from space with the naked eye.' };
 const mockShortAnswer: QuestionData = { type: 'short-answer', question: 'In one sentence, what is the meaning of life?' };
 const mockDrawing: QuestionData = { type: 'drawing', question: 'Draw your favorite animal.' };
+const mockImageAnnotation: QuestionData = {
+  type: 'image-annotation',
+  question: 'Label the parts of the plant cell.',
+  imageUrl: 'https://placehold.co/600x400.png'
+};
+
 
 export default function ClassroomPage({ params }: ClassroomPageProps) {
   // Per Next.js warning, we unwrap the params object which is a promise-like.
@@ -94,6 +101,7 @@ export default function ClassroomPage({ params }: ClassroomPageProps) {
             <Button onClick={() => setActiveQuestion(mockTrueFalse)}>Simulate True/False</Button>
             <Button onClick={() => setActiveQuestion(mockShortAnswer)}>Simulate Short Answer</Button>
             <Button onClick={() => setActiveQuestion(mockDrawing)}>Simulate Drawing</Button>
+            <Button onClick={() => setActiveQuestion(mockImageAnnotation)}>Simulate Annotation</Button>
           </div>
         </CardContent>
       </Card>

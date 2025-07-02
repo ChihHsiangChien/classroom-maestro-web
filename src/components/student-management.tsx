@@ -82,6 +82,8 @@ interface StudentManagementProps {
   onKickStudent: (id: number) => void;
   onStudentLogin: (student: Student) => void; // Mock
   onToggleStudentFocus: (id: number) => void; // Mock
+  isManagementOpen: boolean;
+  onManagementToggle: (isOpen: boolean) => void;
   isRosterOpen: boolean;
   onRosterToggle: (isOpen: boolean) => void;
 }
@@ -95,6 +97,8 @@ export function StudentManagement({
   onKickStudent,
   onStudentLogin,
   onToggleStudentFocus,
+  isManagementOpen,
+  onManagementToggle,
   isRosterOpen,
   onRosterToggle,
 }: StudentManagementProps) {
@@ -147,33 +151,43 @@ export function StudentManagement({
 
   return (
     <>
-      <Collapsible asChild>
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Student Management</CardTitle>
-            <CardDescription>
-              Share the link or QR code with your class.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="classroom-url">Classroom URL</Label>
-              <div className="flex gap-2">
-                <Input id="classroom-url" value={classroomUrl} readOnly />
-                <Button size="icon" variant="outline" onClick={handleCopy}>
-                  {hasCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
+      <Card className="shadow-md">
+        <Collapsible open={isManagementOpen} onOpenChange={onManagementToggle}>
+          <CardHeader className="flex flex-row items-start justify-between">
+            <div>
+              <CardTitle>Student Management</CardTitle>
+              <CardDescription>
+                Share the link or QR code with your class.
+              </CardDescription>
             </div>
-            {classroomUrl && (
-              <div className="flex flex-col items-center gap-2 rounded-md bg-white p-4">
-                <QRCode value={classroomUrl} size={128} />
-                <p className="text-sm text-muted-foreground">Scan to Join</p>
+            <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className='-mr-2 -mt-1'>
+                    <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                    <span className="sr-only">Toggle Management</span>
+                </Button>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="classroom-url">Classroom URL</Label>
+                <div className="flex gap-2">
+                  <Input id="classroom-url" value={classroomUrl} readOnly />
+                  <Button size="icon" variant="outline" onClick={handleCopy}>
+                    {hasCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </Collapsible>
+              {classroomUrl && (
+                <div className="flex flex-col items-center gap-2 rounded-md bg-white p-4">
+                  <QRCode value={classroomUrl} size={128} />
+                  <p className="text-sm text-muted-foreground">Scan to Join</p>
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
 
       <Card className="shadow-md">
         <Collapsible open={isRosterOpen} onOpenChange={onRosterToggle}>

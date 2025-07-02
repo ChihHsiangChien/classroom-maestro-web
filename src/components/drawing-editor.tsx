@@ -146,10 +146,11 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
         canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
         canvas.freeDrawingBrush.color = brushColor;
         canvas.freeDrawingBrush.width = brushWidth;
-        canvas.freeDrawingBrush.globalCompositeOperation = 'source-over';
       } else if (tool === 'eraser') {
+        // Fabric 5.x uses the PencilBrush for erasing with a different blend mode
         canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
         canvas.freeDrawingBrush.width = brushWidth;
+        // This is the key change for eraser functionality
         canvas.freeDrawingBrush.globalCompositeOperation = 'destination-out';
       }
     }, [tool, brushColor, brushWidth]);
@@ -315,6 +316,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
         variant={tool === name ? 'secondary' : 'outline'}
         size="icon"
         onClick={() => setTool(name)}
+        type="button"
         {...props}
       >
         {icon} <span className="sr-only">{name}</span>
@@ -330,7 +332,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" type="button">
                 <div
                   className="h-4 w-4 rounded-full border"
                   style={{ backgroundColor: brushColor }}
@@ -349,7 +351,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline">Size: {brushWidth}</Button>
+              <Button variant="outline" type="button">Size: {brushWidth}</Button>
             </PopoverTrigger>
             <PopoverContent>
               <Slider
@@ -364,13 +366,14 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
 
           <div className="h-6 w-px bg-border mx-2" />
 
-          <Button variant="outline" size="icon" onClick={addText}>
+          <Button variant="outline" size="icon" onClick={addText} type="button">
             <Type />
           </Button>
           <Button
             variant="outline"
             size="icon"
             onClick={() => fileInputRef.current?.click()}
+            type="button"
           >
             <ImageIcon />
           </Button>
@@ -383,7 +386,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
           />
           <Dialog open={isCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" type="button">
                 <Camera />
               </Button>
             </DialogTrigger>
@@ -428,15 +431,16 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
             size="icon"
             className="text-destructive hover:text-destructive"
             onClick={deleteSelected}
+            type="button"
           >
             <Trash2 />
           </Button>
-          <Button variant="outline" onClick={clearCanvas}>
+          <Button variant="outline" onClick={clearCanvas} type="button">
             Clear All
           </Button>
         </div>
         <div className="relative w-full aspect-video border rounded-md bg-white touch-none overflow-hidden">
-          <canvas ref={canvasRef} className="h-full w-full" />
+          <canvas ref={canvasRef} className="w-full h-full" />
         </div>
       </div>
     );
