@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -55,31 +56,34 @@ export const DrawingEditor = ({ onSubmit }: DrawingEditorProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current?.parentElement) return;
 
+    const parentElement = canvasRef.current.parentElement;
     const canvas = new fabric.Canvas(canvasRef.current, {
       backgroundColor: 'white',
       isDrawingMode: true,
     });
     fabricCanvasRef.current = canvas;
 
-    const resizeCanvas = () => {
-      const currentCanvas = fabricCanvasRef.current;
-      if (currentCanvas && canvasRef.current?.parentElement) {
-        const parent = canvasRef.current.parentElement;
-        currentCanvas.setWidth(parent.offsetWidth);
-        currentCanvas.setHeight(parent.offsetHeight);
-        currentCanvas.renderAll();
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        canvas.setWidth(width);
+        canvas.setHeight(height);
+        canvas.renderAll();
       }
-    };
+    });
 
-    // Resize canvas after a short delay to ensure parent dimensions are available
-    const timeoutId = setTimeout(resizeCanvas, 50);
-    window.addEventListener('resize', resizeCanvas);
+    resizeObserver.observe(parentElement);
+
+    // Initial resize to set the canvas size as soon as possible.
+    const { offsetWidth, offsetHeight } = parentElement;
+    canvas.setWidth(offsetWidth);
+    canvas.setHeight(offsetHeight);
+    canvas.renderAll();
 
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
-      clearTimeout(timeoutId);
+      resizeObserver.disconnect();
       fabricCanvasRef.current?.dispose();
       fabricCanvasRef.current = null;
     };
