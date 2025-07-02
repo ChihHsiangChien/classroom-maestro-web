@@ -33,6 +33,7 @@ import { analyzeShortAnswersAction } from "@/app/actions";
 import type { AnalyzeShortAnswersOutput } from "@/ai/flows/analyze-short-answers";
 import { Bar, XAxis, YAxis, CartesianGrid, BarChart, Tooltip as ChartTooltip, LabelList } from "recharts";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import { cn } from "@/lib/utils";
 
 interface ActiveQuestionProps {
   question: QuestionData;
@@ -333,24 +334,23 @@ function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: Res
 
     return (
         <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-md border p-2 mb-2">
+            <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 rounded-md border p-2 mb-2">
                 <h3 className="flex items-center text-lg font-semibold flex-shrink-0">
                     <ImageIcon className="mr-2 h-5 w-5" /> Student Drawings
                 </h3>
-                <div className="flex items-center gap-4 flex-grow justify-end">
-                    <div className="flex items-center gap-2 w-full max-w-xs">
-                        <Label htmlFor="zoom-slider" className="text-sm whitespace-nowrap">Thumbnail Size</Label>
-                        <Slider
-                            id="zoom-slider"
-                            min={1}
-                            max={5}
-                            step={1}
-                            value={[sliderValue]}
-                            onValueChange={(value) => setSliderValue(value[0])}
-                        />
-                    </div>
+                <div className="flex items-center gap-4 flex-grow justify-end min-w-[280px]">
+                    <Label htmlFor="zoom-slider" className="text-sm whitespace-nowrap">Thumbnail Size</Label>
+                    <Slider
+                        id="zoom-slider"
+                        min={1}
+                        max={5}
+                        step={1}
+                        value={[sliderValue]}
+                        onValueChange={(value) => setSliderValue(value[0])}
+                        className="w-full max-w-[200px]"
+                    />
                     <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" className="flex-shrink-0">
                             <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
                             <span className="sr-only">Toggle Responses</span>
                         </Button>
@@ -564,7 +564,7 @@ function WordCloud({ data }: { data: { text: string; value: number }[] }) {
     const minVal = Math.min(...values);
     const maxVal = Math.max(...values);
     const minFontSize = 1; // in rem
-    const maxFontSize = 3.5; // in rem
+    const maxFontSize = 4.5; // in rem
 
     const getFontSize = (value: number) => {
         if (maxVal === minVal) return (minFontSize + maxFontSize) / 2 + 'rem';
@@ -572,23 +572,42 @@ function WordCloud({ data }: { data: { text: string; value: number }[] }) {
         return `${size.toFixed(2)}rem`;
     };
 
+    // Create a copy to sort and manipulate
+    const sortedData = [...data].sort((a, b) => b.value - a.value);
+    const largestItem = sortedData.shift(); // Takes the largest item out
+    
+    // For a more natural cloud, we can shuffle the rest
+    const otherItems = sortedData.sort(() => Math.random() - 0.5);
+    
+    // Insert the largest item into the middle of the other items
+    const middleIndex = Math.floor(otherItems.length / 2);
+    if (largestItem) {
+        otherItems.splice(middleIndex, 0, largestItem);
+    }
+    
+    const allItems = largestItem ? otherItems : sortedData;
+
     return (
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 p-4 min-h-[250px] rounded-md bg-muted/50 h-full">
-            {data.map(({ text, value }) => (
+            {allItems.map((item) => (
                 <span
-                    key={text}
+                    key={item.text}
                     style={{
-                        fontSize: getFontSize(value),
-                        fontWeight: Math.round(parseFloat(getFontSize(value))) > 2 ? 600 : 400,
+                        fontSize: getFontSize(item.value),
+                        fontWeight: item === largestItem ? 700 : (Math.round(parseFloat(getFontSize(item.value))) > 2 ? 600 : 400),
                     }}
-                    className="p-1 leading-tight text-foreground transition-all duration-300"
+                    className={cn(
+                        "p-1 leading-tight transition-all duration-300",
+                        item === largestItem ? "text-primary" : "text-foreground"
+                    )}
                 >
-                    {text}
+                    {item.text}
                 </span>
             ))}
         </div>
     );
 }
+
 
 function KeywordBarChart({ data }: { data: { word: string; count: number }[] }) {
     if (!data || data.length === 0) {
