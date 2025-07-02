@@ -6,6 +6,7 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 import { PlusCircle, XCircle, Wand2, Loader2, FileText, Vote, Image as ImageIcon, CheckSquare as CheckSquareIcon, PencilRuler } from "lucide-react";
 import { useState, useTransition, useRef } from "react";
+import dynamic from "next/dynamic";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +25,20 @@ import { useToast } from "@/hooks/use-toast";
 import { generatePollAction } from "@/app/actions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { DrawingEditor, type DrawingEditorRef } from "./drawing-editor";
+import type { DrawingEditorRef } from "./drawing-editor";
+
+const DrawingEditor = dynamic(
+  () => import('./drawing-editor').then((mod) => mod.DrawingEditor),
+  { 
+      ssr: false,
+      loading: () => (
+          <div className="flex items-center justify-center w-full border rounded-md aspect-video bg-muted">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="sr-only">Loading drawing editor...</p>
+          </div>
+      )
+  }
+);
 
 
 // --- SHARED TYPES ---
