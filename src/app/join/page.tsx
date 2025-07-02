@@ -1,7 +1,7 @@
 'use client';
 
 import { School, User } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -27,8 +27,6 @@ const students: Student[] = [
 ];
 
 export default function JoinPage() {
-  const router = useRouter();
-
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md shadow-lg">
@@ -46,18 +44,15 @@ export default function JoinPage() {
             <Table>
               <TableBody>
                 {students.map((student) => (
-                  <TableRow
-                    key={student.id}
-                    onClick={() =>
-                      router.push(
-                        `/classroom/${encodeURIComponent(student.name)}`
-                      )
-                    }
-                    className="cursor-pointer"
-                  >
-                    <TableCell className="p-4 flex items-center gap-4">
-                      <User className="h-5 w-5 text-muted-foreground" />
-                      <span className="font-medium">{student.name}</span>
+                  <TableRow key={student.id} className="hover:bg-muted/50">
+                    <TableCell className="p-0">
+                      <Link
+                        href={`/classroom/${encodeURIComponent(student.name)}`}
+                        className="flex cursor-pointer items-center gap-4 p-4"
+                      >
+                        <User className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium">{student.name}</span>
+                      </Link>
                     </TableCell>
                   </TableRow>
                 ))}
