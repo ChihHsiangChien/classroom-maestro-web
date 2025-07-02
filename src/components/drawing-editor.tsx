@@ -64,20 +64,24 @@ export const DrawingEditor = ({ onSubmit }: DrawingEditorProps) => {
     fabricCanvasRef.current = canvas;
 
     const resizeCanvas = () => {
-      if (canvasRef.current?.parentElement) {
+      const currentCanvas = fabricCanvasRef.current;
+      if (currentCanvas && canvasRef.current?.parentElement) {
         const parent = canvasRef.current.parentElement;
-        canvas.setWidth(parent.offsetWidth);
-        canvas.setHeight(parent.offsetHeight);
-        canvas.renderAll();
+        currentCanvas.setWidth(parent.offsetWidth);
+        currentCanvas.setHeight(parent.offsetHeight);
+        currentCanvas.renderAll();
       }
     };
 
+    // Resize canvas after a short delay to ensure parent dimensions are available
     const timeoutId = setTimeout(resizeCanvas, 50);
     window.addEventListener('resize', resizeCanvas);
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
-      canvas.dispose();
+      clearTimeout(timeoutId);
+      fabricCanvasRef.current?.dispose();
+      fabricCanvasRef.current = null;
     };
   }, []);
 
