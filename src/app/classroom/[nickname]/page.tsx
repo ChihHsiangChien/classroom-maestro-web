@@ -15,8 +15,7 @@ import type { QuestionData } from "@/components/create-poll-form";
 
 interface ClassroomPageProps {
   params: {
-    studentId: string;
-    classroomId: string;
+    nickname: string;
   };
 }
 
@@ -36,7 +35,7 @@ const mockDrawing: QuestionData = { type: 'drawing', question: 'Draw your favori
 
 export default function ClassroomPage({ params }: ClassroomPageProps) {
   const resolvedParams = use(params);
-  const studentName = decodeURIComponent(resolvedParams.studentId);
+  const studentName = decodeURIComponent(resolvedParams.nickname);
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
 

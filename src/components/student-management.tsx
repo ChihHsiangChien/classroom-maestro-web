@@ -95,7 +95,7 @@ export function StudentManagement({
 
   useEffect(() => {
     // This ensures window is defined, preventing SSR errors.
-    setClassroomUrl(`${window.location.origin}/classroom/DEMO`);
+    setClassroomUrl(`${window.location.origin}/join`);
   }, []);
 
   const handleCopy = () => {
