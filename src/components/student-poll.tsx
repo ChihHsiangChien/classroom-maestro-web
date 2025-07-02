@@ -286,7 +286,7 @@ interface StudentQuestionFormProps {
 }
 
 const multipleChoiceSchema = z.object({ option: z.string({ required_error: "You need to select an option." }) });
-const shortAnswerSchema = z.oject({ answer: z.string().min(1, { message: "Your answer cannot be empty." }) });
+const shortAnswerSchema = z.object({ answer: z.string().min(1, { message: "Your answer cannot be empty." }) });
 
 function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQuestion, onSubmit: () => void }) {
     const form = useForm<z.infer<typeof multipleChoiceSchema>>({ resolver: zodResolver(multipleChoiceSchema) });
