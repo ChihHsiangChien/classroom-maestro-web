@@ -161,155 +161,155 @@ export function StudentManagement({
   };
 
   return (
-    <>
-      <Card className="shadow-md">
-        <Collapsible open={isManagementOpen} onOpenChange={onManagementToggle}>
-          <CardHeader className="flex flex-row items-start justify-between">
-            <div>
-              <CardTitle>Student Management</CardTitle>
-              <CardDescription>
-                Share the link or QR code with your class.
-              </CardDescription>
-            </div>
-            <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className='-mr-2 -mt-1'>
-                    <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                    <span className="sr-only">Toggle Management</span>
-                </Button>
-            </CollapsibleTrigger>
-          </CardHeader>
-          <CollapsibleContent>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="classroom-url">Classroom URL</Label>
-                <div className="flex gap-2">
-                  <Input id="classroom-url" value={classroomUrl} readOnly />
-                  <Button size="icon" variant="outline" onClick={handleCopy}>
-                    {hasCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                  </Button>
-                </div>
+    <TooltipProvider>
+      <>
+        <Card className="shadow-md">
+          <Collapsible open={isManagementOpen} onOpenChange={onManagementToggle}>
+            <CardHeader className="flex flex-row items-start justify-between">
+              <div>
+                <CardTitle>Student Management</CardTitle>
+                <CardDescription>
+                  Share the link or QR code with your class.
+                </CardDescription>
               </div>
-              {isClient && classroomUrl && (
-                <div className="flex flex-col items-center gap-2 rounded-md bg-white p-4">
-                  <QRCode value={classroomUrl} size={128} />
-                  <p className="text-sm text-muted-foreground">Scan to Join</p>
-                </div>
-              )}
-            </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
-
-      <Card className="shadow-md">
-        <Collapsible open={isRosterOpen} onOpenChange={onRosterToggle}>
-          <CardHeader className="flex flex-row items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-sm font-medium">Class Roster</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </div>
-               <div className="text-2xl font-bold">{loggedInStudents.length} / {students.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  {students.length - loggedInStudents.length} student(s) absent
-                </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={onPickStudent} disabled={loggedInStudents.length === 0}>
-                  <Ticket />
-                  抽籤
-              </Button>
               <CollapsibleTrigger asChild>
                   <Button variant="ghost" size="sm" className='-mr-2 -mt-1'>
                       <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                      <span className="sr-only">Toggle Roster</span>
+                      <span className="sr-only">Toggle Management</span>
                   </Button>
               </CollapsibleTrigger>
-            </div>
-          </CardHeader>
-          <CollapsibleContent>
-            <Tabs defaultValue="not-logged-in" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="not-logged-in">Not Logged In ({notLoggedInStudents.length})</TabsTrigger>
-                <TabsTrigger value="logged-in">Logged In ({loggedInStudents.length})</TabsTrigger>
-              </TabsList>
-              <TabsContent value="not-logged-in">
-                <StudentTable
-                    students={notLoggedInStudents}
-                    actionButtons={(student) => (
-                        <>
-                            <Button variant="ghost" size="icon" onClick={() => startEditing(student)}>
-                                <Edit className="h-4 w-4" />
-                            </Button>
-                            <DeleteStudentButton student={student} onDelete={onDeleteStudent} />
-                            <Button variant="outline" size="sm" onClick={() => onStudentLogin(student)}>(Simulate Login)</Button>
-                        </>
-                    )}
-                    emptyMessage="All students are present!"
-                />
-              </TabsContent>
-              <TabsContent value="logged-in">
-                <TooltipProvider>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="classroom-url">Classroom URL</Label>
+                  <div className="flex gap-2">
+                    <Input id="classroom-url" value={classroomUrl} readOnly />
+                    <Button size="icon" variant="outline" onClick={handleCopy}>
+                      {hasCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+                {isClient && classroomUrl && (
+                  <div className="flex flex-col items-center gap-2 rounded-md bg-white p-4">
+                    <QRCode value={classroomUrl} size={128} />
+                    <p className="text-sm text-muted-foreground">Scan to Join</p>
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+
+        <Card className="shadow-md">
+          <Collapsible open={isRosterOpen} onOpenChange={onRosterToggle}>
+            <CardHeader className="flex flex-row items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-medium">Class Roster</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </div>
+                 <div className="text-2xl font-bold">{loggedInStudents.length} / {students.length}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {students.length - loggedInStudents.length} student(s) absent
+                  </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={onPickStudent} disabled={loggedInStudents.length === 0}>
+                    <Ticket />
+                    抽籤
+                </Button>
+                <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className='-mr-2 -mt-1'>
+                        <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                        <span className="sr-only">Toggle Roster</span>
+                    </Button>
+                </CollapsibleTrigger>
+              </div>
+            </CardHeader>
+            <CollapsibleContent>
+              <Tabs defaultValue="not-logged-in" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="not-logged-in">Not Logged In ({notLoggedInStudents.length})</TabsTrigger>
+                  <TabsTrigger value="logged-in">Logged In ({loggedInStudents.length})</TabsTrigger>
+                </TabsList>
+                <TabsContent value="not-logged-in">
                   <StudentTable
-                      students={loggedInStudents}
-                      onRowClick={onToggleStudentFocus}
+                      students={notLoggedInStudents}
                       actionButtons={(student) => (
                           <>
-                              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onKickStudent(student.id); }}>
-                                  <LogOut className="h-4 w-4 text-destructive" />
+                              <Button variant="ghost" size="icon" onClick={() => startEditing(student)}>
+                                  <Edit className="h-4 w-4" />
                               </Button>
+                              <DeleteStudentButton student={student} onDelete={onDeleteStudent} />
+                              <Button variant="outline" size="sm" onClick={() => onStudentLogin(student)}>(Simulate Login)</Button>
                           </>
                       )}
-                      emptyMessage="No students have logged in yet."
+                      emptyMessage="All students are present!"
                   />
-                </TooltipProvider>
-              </TabsContent>
-            </Tabs>
-            <CardContent>
-              <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="w-full mt-4">
-                    <UserPlus className="mr-2 h-4 w-4" /> Add Student
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add New Student</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="name" className="text-right">Name</Label>
-                      <Input id="name" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} className="col-span-3" />
+                </TabsContent>
+                <TabsContent value="logged-in">
+                    <StudentTable
+                        students={loggedInStudents}
+                        onRowClick={onToggleStudentFocus}
+                        actionButtons={(student) => (
+                            <>
+                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onKickStudent(student.id); }}>
+                                    <LogOut className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </>
+                        )}
+                        emptyMessage="No students have logged in yet."
+                    />
+                </TabsContent>
+              </Tabs>
+              <CardContent>
+                <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full mt-4">
+                      <UserPlus className="mr-2 h-4 w-4" /> Add Student
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Student</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="name" className="text-right">Name</Label>
+                        <Input id="name" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} className="col-span-3" />
+                      </div>
                     </div>
+                    <DialogFooter>
+                      <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+                      <Button onClick={handleAdd}>Save</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+        
+        <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Edit Student</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="edit-name" className="text-right">Name</Label>
+                      <Input id="edit-name" value={editingStudent?.name || ''} onChange={(e) => setEditingStudent(s => s ? {...s, name: e.target.value} : null)} className="col-span-3" />
                   </div>
-                  <DialogFooter>
-                    <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                    <Button onClick={handleAdd}>Save</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
-      
-      <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Edit Student</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-name" className="text-right">Name</Label>
-                    <Input id="edit-name" value={editingStudent?.name || ''} onChange={(e) => setEditingStudent(s => s ? {...s, name: e.target.value} : null)} className="col-span-3" />
-                </div>
-            </div>
-            <DialogFooter>
-                <DialogClose asChild><Button variant="ghost" onClick={() => setEditDialogOpen(false)}>Cancel</Button></DialogClose>
-                <Button onClick={handleUpdate}>Save Changes</Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+              </div>
+              <DialogFooter>
+                  <DialogClose asChild><Button variant="ghost" onClick={() => setEditDialogOpen(false)}>Cancel</Button></DialogClose>
+                  <Button onClick={handleUpdate}>Save Changes</Button>
+              </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
+    </TooltipProvider>
   );
 }
 
