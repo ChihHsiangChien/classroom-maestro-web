@@ -103,8 +103,8 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
               <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
                 <TableRow>
                   <TableHead className="w-[150px]">Student</TableHead>
-                  {question.options.map(option => (
-                    <TableHead key={option.value} className="text-center">{option.value}</TableHead>
+                  {question.options.map((option, index) => (
+                    <TableHead key={`${option.value}-${index}`} className="text-center">{option.value}</TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
@@ -114,8 +114,8 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
                   return (
                     <TableRow key={student.id} data-answered={!!answer} className="data-[answered=true]:bg-green-500/10">
                       <TableCell className="font-medium">{student.name}</TableCell>
-                      {question.options.map(option => (
-                        <TableCell key={option.value} className="text-center">
+                      {question.options.map((option, index) => (
+                        <TableCell key={`${option.value}-${index}`} className="text-center">
                           {answer === option.value && (
                             <div className="flex justify-center">
                               <CheckCircle className="h-5 w-5 text-green-600" />
@@ -296,5 +296,3 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
         </div>
     );
 }
-
-    
