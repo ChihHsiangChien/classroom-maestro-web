@@ -220,7 +220,8 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
 }
 
 function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: ResultsProps) {
-    const [gridCols, setGridCols] = useState(3);
+    const [sliderValue, setSliderValue] = useState(3);
+    const gridCols = 6 - sliderValue;
 
     if (submissions.length === 0) {
         return <div className="text-center text-muted-foreground py-8">Waiting for submissions...</div>;
@@ -240,8 +241,8 @@ function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: Res
                             min={1}
                             max={5}
                             step={1}
-                            defaultValue={[gridCols]}
-                            onValueChange={(value) => setGridCols(value[0])}
+                            value={[sliderValue]}
+                            onValueChange={(value) => setSliderValue(value[0])}
                         />
                     </div>
                     <CollapsibleTrigger asChild>

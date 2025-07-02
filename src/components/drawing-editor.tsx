@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
 import { fabric } from 'fabric';
 import {
   Trash2,
@@ -28,6 +28,8 @@ import {
   DialogFooter,
   DialogClose,
 } from './ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Label } from './ui/label';
 
 // --- Types ---
 export interface DrawingEditorRef {
@@ -58,6 +60,9 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
     const [hasCameraPermission, setHasCameraPermission] = useState<
       boolean | null
     >(null);
+    const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+    const [selectedCamera, setSelectedCamera] = useState<string>('');
+
 
     const { toast } = useToast();
 
@@ -155,38 +160,67 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
       }
     }, [tool, brushColor, brushWidth]);
 
-    useEffect(() => {
-      if (!isCameraDialogOpen) {
-        if (videoRef.current?.srcObject) {
-          (videoRef.current.srcObject as MediaStream)
-            .getTracks()
-            .forEach((track) => track.stop());
+    const getCameraPermission = useCallback(async (deviceId: string) => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: deviceId ? { exact: deviceId } : undefined },
+        });
+        setHasCameraPermission(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
         }
-        return;
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Camera Access Denied',
+          description:
+            'Please enable camera permissions in your browser settings to use this app.',
+        });
       }
-
-      const getCameraPermission = async () => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-          });
-          setHasCameraPermission(true);
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-        } catch (error) {
-          setHasCameraPermission(false);
-          toast({
-            variant: 'destructive',
-            title: 'Camera Access Denied',
-            description:
-              'Please enable camera permissions in your browser settings to use this app.',
-          });
-        }
-      };
-      getCameraPermission();
-    }, [isCameraDialogOpen, toast]);
+    }, [toast]);
     
+    useEffect(() => {
+        const setupCamera = async () => {
+          if (!isCameraDialogOpen) {
+            if (videoRef.current?.srcObject) {
+              (videoRef.current.srcObject as MediaStream)
+                .getTracks()
+                .forEach((track) => track.stop());
+            }
+            return;
+          }
+    
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(
+            (device) => device.kind === 'videoinput'
+          );
+          setCameras(videoDevices);
+    
+          const currentCameraId = selectedCamera || videoDevices[0]?.deviceId;
+          if (currentCameraId) {
+            if (!selectedCamera) {
+              setSelectedCamera(currentCameraId);
+            }
+            getCameraPermission(currentCameraId);
+          } else {
+            // No camera found, or permission denied before enumeration
+            setHasCameraPermission(false);
+          }
+        };
+    
+        setupCamera();
+    
+        return () => {
+          if (videoRef.current?.srcObject) {
+            (videoRef.current.srcObject as MediaStream)
+              .getTracks()
+              .forEach((track) => track.stop());
+          }
+        };
+      }, [isCameraDialogOpen, selectedCamera, getCameraPermission]);
+
     useEffect(() => {
       const handlePaste = (e: ClipboardEvent) => {
         const canvas = fabricCanvasRef.current;
@@ -413,6 +447,25 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
                   </div>
                 )}
               </div>
+                {cameras.length > 1 && (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="camera-select" className="text-right">
+                            Camera
+                        </Label>
+                        <Select onValueChange={setSelectedCamera} value={selectedCamera}>
+                            <SelectTrigger id="camera-select" className="col-span-3">
+                                <SelectValue placeholder="Select a camera" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {cameras.map((camera) => (
+                                    <SelectItem key={camera.deviceId} value={camera.deviceId}>
+                                        {camera.label || `Camera ${cameras.indexOf(camera) + 1}`}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
               <DialogFooter>
                 <DialogClose asChild>
                   <Button variant="ghost">Cancel</Button>

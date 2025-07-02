@@ -16,6 +16,7 @@ import { ActiveQuestion, type Submission } from "@/components/active-poll";
 import type { QuestionData } from "@/components/create-poll-form";
 import { StudentManagement } from "@/components/student-management";
 import type { Student } from "@/components/student-management";
+import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 const initialStudents: Student[] = [
     { id: 1, name: '01王大明' },
@@ -83,62 +84,65 @@ export default function TeacherPage() {
 
 
   return (
-    <React.Fragment>
-      <main className="min-h-screen bg-muted/40 p-4 md:p-8">
-        <div className="mx-auto w-full max-w-7xl">
+    <SidebarProvider>
+      <Sidebar side="right">
+        <SidebarContent className="space-y-6 p-2">
+           <StudentManagement
+                students={students}
+                loggedInStudents={loggedInStudents}
+                onAddStudent={handleAddStudent}
+                onUpdateStudent={handleUpdateStudent}
+                onDeleteStudent={handleDeleteStudent}
+                onKickStudent={handleKickStudent}
+                onStudentLogin={handleStudentLogin}
+                onToggleStudentFocus={handleToggleStudentFocus}
+                isManagementOpen={openSections.management}
+                onManagementToggle={() => handleToggleSection('management')}
+                isRosterOpen={openSections.roster}
+                onRosterToggle={() => handleToggleSection('roster')}
+            />
+        </SidebarContent>
+      </Sidebar>
+      <SidebarInset>
+        <div className="mx-auto w-full max-w-7xl p-4 md:p-8">
           <header className="mb-6 flex items-center justify-between">
             <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-            <Button asChild variant="outline">
-              <Link href="/">Exit Classroom</Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button asChild variant="outline">
+                <Link href="/">Exit Classroom</Link>
+              </Button>
+              <SidebarTrigger />
+            </div>
           </header>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-6">
-              {!activeQuestion ? (
-                <Card className="shadow-md">
-                  <CardHeader>
-                    <CardTitle>Create a New Question</CardTitle>
-                    <CardDescription>
-                      Engage your students with a real-time question.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <CreateQuestionForm onQuestionCreate={handleQuestionCreate} />
-                  </CardContent>
-                </Card>
-              ) : (
-                <ActiveQuestion 
-                  question={activeQuestion} 
-                  onEndQuestion={handleEndQuestion}
-                  students={students}
-                  submissions={submissions}
-                  onSubmissionsChange={setSubmissions}
-                  isResponsesOpen={openSections.responses}
-                  onResponsesToggle={() => handleToggleSection('responses')}
-                />
-              )}
-            </div>
-
-            <aside className="space-y-6">
-              <StudentManagement
-                  students={students}
-                  loggedInStudents={loggedInStudents}
-                  onAddStudent={handleAddStudent}
-                  onUpdateStudent={handleUpdateStudent}
-                  onDeleteStudent={handleDeleteStudent}
-                  onKickStudent={handleKickStudent}
-                  onStudentLogin={handleStudentLogin}
-                  onToggleStudentFocus={handleToggleStudentFocus}
-                  isManagementOpen={openSections.management}
-                  onManagementToggle={() => handleToggleSection('management')}
-                  isRosterOpen={openSections.roster}
-                  onRosterToggle={() => handleToggleSection('roster')}
+          <div className="space-y-6">
+            {!activeQuestion ? (
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle>Create a New Question</CardTitle>
+                  <CardDescription>
+                    Engage your students with a real-time question.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <CreateQuestionForm onQuestionCreate={handleQuestionCreate} />
+                </CardContent>
+              </Card>
+            ) : (
+              <ActiveQuestion 
+                question={activeQuestion} 
+                onEndQuestion={handleEndQuestion}
+                students={students}
+                submissions={submissions}
+                onSubmissionsChange={setSubmissions}
+                isResponsesOpen={openSections.responses}
+                onResponsesToggle={() => handleToggleSection('responses')}
               />
-            </aside>
+            )}
           </div>
+
         </div>
-      </main>
-    </React.Fragment>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
