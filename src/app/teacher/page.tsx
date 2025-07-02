@@ -18,11 +18,11 @@ import { StudentManagement } from "@/components/student-management";
 import type { Student } from "@/components/student-management";
 
 const initialStudents: Student[] = [
-    { id: 1, name: 'Alice' },
-    { id: 2, name: 'Bob' },
-    { id: 3, name: 'Charlie' },
-    { id: 4, name: 'David' },
-    { id: 5, name: 'Eve' },
+    { id: 1, name: '01王大明' },
+    { id: 2, name: '02李小花' },
+    { id: 3, name: '03張三' },
+    { id: 4, name: '04陳四' },
+    { id: 5, name: '05林美麗' },
 ];
 
 export default function TeacherPage() {
@@ -107,7 +107,7 @@ export default function TeacherPage() {
                   Lesson Status
                 </CardTitle>
                 <Clapperboard className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
+              </Header>
               <CardContent>
                 <div className="text-lg font-bold">
                   {activeQuestion ? "Question Active" : "Idle"}

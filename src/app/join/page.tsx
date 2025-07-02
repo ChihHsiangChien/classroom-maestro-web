@@ -1,7 +1,7 @@
 'use client';
 
 import { School, User } from 'lucide-react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -19,14 +19,16 @@ import type { Student } from '@/components/student-management';
 
 // Mock data, should be the same as in teacher's page for consistency
 const students: Student[] = [
-  { id: 1, name: 'Alice' },
-  { id: 2, name: 'Bob' },
-  { id: 3, name: 'Charlie' },
-  { id: 4, name: 'David' },
-  { id: 5, name: 'Eve' },
+  { id: 1, name: '01王大明' },
+  { id: 2, name: '02李小花' },
+  { id: 3, name: '03張三' },
+  { id: 4, name: '04陳四' },
+  { id: 5, name: '05林美麗' },
 ];
 
 export default function JoinPage() {
+  const router = useRouter();
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md shadow-lg">
@@ -34,9 +36,9 @@ export default function JoinPage() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <School className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle>Join the Classroom</CardTitle>
+          <CardTitle>加入教室</CardTitle>
           <CardDescription>
-            Please select your name from the list below to enter.
+            請從下方列表選擇你的名字登入。
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -44,15 +46,18 @@ export default function JoinPage() {
             <Table>
               <TableBody>
                 {students.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell className="p-0">
-                      <Link
-                        href={`/classroom/${encodeURIComponent(student.name)}`}
-                        className="flex items-center gap-4 p-4 hover:bg-muted/50"
-                      >
-                        <User className="h-5 w-5 text-muted-foreground" />
-                        <span className="font-medium">{student.name}</span>
-                      </Link>
+                  <TableRow
+                    key={student.id}
+                    onClick={() =>
+                      router.push(
+                        `/classroom/${encodeURIComponent(student.name)}`
+                      )
+                    }
+                    className="cursor-pointer"
+                  >
+                    <TableCell className="p-4 flex items-center gap-4">
+                      <User className="h-5 w-5 text-muted-foreground" />
+                      <span className="font-medium">{student.name}</span>
                     </TableCell>
                   </TableRow>
                 ))}
