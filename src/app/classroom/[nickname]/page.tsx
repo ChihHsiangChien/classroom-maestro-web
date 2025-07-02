@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,7 +34,9 @@ const mockShortAnswer: QuestionData = { type: 'short-answer', question: 'In one 
 const mockDrawing: QuestionData = { type: 'drawing', question: 'Draw your favorite animal.' };
 
 export default function ClassroomPage({ params }: ClassroomPageProps) {
-  const studentName = decodeURIComponent(params.nickname);
+  // Per Next.js warning, we unwrap the params object which is a promise-like.
+  const resolvedParams = use(params);
+  const studentName = decodeURIComponent(resolvedParams.nickname);
   
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
