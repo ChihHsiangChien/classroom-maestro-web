@@ -31,7 +31,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeShortAnswersAction } from "@/app/actions";
 import type { AnalyzeShortAnswersOutput } from "@/ai/flows/analyze-short-answers";
-import { Bar, XAxis, YAxis, CartesianGrid, BarChart, Tooltip as ChartTooltip } from "recharts";
+import { Bar, XAxis, YAxis, CartesianGrid, BarChart, Tooltip as ChartTooltip, LabelList } from "recharts";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 
 interface ActiveQuestionProps {
@@ -186,9 +186,12 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
   );
 }
 
+type ModalData = { text: string; value: number, type: 'cloud' | 'bar' };
+
 function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }: ResultsProps) {
     const [isAnalyzing, startTransition] = useTransition();
     const [analysis, setAnalysis] = useState<AnalyzeShortAnswersOutput | null>(null);
+    const [modalData, setModalData] = useState<ModalData | null>(null);
     const { toast } = useToast();
 
     const handleAnalyze = () => {
@@ -215,6 +218,10 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
                 });
             }
         });
+    };
+
+    const handleWordClick = (data: ModalData) => {
+        setModalData(data);
     };
 
     if (submissions.length === 0) {
@@ -281,7 +288,7 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
                                 <CardTitle>Keyword Cloud</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <WordCloud data={analysis.wordCloud} />
+                                <WordCloud data={analysis.wordCloud} onWordClick={handleWordClick} />
                             </CardContent>
                         </Card>
                          <Card>
@@ -289,12 +296,28 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
                                 <CardTitle>Keyword Frequency</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <KeywordBarChart data={analysis.barChart} />
+                                <KeywordBarChart data={analysis.barChart} onWordClick={handleWordClick} />
                             </CardContent>
                         </Card>
                     </div>
                 </div>
             )}
+
+            <Dialog open={!!modalData} onOpenChange={(open) => !open && setModalData(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Keyword: {modalData?.text}</DialogTitle>
+                    </DialogHeader>
+                    {modalData && (
+                        <div className="flex flex-col items-center justify-center p-8 gap-4">
+                            <p className="text-6xl font-bold text-primary text-center">{modalData.text}</p>
+                            <p className="text-xl text-muted-foreground">
+                                {modalData.type === 'bar' ? `Count: ${modalData.value}` : `Weight: ${modalData.value}`}
+                            </p>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
@@ -532,7 +555,7 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
     );
 }
 
-function WordCloud({ data }: { data: { text: string; value: number }[] }) {
+function WordCloud({ data, onWordClick }: { data: { text: string; value: number }[], onWordClick: (data: ModalData) => void }) {
     if (!data || data.length === 0) {
         return <div className="text-center text-muted-foreground">No keywords found.</div>;
     }
@@ -552,30 +575,41 @@ function WordCloud({ data }: { data: { text: string; value: number }[] }) {
     return (
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 p-4 min-h-[250px] rounded-md bg-muted/50">
             {data.map(({ text, value }) => (
-                <span 
-                    key={text} 
-                    style={{ 
+                <button
+                    key={text}
+                    onClick={() => onWordClick({ text, value, type: 'cloud' })}
+                    style={{
                         fontSize: getFontSize(value),
-                        fontWeight: Math.round(parseFloat(getFontSize(value))) > 2 ? 600 : 400
+                        fontWeight: Math.round(parseFloat(getFontSize(value))) > 2 ? 600 : 400,
                     }}
-                    className="leading-tight text-foreground transition-all duration-300"
+                    className="p-1 leading-tight text-foreground transition-all duration-300 rounded-md hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                     {text}
-                </span>
+                </button>
             ))}
         </div>
     );
 }
 
-function KeywordBarChart({ data }: { data: { word: string; count: number }[] }) {
+function KeywordBarChart({ data, onWordClick }: { data: { word: string; count: number }[], onWordClick: (data: ModalData) => void }) {
     if (!data || data.length === 0) {
         return <div className="text-center text-muted-foreground">No data for chart.</div>;
     }
 
     return (
-      <div className="w-full h-[250px]">
+      <div className="w-full h-auto min-h-[250px]">
         <ChartContainer config={{}} className="h-full w-full">
-            <BarChart data={data} layout="vertical" margin={{ left: 10, right: 30 }}>
+            <BarChart
+                data={data}
+                layout="vertical"
+                margin={{ left: 10, right: 40 }}
+                onClick={(payload) => {
+                    if (payload && payload.activePayload && payload.activePayload[0]) {
+                        const { word, count } = payload.activePayload[0].payload;
+                        onWordClick({ text: word, value: count, type: 'bar' });
+                    }
+                }}
+            >
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" hide />
                 <YAxis dataKey="word" type="category" width={80} tickLine={false} axisLine={false} />
@@ -583,7 +617,9 @@ function KeywordBarChart({ data }: { data: { word: string; count: number }[] }) 
                     cursor={{ fill: 'hsl(var(--muted))' }}
                     content={<ChartTooltipContent />}
                 />
-                <Bar dataKey="count" fill="hsl(var(--primary))" radius={4} />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={4} className="cursor-pointer">
+                    <LabelList dataKey="count" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                </Bar>
             </BarChart>
         </ChartContainer>
       </div>
