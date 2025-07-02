@@ -34,7 +34,11 @@ const mockShortAnswer: QuestionData = { type: 'short-answer', question: 'In one 
 const mockDrawing: QuestionData = { type: 'drawing', question: 'Draw your favorite animal.' };
 
 export default function ClassroomPage({ params }: ClassroomPageProps) {
+  console.log('[ClassroomPage] Component mounted. Received params:', params);
+
   const studentName = decodeURIComponent(params.nickname);
+  console.log(`[ClassroomPage] Decoded student name: ${studentName}`);
+  
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
 

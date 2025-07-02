@@ -29,6 +29,12 @@ const students: Student[] = [
 export default function JoinPage() {
   const router = useRouter();
 
+  const handleStudentClick = (student: Student) => {
+    const url = `/classroom/${encodeURIComponent(student.name)}`;
+    console.log(`[JoinPage] Navigating to: ${url}`);
+    router.push(url);
+  };
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md shadow-lg">
@@ -49,11 +55,7 @@ export default function JoinPage() {
                   <TableRow
                     key={student.id}
                     className="cursor-pointer hover:bg-muted/50"
-                    onClick={() =>
-                      router.push(
-                        `/classroom/${encodeURIComponent(student.name)}`
-                      )
-                    }
+                    onClick={() => handleStudentClick(student)}
                   >
                     <TableCell className="flex items-center gap-4 p-4">
                       <User className="h-5 w-5 text-muted-foreground" />
