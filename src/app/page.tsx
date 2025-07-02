@@ -1,4 +1,4 @@
-import { Crown, School, User } from "lucide-react";
+import { Crown, School } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -6,12 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 import { TeacherLoginForm } from "@/components/teacher-login-form";
 
 export default function Home() {
@@ -25,51 +19,23 @@ export default function Home() {
           Classroom Maestro
         </h1>
         <p className="max-w-md text-muted-foreground">
-          The interactive classroom for modern learning. Join as a student or
-          sign in as a teacher.
+          The interactive classroom for modern learning.
         </p>
       </div>
-      <Tabs defaultValue="student" className="w-full max-w-md">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="student">
-            <User className="mr-2 h-4 w-4" />
-            Student
-          </TabsTrigger>
-          <TabsTrigger value="teacher">
-            <Crown className="mr-2 h-4 w-4" />
-            Teacher
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="student">
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle>Join the Classroom</CardTitle>
-              <CardDescription>
-                Please use the unique URL provided by your teacher to join the
-                classroom.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center text-muted-foreground p-4 bg-muted/50 rounded-md">
-                Ask your teacher for the link!
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="teacher">
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle>Teacher Sign In</CardTitle>
-              <CardDescription>
-                Access your dashboard to manage the classroom.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TeacherLoginForm />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <Crown className="h-6 w-6 text-primary" />
+            </div>
+          <CardTitle>Teacher Sign In</CardTitle>
+          <CardDescription>
+            Access your dashboard to manage the classroom.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TeacherLoginForm />
+        </CardContent>
+      </Card>
     </main>
   );
 }
