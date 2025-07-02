@@ -12,6 +12,7 @@ import {
 import { Hourglass, CheckSquare } from "lucide-react";
 import { StudentQuestionForm } from "@/components/student-poll";
 import type { QuestionData } from "@/components/create-poll-form";
+import { useI18n } from "@/lib/i18n/provider";
 
 interface ClassroomPageProps {
   params: {
@@ -41,6 +42,7 @@ const mockImageAnnotation: QuestionData = {
 
 
 export default function ClassroomPage({ params }: ClassroomPageProps) {
+  const { t } = useI18n();
   // Per Next.js warning, we unwrap the params object which is a promise-like.
   const resolvedParams = use(params);
   const studentName = decodeURIComponent(resolvedParams.nickname);
@@ -67,14 +69,13 @@ export default function ClassroomPage({ params }: ClassroomPageProps) {
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
               <CheckSquare className="h-6 w-6 text-green-600" />
             </div>
-            <CardTitle>Submission Received!</CardTitle>
+            <CardTitle>{t('classroomPage.submission_received_title')}</CardTitle>
             <CardDescription>
-              Your response has been recorded. Please wait for the teacher to
-              continue the lesson.
+              {t('classroomPage.submission_received_description')}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setHasVoted(false)}>Answer Another Question</Button>
+            <Button onClick={() => setHasVoted(false)}>{t('classroomPage.answer_another_question_button')}</Button>
           </CardContent>
         </Card>
       );
@@ -86,22 +87,21 @@ export default function ClassroomPage({ params }: ClassroomPageProps) {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Hourglass className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle>Welcome, {studentName}!</CardTitle>
+          <CardTitle>{t('classroomPage.welcome_title', { studentName })}</CardTitle>
           <CardDescription>
-            The lesson will begin shortly. Please wait for the teacher to
-            start an activity.
+            {t('classroomPage.welcome_description')}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            (For demo purposes, you can simulate receiving a question)
+            {t('classroomPage.demo_prompt')}
           </p>
           <div className="flex flex-wrap justify-center gap-2">
-            <Button onClick={() => setActiveQuestion(mockMultipleChoice)}>Simulate Multiple Choice</Button>
-            <Button onClick={() => setActiveQuestion(mockTrueFalse)}>Simulate True/False</Button>
-            <Button onClick={() => setActiveQuestion(mockShortAnswer)}>Simulate Short Answer</Button>
-            <Button onClick={() => setActiveQuestion(mockDrawing)}>Simulate Drawing</Button>
-            <Button onClick={() => setActiveQuestion(mockImageAnnotation)}>Simulate Annotation</Button>
+            <Button onClick={() => setActiveQuestion(mockMultipleChoice)}>{t('classroomPage.simulate_mc_button')}</Button>
+            <Button onClick={() => setActiveQuestion(mockTrueFalse)}>{t('classroomPage.simulate_tf_button')}</Button>
+            <Button onClick={() => setActiveQuestion(mockShortAnswer)}>{t('classroomPage.simulate_sa_button')}</Button>
+            <Button onClick={() => setActiveQuestion(mockDrawing)}>{t('classroomPage.simulate_drawing_button')}</Button>
+            <Button onClick={() => setActiveQuestion(mockImageAnnotation)}>{t('classroomPage.simulate_annotation_button')}</Button>
           </div>
         </CardContent>
       </Card>

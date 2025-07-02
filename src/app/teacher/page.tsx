@@ -17,6 +17,8 @@ import type { QuestionData } from "@/components/create-poll-form";
 import { StudentManagement, type Student, type Submission } from "@/components/student-management";
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { LotteryModal } from "@/components/lottery-modal";
+import { useI18n } from "@/lib/i18n/provider";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 const initialStudents: Student[] = [
     { id: 1, name: '01王大明' },
@@ -27,6 +29,7 @@ const initialStudents: Student[] = [
 ];
 
 export default function TeacherPage() {
+  const { t } = useI18n();
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [loggedInStudents, setLoggedInStudents] = useState<Student[]>([]);
@@ -125,20 +128,21 @@ export default function TeacherPage() {
           <header className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <SidebarTrigger />
-              <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
+              <h1 className="text-3xl font-bold">{t('teacherDashboard.title')}</h1>
               <Button asChild variant="outline">
-                <Link href="/">Exit Classroom</Link>
+                <Link href="/">{t('teacherDashboard.exit_button')}</Link>
               </Button>
             </div>
+            <LanguageSwitcher />
           </header>
 
           <div className="space-y-6">
             {!activeQuestion ? (
               <Card className="shadow-md">
                 <CardHeader>
-                  <CardTitle>Create a New Question</CardTitle>
+                  <CardTitle>{t('teacherDashboard.create_question_card_title')}</CardTitle>
                   <CardDescription>
-                    Engage your students with a real-time question.
+                    {t('teacherDashboard.create_question_card_description')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

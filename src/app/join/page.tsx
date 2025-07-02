@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { Student } from '@/components/student-management';
+import { useI18n } from '@/lib/i18n/provider';
 
 // Mock data, should be the same as in teacher's page for consistency
 const students: Student[] = [
@@ -26,6 +27,8 @@ const students: Student[] = [
 ];
 
 export default function JoinPage() {
+  const { t } = useI18n();
+
   const handleStudentClick = (student: Student) => {
     const url = `/classroom/${encodeURIComponent(student.name)}`;
     // Use window.location.href for robust navigation when router.push fails.
@@ -39,9 +42,9 @@ export default function JoinPage() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <School className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle>加入教室</CardTitle>
+          <CardTitle>{t('joinPage.title')}</CardTitle>
           <CardDescription>
-            請從下方列表選擇你的名字登入。
+            {t('joinPage.description')}
           </CardDescription>
         </CardHeader>
         <CardContent>

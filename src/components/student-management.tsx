@@ -12,7 +12,6 @@ import {
   Copy,
   Check,
   ChevronDown,
-  Ticket,
 } from 'lucide-react';
 import {
   Card,
@@ -67,6 +66,7 @@ import { Label } from './ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
+import { useI18n } from '@/lib/i18n/provider';
 
 export type Student = {
   id: number;
@@ -111,6 +111,7 @@ export function StudentManagement({
   isRosterOpen,
   onRosterToggle,
 }: StudentManagementProps) {
+  const { t } = useI18n();
   const [classroomUrl, setClassroomUrl] = useState('');
   const [isClient, setIsClient] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
@@ -133,16 +134,23 @@ export function StudentManagement({
   const handleCopy = () => {
     navigator.clipboard.writeText(classroomUrl);
     setHasCopied(true);
-    toast({ title: 'Copied to clipboard!', description: 'You can now share the link with your students.' });
+    toast({ 
+      title: t('studentManagement.copy_button_toast_title'), 
+      description: t('studentManagement.copy_button_toast_description') 
+    });
     setTimeout(() => setHasCopied(false), 2000);
   };
 
   const handleAdd = () => {
     if (newStudentName.trim()) {
-      onAddStudent(newStudentName.trim());
+      const name = newStudentName.trim();
+      onAddStudent(name);
       setNewStudentName('');
       setAddDialogOpen(false);
-      toast({ title: 'Student Added', description: `${newStudentName} has been added to the roster.` });
+      toast({ 
+        title: t('studentManagement.toast_student_added_title'), 
+        description: t('studentManagement.toast_student_added_description', { name }) 
+      });
     }
   };
 
@@ -151,7 +159,10 @@ export function StudentManagement({
       onUpdateStudent(editingStudent.id, editingStudent.name.trim());
       setEditingStudent(null);
       setEditDialogOpen(false);
-      toast({ title: 'Student Updated', description: 'The student record has been updated.' });
+      toast({ 
+        title: t('studentManagement.toast_student_updated_title'), 
+        description: t('studentManagement.toast_student_updated_description') 
+      });
     }
   };
 
@@ -167,9 +178,9 @@ export function StudentManagement({
           <Collapsible open={isManagementOpen} onOpenChange={onManagementToggle}>
             <CardHeader className="flex flex-row items-start justify-between">
               <div>
-                <CardTitle>Student Management</CardTitle>
+                <CardTitle>{t('studentManagement.title')}</CardTitle>
                 <CardDescription>
-                  Share the link or QR code with your class.
+                  {t('studentManagement.description')}
                 </CardDescription>
               </div>
               <CollapsibleTrigger asChild>
@@ -182,7 +193,7 @@ export function StudentManagement({
             <CollapsibleContent>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="classroom-url">Classroom URL</Label>
+                  <Label htmlFor="classroom-url">{t('studentManagement.classroom_url_label')}</Label>
                   <div className="flex gap-2">
                     <Input id="classroom-url" value={classroomUrl} readOnly />
                     <Button size="icon" variant="outline" onClick={handleCopy}>
@@ -193,7 +204,7 @@ export function StudentManagement({
                 {isClient && classroomUrl && (
                   <div className="flex flex-col items-center gap-2 rounded-md bg-white p-4">
                     <QRCode value={classroomUrl} size={128} />
-                    <p className="text-sm text-muted-foreground">Scan to Join</p>
+                    <p className="text-sm text-muted-foreground">{t('studentManagement.scan_to_join')}</p>
                   </div>
                 )}
               </CardContent>
@@ -206,18 +217,17 @@ export function StudentManagement({
             <CardHeader className="flex flex-row items-start justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <CardTitle className="text-sm font-medium">Class Roster</CardTitle>
+                  <CardTitle className="text-sm font-medium">{t('studentManagement.roster_card_title')}</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </div>
                  <div className="text-2xl font-bold">{loggedInStudents.length} / {students.length}</div>
                   <p className="text-xs text-muted-foreground">
-                    {students.length - loggedInStudents.length} student(s) absent
+                    {t('studentManagement.students_absent', { count: students.length - loggedInStudents.length })}
                   </p>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={onPickStudent} disabled={loggedInStudents.length === 0}>
-                    <Ticket />
-                    抽籤
+                    {t('studentManagement.lottery_button')}
                 </Button>
                 <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="sm" className='-mr-2 -mt-1'>
@@ -230,8 +240,8 @@ export function StudentManagement({
             <CollapsibleContent>
               <Tabs defaultValue="not-logged-in" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="not-logged-in">Not Logged In ({notLoggedInStudents.length})</TabsTrigger>
-                  <TabsTrigger value="logged-in">Logged In ({loggedInStudents.length})</TabsTrigger>
+                  <TabsTrigger value="not-logged-in">{t('studentManagement.tab_not_logged_in', { count: notLoggedInStudents.length })}</TabsTrigger>
+                  <TabsTrigger value="logged-in">{t('studentManagement.tab_logged_in', { count: loggedInStudents.length })}</TabsTrigger>
                 </TabsList>
                 <TabsContent value="not-logged-in">
                   <StudentTable
@@ -242,10 +252,10 @@ export function StudentManagement({
                                   <Edit className="h-4 w-4" />
                               </Button>
                               <DeleteStudentButton student={student} onDelete={onDeleteStudent} />
-                              <Button variant="outline" size="sm" onClick={() => onStudentLogin(student)}>(Simulate Login)</Button>
+                              <Button variant="outline" size="sm" onClick={() => onStudentLogin(student)}>{t('studentManagement.simulate_login_button')}</Button>
                           </>
                       )}
-                      emptyMessage="All students are present!"
+                      emptyMessage={t('studentManagement.all_students_present_message')}
                   />
                 </TabsContent>
                 <TabsContent value="logged-in">
@@ -259,7 +269,7 @@ export function StudentManagement({
                                 </Button>
                             </>
                         )}
-                        emptyMessage="No students have logged in yet."
+                        emptyMessage={t('studentManagement.no_students_logged_in_message')}
                     />
                 </TabsContent>
               </Tabs>
@@ -267,22 +277,22 @@ export function StudentManagement({
                 <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
                   <DialogTrigger asChild>
                     <Button className="w-full mt-4">
-                      <UserPlus className="mr-2 h-4 w-4" /> Add Student
+                      <UserPlus className="mr-2 h-4 w-4" /> {t('studentManagement.add_student_button')}
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Add New Student</DialogTitle>
+                      <DialogTitle>{t('studentManagement.add_student_dialog_title')}</DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                       <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">Name</Label>
+                        <Label htmlFor="name" className="text-right">{t('studentManagement.add_student_name_label')}</Label>
                         <Input id="name" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} className="col-span-3" />
                       </div>
                     </div>
                     <DialogFooter>
-                      <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                      <Button onClick={handleAdd}>Save</Button>
+                      <DialogClose asChild><Button variant="ghost">{t('common.cancel')}</Button></DialogClose>
+                      <Button onClick={handleAdd}>{t('common.save')}</Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
@@ -294,17 +304,17 @@ export function StudentManagement({
         <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
           <DialogContent>
               <DialogHeader>
-                  <DialogTitle>Edit Student</DialogTitle>
+                  <DialogTitle>{t('studentManagement.edit_student_dialog_title')}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="edit-name" className="text-right">Name</Label>
+                      <Label htmlFor="edit-name" className="text-right">{t('studentManagement.add_student_name_label')}</Label>
                       <Input id="edit-name" value={editingStudent?.name || ''} onChange={(e) => setEditingStudent(s => s ? {...s, name: e.target.value} : null)} className="col-span-3" />
                   </div>
               </div>
               <DialogFooter>
-                  <DialogClose asChild><Button variant="ghost" onClick={() => setEditDialogOpen(false)}>Cancel</Button></DialogClose>
-                  <Button onClick={handleUpdate}>Save Changes</Button>
+                  <DialogClose asChild><Button variant="ghost" onClick={() => setEditDialogOpen(false)}>{t('common.cancel')}</Button></DialogClose>
+                  <Button onClick={handleUpdate}>{t('common.save_changes')}</Button>
               </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -314,6 +324,7 @@ export function StudentManagement({
 }
 
 function StudentTable({ students, actionButtons, emptyMessage, onRowClick }: { students: Student[], actionButtons: (s: Student) => React.ReactNode, emptyMessage: string, onRowClick?: (id: number) => void }) {
+    const { t } = useI18n();
     if (students.length === 0) {
         return <div className="text-center text-sm text-muted-foreground p-4">{emptyMessage}</div>
     }
@@ -321,8 +332,8 @@ function StudentTable({ students, actionButtons, emptyMessage, onRowClick }: { s
         <Table>
             <TableHeader>
                 <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t('studentManagement.table_header_name')}</TableHead>
+                    <TableHead className="text-right">{t('studentManagement.table_header_actions')}</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -350,9 +361,9 @@ function StudentTable({ students, actionButtons, emptyMessage, onRowClick }: { s
                         <Tooltip key={student.id}>
                             <TooltipTrigger asChild>{row}</TooltipTrigger>
                             <TooltipContent>
-                                <p>{student.isFocused ?? true ? 'Focused' : 'Distracted'}</p>
-                                {(student.isFocused ?? true) ? null : <p className="text-xs text-muted-foreground">Student may have switched tabs.</p> }
-                                <p className="text-xs text-muted-foreground">Click row to toggle status for demo.</p>
+                                <p>{student.isFocused ?? true ? t('studentManagement.tooltip_focused') : t('studentManagement.tooltip_distracted')}</p>
+                                {(student.isFocused ?? true) ? null : <p className="text-xs text-muted-foreground">{t('studentManagement.tooltip_distracted_description')}</p> }
+                                <p className="text-xs text-muted-foreground">{t('studentManagement.tooltip_toggle_status_description')}</p>
                             </TooltipContent>
                         </Tooltip>
                     )
@@ -365,14 +376,15 @@ function StudentTable({ students, actionButtons, emptyMessage, onRowClick }: { s
 }
 
 function DeleteStudentButton({ student, onDelete }: { student: Student, onDelete: (id: number) => void}) {
+    const { t } = useI18n();
     const { toast } = useToast();
     
     const handleDelete = () => {
         onDelete(student.id);
         toast({
             variant: "destructive",
-            title: "Student Deleted",
-            description: `${student.name} has been removed from the roster.`,
+            title: t('studentManagement.toast_student_deleted_title'),
+            description: t('studentManagement.toast_student_deleted_description', { name: student.name }),
         });
     }
 
@@ -385,14 +397,14 @@ function DeleteStudentButton({ student, onDelete }: { student: Student, onDelete
             </AlertDialogTrigger>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogTitle>{t('studentManagement.delete_student_alert_title')}</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This will permanently delete {student.name} from the roster. This action cannot be undone.
+                        {t('studentManagement.delete_student_alert_description', { name: student.name })}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">{t('common.delete')}</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

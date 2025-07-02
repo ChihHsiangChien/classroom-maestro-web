@@ -15,11 +15,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import type { QuestionData, MultipleChoiceQuestion, ImageAnnotationQuestion } from "./create-poll-form";
+import type { QuestionData, MultipleChoiceQuestion } from "./create-poll-form";
 import { Textarea } from "./ui/textarea";
 import { Label } from '@/components/ui/label';
 import { Checkbox } from './ui/checkbox';
 import type { DrawingEditorRef } from './drawing-editor';
+import { useI18n } from '@/lib/i18n/provider';
 
 const DrawingEditor = dynamic(
   () => import('./drawing-editor').then((mod) => mod.DrawingEditor),
@@ -39,6 +40,7 @@ interface StudentQuestionFormProps {
 const shortAnswerSchema = z.object({ answer: z.string().min(1, { message: "Your answer cannot be empty." }) });
 
 function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQuestion, onSubmit: () => void }) {
+    const { t } = useI18n();
     const formSchema = z.object({
         answers: question.allowMultipleAnswers
             ? z.array(z.string()).nonempty("Please select at least one option.")
@@ -58,7 +60,7 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
                     name="answers"
                     render={({ field }) => (
                         <FormItem className="space-y-3">
-                            <FormLabel>Choose your answer{question.allowMultipleAnswers ? 's' : ''}:</FormLabel>
+                            <FormLabel>{question.allowMultipleAnswers ? t('studentPoll.choose_your_answers') : t('studentPoll.choose_your_answer')}</FormLabel>
                             <FormControl>
                                 <div className="flex flex-col space-y-2">
                                     {question.allowMultipleAnswers ? (
@@ -112,7 +114,7 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
                 />
                 <Button type="submit" className="w-full">
                     <CheckCircle className="mr-2 h-4 w-4" />
-                    Submit Vote
+                    {t('studentPoll.submit_vote_button')}
                 </Button>
             </form>
         </Form>
@@ -133,8 +135,9 @@ function TrueFalseForm({ onSubmit }: { onSubmit: () => void }) {
 }
 
 function ShortAnswerForm({ onSubmit }: { onSubmit: () => void }) {
+    const { t } = useI18n();
     const form = useForm<z.infer<typeof shortAnswerSchema>>({ resolver: zodResolver(shortAnswerSchema), defaultValues: { answer: "" } });
-    return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><FormField control={form.control} name="answer" render={({ field }) => (<FormItem><FormLabel>Your Answer</FormLabel><FormControl><Textarea placeholder="Type your answer here..." {...field} rows={4} /></FormControl><FormMessage /></FormItem>)} /><Button type="submit" className="w-full">Submit Answer</Button></form></Form>);
+    return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><FormField control={form.control} name="answer" render={({ field }) => (<FormItem><FormLabel>{t('studentPoll.your_answer_label')}</FormLabel><FormControl><Textarea placeholder={t('studentPoll.your_answer_placeholder')} {...field} rows={4} /></FormControl><FormMessage /></FormItem>)} /><Button type="submit" className="w-full">{t('studentPoll.submit_answer_button')}</Button></form></Form>);
 }
 
 function CanvasSubmissionForm({
@@ -144,6 +147,7 @@ function CanvasSubmissionForm({
   onSubmit: (dataUrl: string) => void;
   backgroundImageUrl?: string;
 }) {
+  const { t } = useI18n();
   const editorRef = useRef<DrawingEditorRef>(null);
 
   const handleSubmitClick = () => {
@@ -157,7 +161,7 @@ function CanvasSubmissionForm({
     <div className="space-y-4">
       <DrawingEditor ref={editorRef} backgroundImageUrl={backgroundImageUrl} />
       <div className="flex justify-end">
-        <Button onClick={handleSubmitClick}>Submit</Button>
+        <Button onClick={handleSubmitClick}>{t('common.submit')}</Button>
       </div>
     </div>
   );
@@ -167,10 +171,11 @@ function CanvasSubmissionForm({
 // --- Main Component ---
 export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionFormProps) {
   const { toast } = useToast();
+  const { t } = useI18n();
 
   function handleSubmit() {
     onVoteSubmit();
-    toast({ title: "Response Submitted!", description: "Thank you for participating." });
+    toast({ title: t('studentPoll.toast_submitted_title'), description: t('studentPoll.toast_submitted_description') });
   }
 
   function handleDrawingSubmit(dataUrl: string) {
@@ -186,7 +191,7 @@ export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionF
           case 'short-answer': return <ShortAnswerForm onSubmit={handleSubmit} />;
           case 'drawing': return <CanvasSubmissionForm onSubmit={handleDrawingSubmit} />;
           case 'image-annotation': return <CanvasSubmissionForm onSubmit={handleDrawingSubmit} backgroundImageUrl={question.imageUrl} />;
-          default: return <p>Unknown question type.</p>;
+          default: return <p>{t('studentPoll.unknown_question_type')}</p>;
       }
   }
 

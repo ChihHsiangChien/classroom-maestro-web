@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/lib/i18n/provider";
 
 const formSchema = z.object({
   roomCode: z
@@ -33,6 +34,7 @@ const DEMO_PASSWORD = "password";
 export function TeacherLoginForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useI18n();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -48,15 +50,15 @@ export function TeacherLoginForm() {
       values.password === DEMO_PASSWORD
     ) {
       toast({
-        title: "Signed In!",
-        description: "Redirecting to your teacher dashboard.",
+        title: t('teacherLoginForm.toast_success_title'),
+        description: t('teacherLoginForm.toast_success_description'),
       });
       router.push("/teacher");
     } else {
       toast({
         variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid classroom code or password. Please try again.",
+        title: t('teacherLoginForm.toast_error_title'),
+        description: t('teacherLoginForm.toast_error_description'),
       });
     }
   }
@@ -69,9 +71,9 @@ export function TeacherLoginForm() {
           name="roomCode"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Classroom Code</FormLabel>
+              <FormLabel>{t('teacherLoginForm.room_code_label')}</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. DEMO" {...field} />
+                <Input placeholder={t('teacherLoginForm.room_code_placeholder')} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -82,9 +84,9 @@ export function TeacherLoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>{t('teacherLoginForm.password_label')}</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
+                <Input type="password" placeholder={t('teacherLoginForm.password_placeholder')} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -95,7 +97,7 @@ export function TeacherLoginForm() {
           className="w-full"
           disabled={!form.formState.isValid}
         >
-          Sign In
+          {t('teacherLoginForm.signin_button')}
         </Button>
       </form>
     </Form>

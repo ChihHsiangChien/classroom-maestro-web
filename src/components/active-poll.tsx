@@ -1,7 +1,7 @@
 
 "use client";
 
-import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, Clapperboard, ChevronDown, Wand2, Loader2, BrainCircuit, Eye, EyeOff } from "lucide-react";
+import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, Clapperboard, ChevronDown, Wand2, Loader2, BrainCircuit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -34,6 +34,7 @@ import type { AnalyzeShortAnswersOutput } from "@/ai/flows/analyze-short-answers
 import { Bar, XAxis, YAxis, CartesianGrid, BarChart, Tooltip as ChartTooltip, LabelList } from "recharts";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/provider";
 
 interface ActiveQuestionProps {
   question: QuestionData;
@@ -52,6 +53,7 @@ interface ResultsProps {
 }
 
 function MultipleChoiceResults({ question, submissions, students, isResponsesOpen, onResponsesToggle }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: { value: string }[], allowMultipleAnswers?: boolean }); submissions: Submission[], students: Student[], isResponsesOpen: boolean, onResponsesToggle: (isOpen: boolean) => void }) {
+  const { t } = useI18n();
   const isTrueFalse = question.type === 'true-false';
   
   const results = useMemo(() => {
@@ -104,7 +106,7 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
       {/* Aggregate Results */}
       <div>
         <h3 className="mb-4 flex items-center text-lg font-semibold">
-          <BarChartIcon className="mr-2 h-5 w-5" /> Live Results
+          <BarChartIcon className="mr-2 h-5 w-5" /> {t('activePoll.live_results_title')}
         </h3>
         <div className="space-y-4">
           {results.map((result, index) => (
@@ -112,7 +114,7 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
               <div className="mb-1 flex items-center justify-between">
                 <p className="font-medium">{result.option}</p>
                 <p className="text-sm text-muted-foreground">
-                  {result.votes} votes ({result.percentage.toFixed(0)}%)
+                  {t('activePoll.votes_count', { count: result.votes })} ({result.percentage.toFixed(0)}%)
                 </p>
               </div>
               <Progress value={result.percentage} className="h-3" />
@@ -120,7 +122,7 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
           ))}
         </div>
         <div className="mt-4 flex items-center justify-between border-t pt-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2"><Users className="h-4 w-4" /><span>{totalSubmissions} student(s) responded</span></div>
+          <div className="flex items-center gap-2"><Users className="h-4 w-4" /><span>{t('activePoll.total_respondents', { count: totalSubmissions })}</span></div>
         </div>
       </div>
 
@@ -129,7 +131,7 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
         <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
           <div className="flex items-center justify-between rounded-md border p-2">
             <h3 className="flex items-center text-lg font-semibold">
-              <Users className="mr-2 h-5 w-5" /> Student Responses
+              <Users className="mr-2 h-5 w-5" /> {t('activePoll.student_responses_title')}
             </h3>
             <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="sm">
@@ -144,7 +146,7 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
                 <Table>
                   <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
                     <TableRow>
-                      <TableHead className="w-[150px]">Student</TableHead>
+                      <TableHead className="w-[150px]">{t('activePoll.student_table_header')}</TableHead>
                       {question.options.map((option, index) => {
                          const letter = String.fromCharCode(65 + index);
                          const headerText = isTrueFalse ? option.value : letter;
@@ -188,6 +190,7 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
 }
 
 function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }: ResultsProps) {
+    const { t } = useI18n();
     const [isAnalyzing, startTransition] = useTransition();
     const [analysis, setAnalysis] = useState<AnalyzeShortAnswersOutput | null>(null);
     const { toast } = useToast();
@@ -197,8 +200,8 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
         if (answers.length < 2) {
              toast({
                 variant: "destructive",
-                title: "Not enough data",
-                description: "Need at least two answers to perform an analysis.",
+                title: t('activePoll.toast_analysis_data_error_title'),
+                description: t('activePoll.toast_analysis_data_error_description'),
             });
             return;
         }
@@ -211,7 +214,7 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
             } else {
                 toast({
                     variant: "destructive",
-                    title: "Analysis Failed",
+                    title: t('activePoll.toast_analysis_failed_title'),
                     description: result.error,
                 });
             }
@@ -219,7 +222,7 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
     };
 
     if (submissions.length === 0) {
-        return <div className="text-center text-muted-foreground py-8">Waiting for submissions...</div>;
+        return <div className="text-center text-muted-foreground py-8">{t('activePoll.waiting_for_submissions')}</div>;
     }
 
     return (
@@ -227,7 +230,7 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
             <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
                  <div className="flex items-center justify-between rounded-md border p-2 mb-2">
                     <h3 className="flex items-center text-lg font-semibold">
-                        <FileText className="mr-2 h-5 w-5" /> Student Responses
+                        <FileText className="mr-2 h-5 w-5" /> {t('activePoll.student_responses_title')}
                     </h3>
                     <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm">
@@ -253,15 +256,15 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
             <div className="flex items-center gap-4 border-t pt-4">
                 <Button onClick={handleAnalyze} disabled={isAnalyzing || submissions.length < 2}>
                     {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                    Analyze Answers with AI
+                    {t('activePoll.analyze_with_ai_button')}
                 </Button>
-                {submissions.length < 2 && <p className="text-sm text-muted-foreground">Need at least 2 submissions to analyze.</p>}
+                {submissions.length < 2 && <p className="text-sm text-muted-foreground">{t('activePoll.analyze_with_ai_min_submissions')}</p>}
             </div>
 
             {isAnalyzing && (
                 <div className="text-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-                    <p className="mt-2 text-muted-foreground">AI is analyzing the answers...</p>
+                    <p className="mt-2 text-muted-foreground">{t('activePoll.ai_analyzing_message')}</p>
                 </div>
             )}
             
@@ -269,7 +272,7 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
                 <div className="space-y-6 animate-in fade-in-50">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><BrainCircuit className="h-5 w-5 text-primary"/> AI Summary & Analysis</CardTitle>
+                            <CardTitle className="flex items-center gap-2"><BrainCircuit className="h-5 w-5 text-primary"/>{t('activePoll.ai_summary_card_title')}</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-muted-foreground">{analysis.summary}</p>
@@ -281,7 +284,7 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
                             <DialogTrigger asChild>
                                 <Card className="cursor-pointer hover:ring-2 hover:ring-primary">
                                     <CardHeader>
-                                        <CardTitle>Keyword Cloud</CardTitle>
+                                        <CardTitle>{t('activePoll.keyword_cloud_card_title')}</CardTitle>
                                     </CardHeader>
                                     <CardContent>
                                         <WordCloud data={analysis.wordCloud} />
@@ -290,7 +293,7 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-3xl">
                                 <DialogHeader>
-                                    <DialogTitle>Keyword Cloud</DialogTitle>
+                                    <DialogTitle>{t('activePoll.keyword_cloud_card_title')}</DialogTitle>
                                 </DialogHeader>
                                 <div className="h-[60vh]">
                                     <WordCloud data={analysis.wordCloud} />
@@ -301,7 +304,7 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
                             <DialogTrigger asChild>
                                 <Card className="cursor-pointer hover:ring-2 hover:ring-primary">
                                     <CardHeader>
-                                        <CardTitle>Keyword Frequency</CardTitle>
+                                        <CardTitle>{t('activePoll.keyword_frequency_card_title')}</CardTitle>
                                     </CardHeader>
                                     <CardContent>
                                         <KeywordBarChart data={analysis.barChart} />
@@ -310,7 +313,7 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-3xl">
                                 <DialogHeader>
-                                    <DialogTitle>Keyword Frequency</DialogTitle>
+                                    <DialogTitle>{t('activePoll.keyword_frequency_card_title')}</DialogTitle>
                                 </DialogHeader>
                                 <div className="h-[60vh] py-8">
                                     <KeywordBarChart data={analysis.barChart} />
@@ -325,21 +328,22 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
 }
 
 function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: ResultsProps) {
+    const { t } = useI18n();
     const [sliderValue, setSliderValue] = useState(3);
     const gridCols = 6 - sliderValue;
 
     if (submissions.length === 0) {
-        return <div className="text-center text-muted-foreground py-8">Waiting for submissions...</div>;
+        return <div className="text-center text-muted-foreground py-8">{t('activePoll.waiting_for_submissions')}</div>;
     }
 
     return (
         <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
-            <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 rounded-md border p-2 mb-2">
+             <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 rounded-md border p-2 mb-2">
                 <h3 className="flex items-center text-lg font-semibold flex-shrink-0">
-                    <ImageIcon className="mr-2 h-5 w-5" /> Student Drawings
+                    <ImageIcon className="mr-2 h-5 w-5" /> {t('activePoll.student_drawings_title')}
                 </h3>
                 <div className="flex items-center gap-4 flex-grow justify-end min-w-[280px]">
-                    <Label htmlFor="zoom-slider" className="text-sm whitespace-nowrap">Thumbnail Size</Label>
+                    <Label htmlFor="zoom-slider" className="text-sm whitespace-nowrap">{t('activePoll.thumbnail_size_label')}</Label>
                     <Slider
                         id="zoom-slider"
                         min={1}
@@ -348,6 +352,7 @@ function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: Res
                         value={[sliderValue]}
                         onValueChange={(value) => setSliderValue(value[0])}
                         className="w-full max-w-[200px]"
+                        dir="rtl"
                     />
                     <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm" className="flex-shrink-0">
@@ -393,11 +398,12 @@ function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: Res
 }
 
 function ImageAnnotationResults({ question, submissions, isResponsesOpen, onResponsesToggle }: { question: ImageAnnotationQuestion } & ResultsProps) {
+    const { t } = useI18n();
     return (
         <div className="space-y-6">
             <div>
                 <h3 className="mb-2 flex items-center text-lg font-semibold">
-                    <PencilRuler className="mr-2 h-5 w-5" /> Original Image
+                    <PencilRuler className="mr-2 h-5 w-5" /> {t('activePoll.original_image_title')}
                 </h3>
                 <div className="aspect-video w-full rounded-md border bg-muted relative">
                     <Image src={question.imageUrl} alt="Original image for annotation" layout="fill" objectFit="contain" data-ai-hint="diagram chart" />
@@ -410,13 +416,14 @@ function ImageAnnotationResults({ question, submissions, isResponsesOpen, onResp
 }
 
 function SubmissionTracker({ students, submissions, onSimulateSubmission }: { students: Student[], submissions: Submission[], onSimulateSubmission: (student: Student) => void }) {
+    const { t } = useI18n();
     const submittedIds = new Set(submissions.map(s => s.studentId));
     
     return (
         <Card className="shadow-md">
             <CardHeader>
-                <CardTitle>Submission Status</CardTitle>
-                <CardDescription>{submissions.length} / {students.length} students have responded.</CardDescription>
+                <CardTitle>{t('activePoll.submission_status_card_title')}</CardTitle>
+                <CardDescription>{t('activePoll.submission_status_card_description', { submissionsCount: submissions.length, studentsCount: students.length })}</CardDescription>
             </CardHeader>
             <CardContent>
                 <ScrollArea className="h-48">
@@ -429,11 +436,11 @@ function SubmissionTracker({ students, submissions, onSimulateSubmission }: { st
                                     {hasSubmitted ? (
                                         <div className="flex items-center gap-2 text-green-600">
                                             <CheckCircle className="h-5 w-5" />
-                                            <span>Submitted</span>
+                                            <span>{t('activePoll.submitted_status')}</span>
                                         </div>
                                     ) : (
                                         <Button size="sm" variant="outline" onClick={() => onSimulateSubmission(student)}>
-                                            Simulate Submission
+                                            {t('activePoll.simulate_submission_button')}
                                         </Button>
                                     )}
                                 </div>
@@ -448,6 +455,8 @@ function SubmissionTracker({ students, submissions, onSimulateSubmission }: { st
 
 
 export function ActiveQuestion({ question, onEndQuestion, students, submissions, onSubmissionsChange, isResponsesOpen, onResponsesToggle }: ActiveQuestionProps) {
+    const { t } = useI18n();
+
     const handleSimulateSubmission = (student: Student) => {
         let mockAnswer: string | string[] = '';
         switch(question.type) {
@@ -518,7 +527,7 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
                             </CardDescription>
                         </div>
                         <Button variant="destructive" onClick={onEndQuestion}>
-                            End Question
+                            {t('teacherDashboard.end_question_button')}
                         </Button>
                     </div>
                 </CardHeader>
@@ -536,18 +545,18 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
             <Card className="shadow-md">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">
-                    Lesson Status
+                    {t('teacherDashboard.lesson_status_card_title')}
                   </CardTitle>
                   <Clapperboard className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-lg font-bold">
-                    {question ? "Question Active" : "Idle"}
+                    {question ? t('teacherDashboard.question_active') : t('teacherDashboard.idle')}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {question
-                      ? `${submissions.length} / ${students.length} responses`
-                      : "Start a question to begin"}
+                      ? t('teacherDashboard.responses_count', { submissionsCount: submissions.length, studentsCount: students.length })
+                      : t('teacherDashboard.start_a_question_prompt')}
                   </p>
                 </CardContent>
               </Card>

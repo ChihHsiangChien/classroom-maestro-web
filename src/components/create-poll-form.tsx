@@ -26,6 +26,7 @@ import { generatePollAction } from "@/app/actions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import type { DrawingEditorRef } from "./drawing-editor";
+import { useI18n } from "@/lib/i18n/provider";
 
 const DrawingEditor = dynamic(
   () => import('./drawing-editor').then((mod) => mod.DrawingEditor),
@@ -90,6 +91,7 @@ interface QuestionFormProps {
 }
 
 function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
+    const { t } = useI18n();
     const [isGenerating, startTransition] = useTransition();
     const [topic, setTopic] = useState("");
     const { toast } = useToast();
@@ -107,7 +109,7 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
                 replace(result.poll.options);
                 form.clearErrors();
             } else {
-                toast({ variant: "destructive", title: "Error", description: result.error });
+                toast({ variant: "destructive", title: t('common.error'), description: result.error });
             }
         });
     }
@@ -116,7 +118,7 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
         onQuestionCreate({ type: 'multiple-choice', ...data });
     }
     
-    return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><div className="space-y-2"><Label htmlFor="topic">Generate with AI</Label><div className="flex items-center gap-2"><Input id="topic" placeholder="e.g. 'The Roman Empire'" value={topic} onChange={(e) => setTopic(e.target.value)} disabled={isGenerating} /><Button type="button" variant="outline" size="icon" onClick={handleGeneratePoll} disabled={isGenerating || !topic} className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0">{isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}<span className="sr-only">Generate Poll</span></Button></div><p className="text-xs text-muted-foreground">Enter a topic and let AI create a poll for you.</p></div><div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or create manually</span></div></div><div className="space-y-8"><FormField control={form.control} name="question" render={({ field }) => (<FormItem><FormLabel>Poll Question</FormLabel><FormControl><Textarea placeholder="What should we learn about next?" {...field} /></FormControl><FormMessage /></FormItem>)} /><div className="space-y-4"><FormLabel>Answer Options</FormLabel>{fields.map((field, index) => (<FormField key={field.id} control={form.control} name={`options.${index}.value`} render={({ field }) => (<FormItem><div className="flex items-center gap-2"><FormControl><Input placeholder={`Option ${String.fromCharCode(65 + index)}`} {...field} /></FormControl>{fields.length > 2 && (<Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => remove(index)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>)}</div><FormMessage /></FormItem>)} />))}{fields.length < 10 && (<Button type="button" variant="outline" size="sm" onClick={() => append({ value: "" })}><PlusCircle className="mr-2 h-4 w-4" />Add Option</Button>)}</div>
+    return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><div className="space-y-2"><Label htmlFor="topic">{t('createQuestionForm.generate_with_ai_label')}</Label><div className="flex items-center gap-2"><Input id="topic" placeholder={t('createQuestionForm.generate_with_ai_placeholder')} value={topic} onChange={(e) => setTopic(e.target.value)} disabled={isGenerating} /><Button type="button" variant="outline" size="icon" onClick={handleGeneratePoll} disabled={isGenerating || !topic} className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0">{isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}<span className="sr-only">Generate Poll</span></Button></div><p className="text-xs text-muted-foreground">{t('createQuestionForm.generate_with_ai_description')}</p></div><div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">{t('common.or_create_manually')}</span></div></div><div className="space-y-8"><FormField control={form.control} name="question" render={({ field }) => (<FormItem><FormLabel>{t('createQuestionForm.poll_question_label')}</FormLabel><FormControl><Textarea placeholder={t('createQuestionForm.poll_question_placeholder')} {...field} /></FormControl><FormMessage /></FormItem>)} /><div className="space-y-4"><FormLabel>{t('createQuestionForm.answer_options_label')}</FormLabel>{fields.map((field, index) => (<FormField key={field.id} control={form.control} name={`options.${index}.value`} render={({ field }) => (<FormItem><div className="flex items-center gap-2"><FormControl><Input placeholder={t('createQuestionForm.option_placeholder', { letter: String.fromCharCode(65 + index) })} {...field} /></FormControl>{fields.length > 2 && (<Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => remove(index)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>)}</div><FormMessage /></FormItem>)} />))}{fields.length < 10 && (<Button type="button" variant="outline" size="sm" onClick={() => append({ value: "" })}><PlusCircle className="mr-2 h-4 w-4" />{t('createQuestionForm.add_option_button')}</Button>)}</div>
         <FormField
               control={form.control}
               name="allowMultipleAnswers"
@@ -124,10 +126,10 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">
-                      Allow multiple selections
+                      {t('createQuestionForm.allow_multiple_selections_label')}
                     </FormLabel>
                     <FormDescription>
-                      Students can select more than one answer.
+                      {t('createQuestionForm.allow_multiple_selections_description')}
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -139,10 +141,11 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
                 </FormItem>
               )}
             />
-        <Button type="submit" className="w-full md:w-auto">Start Question</Button></div></form></Form>);
+        <Button type="submit" className="w-full md:w-auto">{t('createQuestionForm.start_question_button')}</Button></div></form></Form>);
 }
 
 function SimpleQuestionForm({ type, onQuestionCreate, schema, placeholder, label }: QuestionFormProps & { type: 'true-false' | 'short-answer' | 'drawing', schema: typeof simpleQuestionSchema, placeholder: string, label: string }) {
+    const { t } = useI18n();
     const form = useForm<z.infer<typeof schema>>({
         resolver: zodResolver(schema),
         defaultValues: { question: "" },
@@ -156,13 +159,14 @@ function SimpleQuestionForm({ type, onQuestionCreate, schema, placeholder, label
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField control={form.control} name="question" render={({ field }) => (<FormItem><FormLabel>{label}</FormLabel><FormControl><Textarea placeholder={placeholder} {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <Button type="submit" className="w-full md:w-auto">Start Question</Button>
+                <Button type="submit" className="w-full md:w-auto">{t('createQuestionForm.start_question_button')}</Button>
             </form>
         </Form>
     );
 }
 
 function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
+    const { t } = useI18n();
     const editorRef = useRef<DrawingEditorRef>(null);
     const [question, setQuestion] = useState("");
     const { toast } = useToast();
@@ -177,55 +181,56 @@ function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
                 imageUrl,
             });
         } else {
-            toast({ variant: "destructive", title: "Error", description: "Could not get image data from the editor." });
+            toast({ variant: "destructive", title: t('common.error'), description: t('createQuestionForm.toast_get_image_error') });
         }
     }
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-                <Label htmlFor="annotation-prompt">Annotation Prompt (Optional)</Label>
+                <Label htmlFor="annotation-prompt">{t('createQuestionForm.annotation_prompt_label')}</Label>
                 <Textarea 
                     id="annotation-prompt"
-                    placeholder="e.g., 'Circle the mitochondria in the cell diagram.'"
+                    placeholder={t('createQuestionForm.annotation_prompt_placeholder')}
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
                     rows={2}
                 />
             </div>
             <div className="space-y-2">
-                <Label>Canvas</Label>
+                <Label>{t('createQuestionForm.canvas_label')}</Label>
                 <p className="text-sm text-muted-foreground">
-                    Upload, paste, or draw the image you want students to annotate.
+                    {t('createQuestionForm.canvas_description')}
                 </p>
                 <DrawingEditor ref={editorRef} />
             </div>
-            <Button type="submit" className="w-full md:w-auto">Start Question</Button>
+            <Button type="submit" className="w-full md:w-auto">{t('createQuestionForm.start_question_button')}</Button>
         </form>
     );
 }
 
 export function CreateQuestionForm({ onQuestionCreate }: QuestionFormProps) {
+    const { t } = useI18n();
     return (
         <Tabs defaultValue="true-false" className="w-full">
             <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="true-false"><CheckSquareIcon className="mr-2 h-4 w-4" />True/False</TabsTrigger>
-                <TabsTrigger value="multiple-choice"><Vote className="mr-2 h-4 w-4" />Multiple Choice</TabsTrigger>
-                <TabsTrigger value="short-answer"><FileText className="mr-2 h-4 w-4" />Short Answer</TabsTrigger>
-                <TabsTrigger value="drawing"><ImageIcon className="mr-2 h-4 w-4" />Drawing</TabsTrigger>
-                <TabsTrigger value="image-annotation"><PencilRuler className="mr-2 h-4 w-4" />Annotation</TabsTrigger>
+                <TabsTrigger value="true-false"><CheckSquareIcon className="mr-2 h-4 w-4" />{t('createQuestionForm.tab_true_false')}</TabsTrigger>
+                <TabsTrigger value="multiple-choice"><Vote className="mr-2 h-4 w-4" />{t('createQuestionForm.tab_multiple_choice')}</TabsTrigger>
+                <TabsTrigger value="short-answer"><FileText className="mr-2 h-4 w-4" />{t('createQuestionForm.tab_short_answer')}</TabsTrigger>
+                <TabsTrigger value="drawing"><ImageIcon className="mr-2 h-4 w-4" />{t('createQuestionForm.tab_drawing')}</TabsTrigger>
+                <TabsTrigger value="image-annotation"><PencilRuler className="mr-2 h-4 w-4" />{t('createQuestionForm.tab_annotation')}</TabsTrigger>
             </TabsList>
             <TabsContent value="true-false" className="mt-4">
-                <SimpleQuestionForm type="true-false" onQuestionCreate={onQuestionCreate} schema={simpleQuestionSchema} label="True/False Question" placeholder="e.g. The Earth is flat." />
+                <SimpleQuestionForm type="true-false" onQuestionCreate={onQuestionCreate} schema={simpleQuestionSchema} label={t('createQuestionForm.tf_question_label')} placeholder={t('createQuestionForm.tf_question_placeholder')} />
             </TabsContent>
             <TabsContent value="multiple-choice" className="mt-4">
                 <MultipleChoiceForm onQuestionCreate={onQuestionCreate} />
             </TabsContent>
             <TabsContent value="short-answer" className="mt-4">
-                <SimpleQuestionForm type="short-answer" onQuestionCreate={onQuestionCreate} schema={simpleQuestionSchema} label="Short Answer Question" placeholder="e.g. What is the capital of France?" />
+                <SimpleQuestionForm type="short-answer" onQuestionCreate={onQuestionCreate} schema={simpleQuestionSchema} label={t('createQuestionForm.sa_question_label')} placeholder={t('createQuestionForm.sa_question_placeholder')} />
             </TabsContent>
             <TabsContent value="drawing" className="mt-4">
-                 <SimpleQuestionForm type="drawing" onQuestionCreate={onQuestionCreate} schema={simpleQuestionSchema} label="Drawing Prompt" placeholder="e.g. Draw a diagram of the water cycle." />
+                 <SimpleQuestionForm type="drawing" onQuestionCreate={onQuestionCreate} schema={simpleQuestionSchema} label={t('createQuestionForm.drawing_prompt_label')} placeholder={t('createQuestionForm.drawing_prompt_placeholder')} />
             </TabsContent>
             <TabsContent value="image-annotation" className="mt-4">
                  <ImageAnnotationForm onQuestionCreate={onQuestionCreate} />

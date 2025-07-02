@@ -30,6 +30,7 @@ import {
 } from './ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Label } from './ui/label';
+import { useI18n } from '@/lib/i18n/provider';
 
 // --- Types ---
 export interface DrawingEditorRef {
@@ -45,6 +46,7 @@ type EditorTool = 'pen' | 'eraser' | 'select';
 // --- Component ---
 export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
   ({ backgroundImageUrl }, ref) => {
+    const { t } = useI18n();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -174,12 +176,11 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
         setHasCameraPermission(false);
         toast({
           variant: 'destructive',
-          title: 'Camera Access Denied',
-          description:
-            'Please enable camera permissions in your browser settings to use this app.',
+          title: t('drawingEditor.camera_access_denied_title'),
+          description: t('drawingEditor.camera_access_denied_description'),
         });
       }
-    }, [toast]);
+    }, [toast, t]);
     
     useEffect(() => {
         const setupCamera = async () => {
@@ -242,7 +243,10 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
                   canvas.centerObject(img);
                   canvas.setActiveObject(img);
                   canvas.renderAll();
-                  toast({ title: "Image Pasted", description: "The image from your clipboard has been added to the canvas." });
+                  toast({ 
+                    title: t('drawingEditor.toast_image_pasted_title'), 
+                    description: t('drawingEditor.toast_image_pasted_description') 
+                  });
                 });
               };
               reader.readAsDataURL(blob);
@@ -255,13 +259,13 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
       return () => {
         document.removeEventListener('paste', handlePaste);
       };
-    }, [toast]);
+    }, [toast, t]);
 
     const addText = () => {
       const canvas = fabricCanvasRef.current;
       if (!canvas) return;
       setTool('select');
-      const text = new fabric.Textbox('Type here', {
+      const text = new fabric.Textbox(t('drawingEditor.text_default'), {
         left: (canvas.getWidth() || 0) / 2 - 100,
         top: (canvas.getHeight() || 0) / 2 - 20,
         width: 200,
@@ -360,9 +364,9 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
     return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2 rounded-md border p-2 bg-muted/50">
-          <ToolButton name="select" icon={<MousePointer />} />
-          <ToolButton name="pen" icon={<PenLine />} />
-          <ToolButton name="eraser" icon={<Eraser />} />
+          <ToolButton name="select" icon={<MousePointer />} title={t('drawingEditor.select_tool')} />
+          <ToolButton name="pen" icon={<PenLine />} title={t('drawingEditor.pen_tool')} />
+          <ToolButton name="eraser" icon={<Eraser />} title={t('drawingEditor.eraser_tool')} />
 
           <Popover>
             <PopoverTrigger asChild>
@@ -385,7 +389,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" type="button">Size: {brushWidth}</Button>
+              <Button variant="outline" type="button">{t('drawingEditor.size_button', { brushWidth })}</Button>
             </PopoverTrigger>
             <PopoverContent>
               <Slider
@@ -400,7 +404,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
 
           <div className="h-6 w-px bg-border mx-2" />
 
-          <Button variant="outline" size="icon" onClick={addText} type="button">
+          <Button variant="outline" size="icon" onClick={addText} type="button" title={t('drawingEditor.add_text_tool')}>
             <Type />
           </Button>
           <Button
@@ -408,6 +412,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
             size="icon"
             onClick={() => fileInputRef.current?.click()}
             type="button"
+            title={t('drawingEditor.upload_image_tool')}
           >
             <ImageIcon />
           </Button>
@@ -420,13 +425,13 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
           />
           <Dialog open={isCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="icon" type="button">
+              <Button variant="outline" size="icon" type="button" title={t('drawingEditor.camera_tool')}>
                 <Camera />
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Take a Picture</DialogTitle>
+                <DialogTitle>{t('drawingEditor.take_a_picture_title')}</DialogTitle>
               </DialogHeader>
               <div className="relative">
                 <video
@@ -439,9 +444,9 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
                 {hasCameraPermission === false && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Alert variant="destructive">
-                      <AlertTitle>Camera Access Denied</AlertTitle>
+                      <AlertTitle>{t('drawingEditor.camera_access_denied_title')}</AlertTitle>
                       <AlertDescription>
-                        Please allow camera access in your browser.
+                        {t('drawingEditor.camera_access_denied_description')}
                       </AlertDescription>
                     </Alert>
                   </div>
@@ -450,11 +455,11 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
                 {cameras.length > 1 && (
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="camera-select" className="text-right">
-                            Camera
+                            {t('drawingEditor.camera_select_label')}
                         </Label>
                         <Select onValueChange={setSelectedCamera} value={selectedCamera}>
                             <SelectTrigger id="camera-select" className="col-span-3">
-                                <SelectValue placeholder="Select a camera" />
+                                <SelectValue placeholder={t('drawingEditor.camera_select_placeholder')} />
                             </SelectTrigger>
                             <SelectContent>
                                 {cameras.map((camera) => (
@@ -468,10 +473,10 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
                 )}
               <DialogFooter>
                 <DialogClose asChild>
-                  <Button variant="ghost">Cancel</Button>
+                  <Button variant="ghost">{t('common.cancel')}</Button>
                 </DialogClose>
                 <Button onClick={captureFromCamera} disabled={!hasCameraPermission}>
-                  Capture
+                  {t('drawingEditor.capture_button')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -485,11 +490,12 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
             className="text-destructive hover:text-destructive"
             onClick={deleteSelected}
             type="button"
+            title={t('drawingEditor.delete_selected_tool')}
           >
             <Trash2 />
           </Button>
           <Button variant="outline" onClick={clearCanvas} type="button">
-            Clear All
+            {t('drawingEditor.clear_all_button')}
           </Button>
         </div>
         <div className="relative w-full aspect-video border rounded-md bg-white touch-none overflow-hidden">
