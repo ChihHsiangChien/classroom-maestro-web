@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -21,12 +22,14 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { generatePollAction } from "@/app/actions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 
 // --- SHARED TYPES ---
 export interface MultipleChoiceQuestion {
   type: 'multiple-choice';
   question: string;
   options: { value: string }[];
+  allowMultipleAnswers: boolean;
 }
 export interface TrueFalseQuestion {
   type: 'true-false';
@@ -52,6 +55,7 @@ export type PollData = MultipleChoiceQuestion;
 const multipleChoiceSchema = z.object({
   question: z.string().max(200),
   options: z.array(z.object({ value: z.string().max(50) })).min(2).max(5),
+  allowMultipleAnswers: z.boolean().default(false),
 });
 
 const simpleQuestionSchema = z.object({
@@ -68,7 +72,7 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
     const { toast } = useToast();
     const form = useForm<z.infer<typeof multipleChoiceSchema>>({
         resolver: zodResolver(multipleChoiceSchema),
-        defaultValues: { question: "", options: [{ value: "" }, { value: "" }, { value: "" }, { value: "" }] },
+        defaultValues: { question: "", options: [{ value: "" }, { value: "" }, { value: "" }, { value: "" }], allowMultipleAnswers: false },
     });
     const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "options" });
 
@@ -89,7 +93,30 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
         onQuestionCreate({ type: 'multiple-choice', ...data });
     }
     
-    return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><div className="space-y-2"><Label htmlFor="topic">Generate with AI</Label><div className="flex items-center gap-2"><Input id="topic" placeholder="e.g. 'The Roman Empire'" value={topic} onChange={(e) => setTopic(e.target.value)} disabled={isGenerating} /><Button type="button" variant="outline" size="icon" onClick={handleGeneratePoll} disabled={isGenerating || !topic} className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0">{isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}<span className="sr-only">Generate Poll</span></Button></div><p className="text-xs text-muted-foreground">Enter a topic and let AI create a poll for you.</p></div><div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or create manually</span></div></div><div className="space-y-8"><FormField control={form.control} name="question" render={({ field }) => (<FormItem><FormLabel>Poll Question</FormLabel><FormControl><Textarea placeholder="What should we learn about next?" {...field} /></FormControl><FormMessage /></FormItem>)} /><div className="space-y-4"><FormLabel>Answer Options</FormLabel>{fields.map((field, index) => (<FormField key={field.id} control={form.control} name={`options.${index}.value`} render={({ field }) => (<FormItem><div className="flex items-center gap-2"><FormControl><Input placeholder={`Option ${index + 1}`} {...field} /></FormControl>{fields.length > 2 && (<Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => remove(index)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>)}</div><FormMessage /></FormItem>)} />))}{fields.length < 5 && (<Button type="button" variant="outline" size="sm" onClick={() => append({ value: "" })}><PlusCircle className="mr-2 h-4 w-4" />Add Option</Button>)}</div><Button type="submit" className="w-full md:w-auto">Start Question</Button></div></form></Form>);
+    return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><div className="space-y-2"><Label htmlFor="topic">Generate with AI</Label><div className="flex items-center gap-2"><Input id="topic" placeholder="e.g. 'The Roman Empire'" value={topic} onChange={(e) => setTopic(e.target.value)} disabled={isGenerating} /><Button type="button" variant="outline" size="icon" onClick={handleGeneratePoll} disabled={isGenerating || !topic} className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0">{isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}<span className="sr-only">Generate Poll</span></Button></div><p className="text-xs text-muted-foreground">Enter a topic and let AI create a poll for you.</p></div><div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or create manually</span></div></div><div className="space-y-8"><FormField control={form.control} name="question" render={({ field }) => (<FormItem><FormLabel>Poll Question</FormLabel><FormControl><Textarea placeholder="What should we learn about next?" {...field} /></FormControl><FormMessage /></FormItem>)} /><div className="space-y-4"><FormLabel>Answer Options</FormLabel>{fields.map((field, index) => (<FormField key={field.id} control={form.control} name={`options.${index}.value`} render={({ field }) => (<FormItem><div className="flex items-center gap-2"><FormControl><Input placeholder={`Option ${index + 1}`} {...field} /></FormControl>{fields.length > 2 && (<Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => remove(index)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>)}</div><FormMessage /></FormItem>)} />))}{fields.length < 5 && (<Button type="button" variant="outline" size="sm" onClick={() => append({ value: "" })}><PlusCircle className="mr-2 h-4 w-4" />Add Option</Button>)}</div>
+        <FormField
+              control={form.control}
+              name="allowMultipleAnswers"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      Allow multiple selections
+                    </FormLabel>
+                    <FormDescription>
+                      Students can select more than one answer.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+        <Button type="submit" className="w-full md:w-auto">Start Question</Button></div></form></Form>);
 }
 
 function SimpleQuestionForm({ type, onQuestionCreate, schema, placeholder, label }: QuestionFormProps & { type: 'true-false' | 'short-answer' | 'drawing', schema: typeof simpleQuestionSchema, placeholder: string, label: string }) {

@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { QuestionData, MultipleChoiceQuestion } from "./create-poll-form";
 import { Textarea } from "./ui/textarea";
 import { Label } from '@/components/ui/label';
+import { Checkbox } from './ui/checkbox';
 
 const DrawingEditor = dynamic(
   () => import('./drawing-editor').then((mod) => mod.DrawingEditor),
@@ -33,20 +34,83 @@ interface StudentQuestionFormProps {
   onVoteSubmit: () => void;
 }
 
-const multipleChoiceSchema = z.object({ option: z.string({ required_error: "You need to select an option." }) });
 const shortAnswerSchema = z.object({ answer: z.string().min(1, { message: "Your answer cannot be empty." }) });
 
 function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQuestion, onSubmit: () => void }) {
-    const form = useForm<z.infer<typeof multipleChoiceSchema>>({ resolver: zodResolver(multipleChoiceSchema) });
-    return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><FormField control={form.control} name="option" render={({ field }) => (<FormItem className="space-y-3"><FormLabel>Choose your answer:</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-2">{question.options.map((option, index) => {
-        const displayValue = option.value || String.fromCharCode(65 + index);
-        return (
-            <Label key={index} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
-                <RadioGroupItem value={displayValue} />
-                <span>{displayValue}</span>
-            </Label>
-        )
-    })}</RadioGroup></FormControl><FormMessage /></FormItem>)} /><Button type="submit" className="w-full"><CheckCircle className="mr-2 h-4 w-4" />Submit Vote</Button></form></Form>);
+    const formSchema = z.object({
+        answers: question.allowMultipleAnswers
+            ? z.array(z.string()).nonempty("Please select at least one option.")
+            : z.array(z.string()).length(1, "Please select an answer."),
+    });
+
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(formSchema),
+        defaultValues: { answers: [] },
+    });
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                    control={form.control}
+                    name="answers"
+                    render={({ field }) => (
+                        <FormItem className="space-y-3">
+                            <FormLabel>Choose your answer{question.allowMultipleAnswers ? 's' : ''}:</FormLabel>
+                            <FormControl>
+                                <div className="flex flex-col space-y-2">
+                                    {question.allowMultipleAnswers ? (
+                                        question.options.map((option, index) => {
+                                            const displayValue = option.value || String.fromCharCode(65 + index);
+                                            return (
+                                                <Label key={index} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[button[data-state=checked]]:bg-primary/10 has-[button[data-state=checked]]:border-primary">
+                                                    <Checkbox
+                                                        checked={field.value?.includes(displayValue)}
+                                                        onCheckedChange={(checked) => {
+                                                            const newAnswers = field.value || [];
+                                                            if (checked) {
+                                                                field.onChange([...newAnswers, displayValue]);
+                                                            } else {
+                                                                field.onChange(
+                                                                    newAnswers.filter((value) => value !== displayValue)
+                                                                );
+                                                            }
+                                                        }}
+                                                    />
+                                                    <span>{displayValue}</span>
+                                                </Label>
+                                            );
+                                        })
+                                    ) : (
+                                        <RadioGroup
+                                            onValueChange={(value) => field.onChange([value])}
+                                            defaultValue={field.value?.[0]}
+                                            className="w-full space-y-2"
+                                        >
+                                            {question.options.map((option, index) => {
+                                                const displayValue = option.value || String.fromCharCode(65 + index);
+                                                return (
+                                                    <Label key={index} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
+                                                        <RadioGroupItem value={displayValue} />
+                                                        <span>{displayValue}</span>
+                                                    </Label>
+                                                );
+                                            })}
+                                        </RadioGroup>
+                                    )}
+                                </div>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <Button type="submit" className="w-full">
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Submit Vote
+                </Button>
+            </form>
+        </Form>
+    );
 }
 
 function TrueFalseForm({ onSubmit }: { onSubmit: () => void }) {

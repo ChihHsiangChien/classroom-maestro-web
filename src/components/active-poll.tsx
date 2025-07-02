@@ -1,4 +1,3 @@
-
 "use client";
 
 import { BarChart, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler } from "lucide-react";
@@ -23,7 +22,7 @@ import {
 export interface Submission {
   studentId: number;
   studentName: string;
-  answer: string;
+  answer: string | string[];
 }
 
 interface ActiveQuestionProps {
@@ -34,38 +33,43 @@ interface ActiveQuestionProps {
   onSubmissionsChange: React.Dispatch<React.SetStateAction<Submission[]>>;
 }
 
-function MultipleChoiceResults({ question, submissions, students }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: { value: string }[] }); submissions: Submission[], students: Student[] }) {
+function MultipleChoiceResults({ question, submissions, students }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: { value: string }[], allowMultipleAnswers?: boolean }); submissions: Submission[], students: Student[] }) {
   const results = useMemo(() => {
     const voteCounts = new Map<string, number>();
     question.options.forEach(option => voteCounts.set(option.value, 0));
     
     submissions.forEach(sub => {
-      if (voteCounts.has(sub.answer)) {
-        voteCounts.set(sub.answer, (voteCounts.get(sub.answer) || 0) + 1);
-      }
+      const answers = Array.isArray(sub.answer) ? sub.answer : [sub.answer];
+      answers.forEach(answer => {
+        if (voteCounts.has(answer)) {
+          voteCounts.set(answer, (voteCounts.get(answer) || 0) + 1);
+        }
+      });
     });
 
-    const totalVotes = submissions.length;
+    const totalVotes = submissions.reduce((acc, sub) => {
+        return acc + (Array.isArray(sub.answer) ? sub.answer.length : 1);
+    }, 0);
 
     return question.options.map(option => {
       const votes = voteCounts.get(option.value) || 0;
       return {
         option: option.value,
         votes,
-        percentage: totalVotes > 0 ? (votes / totalVotes) * 100 : 0
+        percentage: totalVotes > 0 ? (votes / (question.allowMultipleAnswers ? submissions.length : totalVotes)) * 100 : 0
       };
     });
-  }, [submissions, question.options]);
+  }, [submissions, question.options, question.allowMultipleAnswers]);
 
   const studentAnswers = useMemo(() => {
-    const answerMap = new Map<number, string>();
+    const answerMap = new Map<number, string | string[]>();
     submissions.forEach(sub => {
         answerMap.set(sub.studentId, sub.answer);
     });
     return answerMap;
   }, [submissions]);
 
-  const totalVotes = submissions.length;
+  const totalSubmissions = submissions.length;
 
   return (
     <div className="space-y-6">
@@ -88,7 +92,7 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
           ))}
         </div>
         <div className="mt-4 flex items-center justify-between border-t pt-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2"><Users className="h-4 w-4" /><span>{totalVotes} total votes</span></div>
+          <div className="flex items-center gap-2"><Users className="h-4 w-4" /><span>{totalSubmissions} student(s) responded</span></div>
         </div>
       </div>
 
@@ -116,7 +120,7 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
                       <TableCell className="font-medium">{student.name}</TableCell>
                       {question.options.map((option, index) => (
                         <TableCell key={`${option.value}-${index}`} className="text-center">
-                          {answer === option.value && (
+                          {answer && (Array.isArray(answer) ? answer.includes(option.value) : answer === option.value) && (
                             <div className="flex justify-center">
                               <CheckCircle className="h-5 w-5 text-green-600" />
                             </div>
@@ -150,7 +154,7 @@ function TextResponseResults({ submissions }: { submissions: Submission[] }) {
                     {submissions.map((sub, index) => (
                         <div key={index} className="p-3 bg-muted/50 rounded-md">
                             <p className="font-semibold text-sm">{sub.studentName}</p>
-                            <p className="text-foreground">{sub.answer}</p>
+                            <p className="text-foreground">{sub.answer as string}</p>
                         </div>
                     ))}
                 </div>
@@ -173,7 +177,7 @@ function DrawingResults({ submissions }: { submissions: Submission[] }) {
                     {submissions.map((sub, index) => (
                         <Card key={index} className="overflow-hidden">
                            <div className="aspect-video w-full bg-muted relative">
-                             <Image src={sub.answer} alt={`Drawing by ${sub.studentName}`} layout="fill" objectFit="contain" data-ai-hint="student drawing" />
+                             <Image src={sub.answer as string} alt={`Drawing by ${sub.studentName}`} layout="fill" objectFit="contain" data-ai-hint="student drawing" />
                            </div>
                            <CardFooter className="p-2 bg-muted/50 border-t">
                              <p className="text-sm font-medium">{sub.studentName}</p>
@@ -226,10 +230,16 @@ function SubmissionTracker({ students, submissions, onSimulateSubmission }: { st
 
 export function ActiveQuestion({ question, onEndQuestion, students, submissions, onSubmissionsChange }: ActiveQuestionProps) {
     const handleSimulateSubmission = (student: Student) => {
-        let mockAnswer = '';
+        let mockAnswer: string | string[] = '';
         switch(question.type) {
             case 'multiple-choice':
-                mockAnswer = question.options[Math.floor(Math.random() * question.options.length)].value;
+                if (question.allowMultipleAnswers) {
+                    const options = question.options.map(o => o.value);
+                    const numAnswers = Math.floor(Math.random() * options.length) + 1;
+                    mockAnswer = [...options].sort(() => 0.5 - Math.random()).slice(0, numAnswers);
+                } else {
+                    mockAnswer = question.options[Math.floor(Math.random() * question.options.length)].value;
+                }
                 break;
             case 'true-false':
                 mockAnswer = Math.random() > 0.5 ? 'True' : 'False';
