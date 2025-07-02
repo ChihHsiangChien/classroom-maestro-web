@@ -51,27 +51,49 @@ function MultipleChoiceResults({ question, submissions }: { question: MultipleCh
   const totalVotes = submissions.length;
 
   return (
-    <>
-      <h3 className="mb-4 flex items-center text-lg font-semibold">
-        <BarChart className="mr-2 h-5 w-5" /> Live Results
-      </h3>
-      <div className="space-y-4">
-        {results.map((result, index) => (
-          <div key={`${result.option}-${index}`}>
-            <div className="mb-1 flex items-center justify-between">
-              <p className="font-medium">{result.option}</p>
-              <p className="text-sm text-muted-foreground">
-                {result.votes} votes ({result.percentage.toFixed(0)}%)
-              </p>
+    <div className="space-y-6">
+      {/* Aggregate Results */}
+      <div>
+        <h3 className="mb-4 flex items-center text-lg font-semibold">
+          <BarChart className="mr-2 h-5 w-5" /> Live Results
+        </h3>
+        <div className="space-y-4">
+          {results.map((result, index) => (
+            <div key={`${result.option}-${index}`}>
+              <div className="mb-1 flex items-center justify-between">
+                <p className="font-medium">{result.option}</p>
+                <p className="text-sm text-muted-foreground">
+                  {result.votes} votes ({result.percentage.toFixed(0)}%)
+                </p>
+              </div>
+              <Progress value={result.percentage} className="h-3" />
             </div>
-            <Progress value={result.percentage} className="h-3" />
-          </div>
-        ))}
+          ))}
+        </div>
+        <div className="mt-4 flex items-center justify-between border-t pt-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2"><Users className="h-4 w-4" /><span>{totalVotes} total votes</span></div>
+        </div>
       </div>
-      <div className="mt-4 flex items-center justify-between border-t pt-4 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2"><Users className="h-4 w-4" /><span>{totalVotes} total votes</span></div>
-      </div>
-    </>
+
+      {/* Individual Student Responses */}
+      {submissions.length > 0 && (
+        <div>
+          <h3 className="mb-4 flex items-center text-lg font-semibold">
+            <FileText className="mr-2 h-5 w-5" /> Student Responses
+          </h3>
+          <ScrollArea className="h-72 w-full rounded-md border p-4">
+              <div className="space-y-4">
+                  {submissions.map((sub, index) => (
+                      <div key={index} className="p-3 bg-muted/50 rounded-md">
+                          <p className="font-semibold text-sm">{sub.studentName}</p>
+                          <p className="text-foreground">{sub.answer}</p>
+                      </div>
+                  ))}
+              </div>
+          </ScrollArea>
+        </div>
+      )}
+    </div>
   );
 }
 
