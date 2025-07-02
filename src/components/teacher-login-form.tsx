@@ -26,6 +26,10 @@ const formSchema = z.object({
     .min(6, { message: "Password must be at least 6 characters." }),
 });
 
+// Hardcoded credentials for demonstration purposes
+const DEMO_ROOM_CODE = "DEMO";
+const DEMO_PASSWORD = "password";
+
 export function TeacherLoginForm() {
   const router = useRouter();
   const { toast } = useToast();
@@ -39,13 +43,22 @@ export function TeacherLoginForm() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    // In a real app, you'd validate this against a backend.
-    console.log("Teacher logging in with:", values);
-    toast({
-      title: "Signed In!",
-      description: "Redirecting to your teacher dashboard.",
-    });
-    router.push("/teacher");
+    if (
+      values.roomCode === DEMO_ROOM_CODE &&
+      values.password === DEMO_PASSWORD
+    ) {
+      toast({
+        title: "Signed In!",
+        description: "Redirecting to your teacher dashboard.",
+      });
+      router.push("/teacher");
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: "Invalid classroom code or password. Please try again.",
+      });
+    }
   }
 
   return (
@@ -58,7 +71,7 @@ export function TeacherLoginForm() {
             <FormItem>
               <FormLabel>Classroom Code</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. A1B2" {...field} />
+                <Input placeholder="e.g. DEMO" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
