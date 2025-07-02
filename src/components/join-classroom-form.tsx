@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -32,6 +33,7 @@ const formSchema = z.object({
 
 export function JoinClassroomForm() {
   const [isGenerating, startTransition] = useTransition();
+  const router = useRouter();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -66,6 +68,7 @@ export function JoinClassroomForm() {
       title: "Welcome!",
       description: `You have joined the classroom as ${values.nickname}.`,
     });
+    router.push(`/classroom/${encodeURIComponent(values.nickname)}`);
   }
 
   return (

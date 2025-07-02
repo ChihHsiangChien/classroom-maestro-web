@@ -1,4 +1,4 @@
-import { School } from "lucide-react";
+import { Crown, School, User } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -6,7 +6,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { JoinClassroomForm } from "@/components/join-classroom-form";
+import { TeacherLoginForm } from "@/components/teacher-login-form";
 
 export default function Home() {
   return (
@@ -19,21 +26,48 @@ export default function Home() {
           Classroom Maestro
         </h1>
         <p className="max-w-md text-muted-foreground">
-          Enter your nickname to join the interactive session. Need a name? Let
-          our AI generate one for you!
+          The interactive classroom for modern learning. Join as a student or
+          sign in as a teacher.
         </p>
       </div>
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader>
-          <CardTitle>Join the Classroom</CardTitle>
-          <CardDescription>
-            Enter a nickname below or generate one to get started.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <JoinClassroomForm />
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="student" className="w-full max-w-md">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="student">
+            <User className="mr-2 h-4 w-4" />
+            Student
+          </TabsTrigger>
+          <TabsTrigger value="teacher">
+            <Crown className="mr-2 h-4 w-4" />
+            Teacher
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="student">
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle>Join the Classroom</CardTitle>
+              <CardDescription>
+                Enter a nickname below or generate one to get started.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <JoinClassroomForm />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="teacher">
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle>Teacher Sign In</CardTitle>
+              <CardDescription>
+                Access your dashboard to manage the classroom.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TeacherLoginForm />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </main>
   );
 }
