@@ -33,6 +33,7 @@ import {
   DialogTrigger,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -190,7 +191,7 @@ export function StudentManagement({
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>{t('dashboard.import_students')}</DialogTitle>
-                <DialogDescription>{t('dashboard.import_students_description')}</DialogDescription>
+                <DialogDescription>{t('studentManagement.import_students_description')}</DialogDescription>
             </DialogHeader>
             <StudentImporter onImport={handleImport} />
         </DialogContent>

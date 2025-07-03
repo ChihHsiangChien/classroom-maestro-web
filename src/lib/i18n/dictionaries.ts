@@ -207,6 +207,10 @@ export const dictionaries = {
       tooltip_distracted_description: '學生可能已切換分頁。',
       tooltip_toggle_status_description: '點擊行以切換狀態（示範用）。',
       simulate_login_button: '(模擬登入)',
+      import_students_description: '將學生名單貼到下方，每行一個名字。',
+      paste_student_list_label: '學生名單',
+      paste_student_list_placeholder: '請在此貼上學生名單。\n每行一個學生姓名。\n例如：\n王大明\n李小花\n陳志明',
+      add_students_button: '新增名單中的學生',
     },
     studentPoll: {
       choose_your_answer: '選擇您的答案:',
@@ -424,6 +428,10 @@ export const dictionaries = {
       tooltip_distracted_description: 'Student may have switched tabs.',
       tooltip_toggle_status_description: 'Click row to toggle status for demo.',
       simulate_login_button: '(Simulate Login)',
+      import_students_description: 'Paste a list of students below, one name per line.',
+      paste_student_list_label: 'Student List',
+      paste_student_list_placeholder: 'Paste your student list here.\nOne name per line.\nFor example:\nJohn Smith\nJane Doe\nPeter Jones',
+      add_students_button: 'Add Students from List',
     },
     studentPoll: {
       choose_your_answer: 'Choose your answer:',
