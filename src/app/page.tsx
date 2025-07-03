@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { School, LogIn, Terminal } from 'lucide-react';
+import { School, LogIn, Terminal, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
@@ -12,23 +12,20 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function Home() {
   const { t } = useI18n();
-  const { user, loading, signInWithGoogle, isFirebaseConfigured } = useAuth();
+  const { user, loading, signInWithGoogle, isFirebaseConfigured, authError } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (user) {
+    // Only redirect if there's no error, not loading, and user state is definitive
+    if (!loading && !authError && user) {
       router.push('/dashboard');
     }
-  }, [user, router]);
+  }, [user, loading, authError, router]);
 
   const handleLogin = async () => {
-    try {
-      await signInWithGoogle();
-      router.push('/dashboard');
-    } catch (error) {
-      console.error("Google Sign-In failed:", error);
-      // You can add a toast notification here to inform the user
-    }
+    await signInWithGoogle();
+    // The auth context now handles and displays the error, so no extra logic needed here.
+    // The useEffect will handle the redirect on successful login.
   };
 
   if (loading) {
@@ -37,6 +34,24 @@ export default function Home() {
         <School className="h-12 w-12 animate-pulse text-primary" />
         <p className="mt-4 text-muted-foreground">{t('common.loading')}</p>
       </div>
+    );
+  }
+
+  // Display specific auth error first, as it's more specific than the config error
+  if (authError) {
+     return (
+      <main className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
+        <Alert variant="destructive" className="max-w-lg bg-background">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Firebase Authentication Error</AlertTitle>
+          <AlertDescription>
+            <p>{authError}</p>
+            <p className="mt-2">
+              Please check your Firebase project configuration and ensure the domain is authorized.
+            </p>
+          </AlertDescription>
+        </Alert>
+      </main>
     );
   }
 
