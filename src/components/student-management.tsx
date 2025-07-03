@@ -246,26 +246,26 @@ function StudentTable({ students, onEdit, onDelete, onDragEnd }: { students: Stu
         return <div className="text-center text-sm text-muted-foreground p-8 border-2 border-dashed rounded-lg">{t('studentManagement.no_students_in_roster')}</div>
     }
     return (
-        <div className="border rounded-md">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-[50px]"></TableHead>
-                        <TableHead>{t('studentManagement.table_header_name')}</TableHead>
-                        <TableHead className="text-right w-[120px]">{t('studentManagement.table_header_actions')}</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-                  <SortableContext items={students} strategy={verticalListSortingStrategy}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <div className="border rounded-md">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[50px]"></TableHead>
+                            <TableHead>{t('studentManagement.table_header_name')}</TableHead>
+                            <TableHead className="text-right w-[120px]">{t('studentManagement.table_header_actions')}</TableHead>
+                        </TableRow>
+                    </TableHeader>
                     <TableBody>
-                        {students.map((student) => (
-                          <SortableStudentRow key={student.id} student={student} onEdit={onEdit} onDelete={onDelete} />
-                        ))}
+                        <SortableContext items={students} strategy={verticalListSortingStrategy}>
+                            {students.map((student) => (
+                              <SortableStudentRow key={student.id} student={student} onEdit={onEdit} onDelete={onDelete} />
+                            ))}
+                        </SortableContext>
                     </TableBody>
-                  </SortableContext>
-                </DndContext>
-            </Table>
-        </div>
+                </Table>
+            </div>
+        </DndContext>
     )
 }
 
