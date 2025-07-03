@@ -18,9 +18,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Define paths that do not require teacher authentication.
-const publicPaths = ['/'];
-const studentPaths = ['/join', '/classroom'];
+// Define paths that are public or for students, and do not require teacher authentication.
+const publicPaths = ['/']; // The homepage
+const studentPaths = ['/join', '/classroom']; // Any path starting with these is for students.
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -55,29 +55,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  // This useEffect handles route protection.
+  // This useEffect handles all application-level route protection and redirection.
   useEffect(() => {
-    // Do not run redirection logic until loading is complete and there are no auth errors.
-    if (loading || authError) return;
-
-    // Determine if the current path is a public page or a student-facing page.
-    const isPublic = publicPaths.includes(pathname);
-    const isStudentPath = studentPaths.some(path => pathname.startsWith(path));
-
-    // If the user is on a student path, do not redirect them.
-    // This allows anonymous students to access the join/classroom pages.
-    if (isStudentPath) {
+    // Do not run redirection logic until authentication is fully loaded and there are no platform errors.
+    if (loading || authError) {
       return;
     }
 
-    // If the user is not logged in and is trying to access a protected page, redirect to home.
-    if (!user && !isPublic) {
-      router.push('/');
-    } 
-    // If a logged-in user is on the home page, redirect them to the dashboard.
-    else if (user && isPublic) {
-      router.push('/dashboard');
+    const isStudentPath = studentPaths.some(path => pathname.startsWith(path));
+    
+    // Rule 1: Always allow access to student-facing pages, regardless of auth state.
+    // This is crucial for anonymous students joining a class.
+    if (isStudentPath) {
+      return; 
     }
+
+    // Rule 2: If a logged-in user is on the homepage, redirect them to their dashboard.
+    if (user && pathname === '/') {
+      router.push('/dashboard');
+      return;
+    }
+    
+    // Rule 3: If a user is NOT logged in and tries to access any other (protected) page, redirect to home.
+    const isPublicPath = publicPaths.includes(pathname);
+    if (!user && !isPublicPath) {
+      router.push('/');
+      return;
+    }
+
   }, [user, loading, authError, pathname, router]);
 
   const signInWithGoogle = async () => {
