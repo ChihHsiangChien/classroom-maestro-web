@@ -8,15 +8,19 @@ import { ClassDetail } from '@/components/class-detail';
 
 export default function DashboardPage() {
   const { classrooms, setClassrooms } = useClassroom();
-  const [selectedClass, setSelectedClass] = useState<Classroom | null>(null);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
 
   const handleSelectClass = (classroom: Classroom) => {
-    setSelectedClass(classroom);
+    setSelectedClassId(classroom.id);
   };
 
   const handleBack = () => {
-    setSelectedClass(null);
+    setSelectedClassId(null);
   };
+
+  const selectedClass = selectedClassId
+    ? classrooms.find((c) => c.id === selectedClassId)
+    : null;
   
   if (selectedClass) {
     return <ClassDetail classroom={selectedClass} onBack={handleBack} />;
