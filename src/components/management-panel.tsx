@@ -92,9 +92,9 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
                 {t('activePoll.submission_status_card_description', { submissionsCount: submissions.length, studentsCount: classroom.students.length })}
             </CardDescription>
         </CardHeader>
-        <CardContent>
-            <ScrollArea className="h-64">
-                <div className="space-y-2 pr-4">
+        <CardContent className="p-0">
+            <ScrollArea className="h-72 px-6">
+                <div className="space-y-2 py-4">
                     <TooltipProvider>
                     {classroom.students.map(student => {
                         const hasSubmitted = submittedIds.has(student.id);
