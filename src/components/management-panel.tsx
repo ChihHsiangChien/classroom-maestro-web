@@ -101,12 +101,19 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
                         const isConsideredOnline = student.isOnline === true && student.lastSeen && (Timestamp.now().seconds - student.lastSeen.seconds < 45);
 
                         return (
-                            <div key={student.id} className="flex items-center justify-between rounded-md p-2 bg-muted/50">
-                                <div className="flex items-center gap-2">
+                            <div
+                                key={student.id}
+                                className={cn(
+                                    "flex items-center justify-between rounded-md p-2 transition-all",
+                                    hasSubmitted ? "bg-green-500/10" : "bg-muted/50",
+                                    !isConsideredOnline && "opacity-50"
+                                )}
+                            >
+                                <div className="flex items-center gap-2 overflow-hidden">
                                     <Tooltip>
                                         <TooltipTrigger>
                                             <span className={cn(
-                                                "h-2.5 w-2.5 rounded-full block transition-colors",
+                                                "h-2.5 w-2.5 rounded-full block flex-shrink-0 transition-colors",
                                                 isConsideredOnline ? 'bg-green-500' : 'bg-slate-400'
                                             )} />
                                         </TooltipTrigger>
@@ -114,7 +121,7 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
                                             <p>{isConsideredOnline ? t('studentManagement.status_online') : t('studentManagement.status_offline')}</p>
                                         </TooltipContent>
                                     </Tooltip>
-                                    <p className="font-medium">{student.name}</p>
+                                    <p className="font-medium truncate">{student.name}</p>
                                 </div>
                                 <div className='flex items-center gap-1'>
                                     {hasSubmitted ? (
