@@ -1,36 +1,98 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import { useClassroom } from '@/contexts/classroom-context';
+import type { QuestionData } from '@/components/create-poll-form';
+import { StudentQuestionForm } from '@/components/student-poll';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Loader2, PartyPopper } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 
-function DebugContent() {
+
+function ClassroomPageContent() {
+    const { t } = useI18n();
     const params = useParams();
     const searchParams = useSearchParams();
+    const { listenForClassroom, addSubmission } = useClassroom();
 
-    const nickname = params.nickname as string;
+    const classroomId = params.nickname as string;
     const studentId = searchParams.get('studentId');
-    const studentName = searchParams.get('name');
+    const studentName = searchParams.get('name') ? decodeURIComponent(searchParams.get('name')!) : 'Student';
+
+    const [activeQuestion, setActiveQuestion] = useState<(QuestionData & { id: string }) | null>(null);
+    const [submittedQuestionId, setSubmittedQuestionId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!classroomId) return;
+
+        setLoading(true);
+        const unsubscribe = listenForClassroom(classroomId, (classroom) => {
+            const currentQuestion = classroom.activeQuestion;
+            // When a new question is activated, reset the submission status
+            if (currentQuestion && activeQuestion?.id !== currentQuestion.id) {
+                setSubmittedQuestionId(null);
+            }
+            setActiveQuestion(currentQuestion);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [classroomId, listenForClassroom, activeQuestion?.id]);
+
+    const handleVoteSubmit = async (answer: string | string[]) => {
+        if (!classroomId || !studentId || !activeQuestion) return;
+
+        await addSubmission(classroomId, activeQuestion.id, studentId, studentName, answer);
+        setSubmittedQuestionId(activeQuestion.id);
+    };
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center gap-4 text-foreground">
+                <Loader2 className="h-12 w-12 animate-spin" />
+                <p className="text-xl">{t('common.loading')}</p>
+            </div>
+        );
+    }
+
+    if (activeQuestion && submittedQuestionId !== activeQuestion.id) {
+        return <StudentQuestionForm question={activeQuestion} onVoteSubmit={handleVoteSubmit} />;
+    }
+
+    const messageCardTitle = activeQuestion
+        ? t('classroomPage.submission_received_title')
+        : t('classroomPage.welcome_title', { studentName });
+    
+    const messageCardDescription = activeQuestion
+        ? t('classroomPage.submission_received_description')
+        : t('classroomPage.welcome_description');
 
     return (
-        <div className="bg-white text-black p-8 rounded-lg shadow-xl">
-            <h1 className="text-2xl font-bold mb-4">Classroom Debug Info</h1>
-            <div className="space-y-2 text-lg">
-                <p><strong>Status:</strong> Page Loaded Successfully</p>
-                <p><strong>Classroom ID (Nickname):</strong> <code className="bg-gray-200 p-1 rounded">{nickname || 'Not Found'}</code></p>
-                <p><strong>Student ID:</strong> <code className="bg-gray-200 p-1 rounded">{studentId || 'Not Found'}</code></p>
-                <p><strong>Student Name:</strong> <code className="bg-gray-200 p-1 rounded">{studentName ? decodeURIComponent(studentName) : 'Not Found'}</code></p>
-            </div>
-        </div>
+        <Card className="w-full max-w-lg text-center animate-in fade-in-50">
+            <CardHeader>
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 mb-4">
+                    <PartyPopper className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle className="text-2xl">{messageCardTitle}</CardTitle>
+                <CardDescription>{messageCardDescription}</CardDescription>
+            </CardHeader>
+        </Card>
     );
 }
 
+
 export default function ClassroomPage() {
     return (
-        <main className="flex min-h-screen flex-col items-center justify-center bg-gray-800 p-4">
-            <Suspense fallback={
-                <div className="text-white text-2xl">Loading Student View...</div>
+        <main className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+             <Suspense fallback={
+                <div className="flex flex-col items-center gap-4 text-foreground">
+                    <Loader2 className="h-12 w-12 animate-spin" />
+                    <p className="text-xl">Loading Student View...</p>
+                </div>
             }>
-                <DebugContent />
+                <ClassroomPageContent />
             </Suspense>
         </main>
     );
