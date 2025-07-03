@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import { dictionaries, formatString, type Locale } from './dictionaries';
 
 interface I18nContextType {
@@ -21,10 +21,10 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const handleSetLocale = (newLocale: Locale) => {
+  const handleSetLocale = useCallback((newLocale: Locale) => {
     setLocale(newLocale);
     localStorage.setItem('locale', newLocale);
-  };
+  }, []);
 
   const t = useCallback((key: string, values?: Record<string, string | number>): string => {
     const keys = key.split('.');
@@ -49,7 +49,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   }, [locale]);
 
 
-  const value = { locale, setLocale: handleSetLocale, t };
+  const value = useMemo(() => ({ locale, setLocale: handleSetLocale, t }), [locale, handleSetLocale, t]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
