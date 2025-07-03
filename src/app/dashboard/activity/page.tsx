@@ -19,8 +19,9 @@ import { LotteryModal } from "@/components/lottery-modal";
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom } from "@/contexts/classroom-context";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { ManagementPanel } from "@/components/management-panel";
+import { cn } from "@/lib/utils";
 
 export default function ActivityPage() {
   const { t } = useI18n();
@@ -37,6 +38,7 @@ export default function ActivityPage() {
   const [excludePicked, setExcludePicked] = useState(true);
   const [pickedStudentIds, setPickedStudentIds] = useState<string[]>([]);
   const [joinUrl, setJoinUrl] = useState('');
+  const [isPanelOpen, setIsPanelOpen] = useState(true);
 
   // If there's no active classroom, redirect back to the dashboard.
   useEffect(() => {
@@ -126,6 +128,9 @@ export default function ActivityPage() {
             <Button variant="outline" size="icon" onClick={() => router.push('/dashboard')}>
               <ArrowLeft />
             </Button>
+            <Button variant="outline" size="icon" onClick={() => setIsPanelOpen(!isPanelOpen)}>
+              {isPanelOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
+            </Button>
             <div>
               <h1 className="text-2xl font-bold">{activeClassroom.name}</h1>
               <p className="text-muted-foreground">{t('teacherDashboard.title')}</p>
@@ -137,16 +142,21 @@ export default function ActivityPage() {
         </header>
 
         <div className="flex flex-col lg:flex-row items-start gap-8">
-            <aside className="w-full lg:w-1/3 lg:sticky lg:top-6 space-y-6">
-                <ManagementPanel
-                    classroom={activeClassroom}
-                    submissions={submissions}
-                    joinUrl={joinUrl}
-                    activeQuestion={activeQuestion}
-                />
-            </aside>
+            {isPanelOpen && (
+              <aside className="w-full lg:w-1/3 lg:sticky lg:top-6 space-y-6 animate-in fade-in-0 slide-in-from-left-12 duration-300">
+                  <ManagementPanel
+                      classroom={activeClassroom}
+                      submissions={submissions}
+                      joinUrl={joinUrl}
+                      activeQuestion={activeQuestion}
+                  />
+              </aside>
+            )}
             
-            <main className="w-full lg:w-2/3 space-y-6">
+            <main className={cn(
+                "w-full space-y-6 transition-all duration-300",
+                isPanelOpen ? "lg:w-2/3" : "lg:w-full"
+            )}>
               {!activeQuestion ? (
                 <Card className="shadow-md">
                   <CardHeader>
