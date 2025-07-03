@@ -54,25 +54,52 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
 
   const handleAddClass = async () => {
     if (newClassName.trim()) {
-      await addClassroom(newClassName.trim());
-      toast({ title: t('dashboard.toast_class_created') });
-      setAddDialogOpen(false);
-      setNewClassName('');
+      try {
+        await addClassroom(newClassName.trim());
+        toast({ title: t('dashboard.toast_class_created') });
+        setAddDialogOpen(false);
+        setNewClassName('');
+      } catch (error) {
+        console.error("Error creating class:", error);
+        toast({
+          variant: "destructive",
+          title: t('common.error'),
+          description: "Could not create class. Please ensure your Firestore security rules allow writes."
+        });
+      }
     }
   };
   
   const handleUpdateClass = async () => {
     if (currentClass && currentClass.name.trim()) {
-      await updateClassroom(currentClass.id, currentClass.name.trim());
-      toast({ title: t('dashboard.toast_class_updated') });
-      setEditDialogOpen(false);
-      setCurrentClass(null);
+      try {
+        await updateClassroom(currentClass.id, currentClass.name.trim());
+        toast({ title: t('dashboard.toast_class_updated') });
+        setEditDialogOpen(false);
+        setCurrentClass(null);
+      } catch (error) {
+        console.error("Error updating class:", error);
+        toast({
+          variant: "destructive",
+          title: t('common.error'),
+          description: "Could not update class. Please try again."
+        });
+      }
     }
   };
 
   const handleDeleteClass = async (id: string) => {
-    await deleteClassroom(id);
-    toast({ variant: 'destructive', title: t('dashboard.toast_class_deleted') });
+    try {
+      await deleteClassroom(id);
+      toast({ variant: 'destructive', title: t('dashboard.toast_class_deleted') });
+    } catch (error) {
+      console.error("Error deleting class:", error);
+      toast({
+        variant: "destructive",
+        title: t('common.error'),
+        description: "Could not delete class. Please try again."
+      });
+    }
   };
 
   const openAddDialog = () => {
@@ -102,15 +129,15 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {classrooms.map((c) => (
             <Card key={c.id} className="flex flex-col">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
+              <CardHeader className="flex flex-row items-start justify-between">
+                <div className="flex-1 pr-2">
                   <CardTitle className="truncate">{c.name}</CardTitle>
                   <CardDescription className="flex items-center gap-2 pt-1">
                     <Users className="h-4 w-4" />
                     <span>{t('dashboard.student_count', { count: c.students.length })}</span>
                   </CardDescription>
                 </div>
-                <div className="flex items-center">
+                <div className="flex items-center flex-shrink-0">
                   <Button variant="ghost" size="icon" onClick={() => openEditDialog(c)}>
                     <Edit className="h-4 w-4" />
                   </Button>
