@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
 import { 
@@ -112,6 +112,12 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     toast({ variant: "destructive", title, description });
   }, [toast, t]);
 
+  // This ref pattern ensures the useEffect below doesn't re-run just because the error handler function is re-created.
+  const handleErrorRef = useRef(handleFirestoreError);
+  useEffect(() => {
+    handleErrorRef.current = handleFirestoreError;
+  }, [handleFirestoreError]);
+
   useEffect(() => {
     if (user && db) {
       setLoading(true);
@@ -124,7 +130,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
         setClassrooms(fetchedClassrooms);
         setLoading(false);
       }, (error) => {
-        handleFirestoreError(error, 'fetch-classrooms');
+        handleErrorRef.current(error, 'fetch-classrooms');
         setLoading(false);
       });
       return () => unsubscribe();
@@ -133,7 +139,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       setActiveClassroom(null);
       setLoading(false);
     }
-  }, [user, handleFirestoreError]);
+  }, [user]);
 
   const addClassroom = async (name: string) => {
     if (!user || !db) return;
@@ -255,7 +261,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       const submissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Submission));
       callback(submissions);
     }, (error) => {
-      handleFirestoreError(error, 'listen-for-submissions');
+      handleErrorRef.current(error, 'listen-for-submissions');
     });
   };
 
@@ -267,7 +273,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
             callback({ id: doc.id, ...doc.data() } as Classroom);
         }
     }, (error) => {
-        handleFirestoreError(error, 'listen-for-classroom');
+        handleErrorRef.current(error, 'listen-for-classroom');
     });
   };
 
