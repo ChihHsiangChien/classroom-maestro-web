@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, CheckCircle, Clapperboard } from 'lucide-react';
+import { Copy, CheckCircle, Clapperboard, AlertTriangle } from 'lucide-react';
 import { useI18n } from "@/lib/i18n/provider";
 import type { Classroom, Submission } from '@/contexts/classroom-context';
 import type { QuestionData } from "./create-poll-form";
@@ -30,6 +30,9 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
   const { t } = useI18n();
   const { toast } = useToast();
   const submittedIds = new Set(submissions.map(s => s.studentId));
+
+  const QR_CODE_URL_MAX_LENGTH = 2000;
+  const canDisplayQrCode = joinUrl && joinUrl.length < QR_CODE_URL_MAX_LENGTH;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(joinUrl);
@@ -49,7 +52,16 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
         <CardContent className="space-y-4">
           <div className="flex flex-col items-center gap-4 text-center">
             <div className="p-2 border rounded-md bg-white">
-                {joinUrl ? <QRCode value={joinUrl} size={128} /> : <div className="w-32 h-32 bg-gray-200 animate-pulse rounded-md" />}
+              {canDisplayQrCode ? (
+                <QRCode value={joinUrl} size={128} />
+              ) : joinUrl ? (
+                <div className="w-32 h-32 flex flex-col items-center justify-center bg-muted text-muted-foreground p-2 text-center">
+                  <AlertTriangle className="h-6 w-6 mb-2" />
+                  <p className="text-xs">{t('studentManagement.url_too_long_for_qr')}</p>
+                </div>
+              ) : (
+                <div className="w-32 h-32 bg-gray-200 animate-pulse rounded-md" />
+              )}
             </div>
             <p className="text-sm font-medium">{t('studentManagement.scan_to_join')}</p>
           </div>
