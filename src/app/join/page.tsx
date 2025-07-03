@@ -73,7 +73,6 @@ function JoinPageContent() {
   const handleStudentClick = (student: Student) => {
     if (!classroom) return;
     const url = `/classroom/${classroom.id}?studentId=${student.id}&name=${encodeURIComponent(student.name)}`;
-    console.log(`[DEBUG] handleStudentClick: Navigating to URL: ${url}`);
     router.push(url);
   };
 
