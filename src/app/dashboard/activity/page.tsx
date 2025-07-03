@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +19,7 @@ import { LotteryModal } from "@/components/lottery-modal";
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom } from "@/contexts/classroom-context";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, PanelLeftClose, PanelLeftOpen, Eye } from "lucide-react";
+import { ArrowLeft, PanelLeftClose, PanelLeftOpen, Eye, Loader2 } from "lucide-react";
 import { ManagementPanel } from "@/components/management-panel";
 import { cn } from "@/lib/utils";
 
@@ -29,18 +29,9 @@ type QuestionDataWithId = QuestionData & { id: string };
 export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
-  // Get the full list of classrooms and the initially selected one.
-  const { classrooms, activeClassroom: initialActiveClassroom, setActiveQuestionInDB, listenForSubmissions } = useClassroom();
+  // Get the real-time active classroom directly from the context. This is the single source of truth.
+  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading } = useClassroom();
   const { toast } = useToast();
-
-  // Derive the most up-to-date activeClassroom object from the live classrooms list.
-  const activeClassroom = useMemo(() => {
-    if (!initialActiveClassroom) return null;
-    return classrooms.find(c => c.id === initialActiveClassroom.id) || initialActiveClassroom;
-  }, [classrooms, initialActiveClassroom]);
-
-  // The active question is now derived directly from the classroom data in context.
-  const activeQuestion = useMemo(() => activeClassroom?.activeQuestion || null, [activeClassroom]);
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [lotteryStudent, setLotteryStudent] = useState<(Student & { submission?: Submission }) | null>(null);
@@ -49,12 +40,15 @@ export default function ActivityPage() {
   const [joinUrl, setJoinUrl] = useState('');
   const [isPanelOpen, setIsPanelOpen] = useState(true);
 
-  // If there's no active classroom initially, redirect back to the dashboard.
+  // The active question is now derived directly from the live classroom data.
+  const activeQuestion = activeClassroom?.activeQuestion || null;
+
+  // If loading is finished and there's no active classroom, redirect back to the dashboard.
   useEffect(() => {
-    if (!initialActiveClassroom) {
+    if (!classroomLoading && !activeClassroom) {
       router.replace('/dashboard');
     }
-  }, [initialActiveClassroom, router]);
+  }, [activeClassroom, classroomLoading, router]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && activeClassroom) {
@@ -82,16 +76,13 @@ export default function ActivityPage() {
     if (activeClassroom) {
       await setActiveQuestionInDB(activeClassroom.id, null);
     }
-    // No need to set local state for question, it will update via context.
-    setPickedStudentIds([]); // Reset lottery
-    // Submissions will be cleared by the useEffect when activeQuestion becomes null.
+    setPickedStudentIds([]);
   };
   
   const handleQuestionCreate = async (question: QuestionData) => {
     if (!activeClassroom) return;
     const newQuestion: QuestionDataWithId = { ...question, id: `q_${Date.now()}` };
     await setActiveQuestionInDB(activeClassroom.id, newQuestion);
-    // No need to set local state, it will update via context.
     setSubmissions([]);
     setPickedStudentIds([]);
   };
@@ -146,10 +137,13 @@ export default function ActivityPage() {
     }
   };
 
-  if (!activeClassroom) {
+  if (classroomLoading || !activeClassroom) {
       return (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex h-full min-h-[calc(100vh-10rem)] items-center justify-center">
+          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin" />
             <p>{t('common.loading')}</p>
+          </div>
         </div>
       );
   }
