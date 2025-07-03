@@ -18,7 +18,6 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 
 function ClassroomPageContent() {
-  console.log("DEBUG: ClassroomPageContent rendering...");
   const { t } = useI18n();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -28,23 +27,15 @@ function ClassroomPageContent() {
   const studentId = searchParams.get('studentId');
   const studentName = searchParams.get('name') || t('studentManagement.default_student_name');
 
-  console.log("DEBUG: classId from params:", classId);
-  console.log("DEBUG: studentId from searchParams:", studentId);
-  console.log("DEBUG: studentName from searchParams:", studentName);
-
-
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
   const [lastAnsweredQuestionId, setLastAnsweredQuestionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (classId) {
-      console.log("DEBUG: useEffect triggered to listen for classroom", classId);
       const unsubscribe = listenForClassroom(classId, (updatedClassroom) => {
-        console.log("DEBUG: Received classroom update", updatedClassroom);
         setClassroom(updatedClassroom);
         const question = updatedClassroom.activeQuestion ?? null;
-        
         const currentQuestionId = activeQuestion ? (activeQuestion as any).id : null;
         
         // If question changes, allow student to answer again
@@ -54,7 +45,6 @@ function ClassroomPageContent() {
         }
       });
       return () => {
-        console.log("DEBUG: Unsubscribing from classroom listener");
         unsubscribe();
       }
     }
@@ -72,7 +62,6 @@ function ClassroomPageContent() {
   const hasVoted = activeQuestion ? lastAnsweredQuestionId === (activeQuestion as any).id : false;
   
   if (!studentId || !classId) {
-    console.error("DEBUG: Missing studentId or classId. Cannot render page content.");
     return (
       <Alert variant="destructive" className="max-w-md">
         <AlertTriangle className="h-4 w-4" />

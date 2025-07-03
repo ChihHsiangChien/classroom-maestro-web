@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import type { User, AuthError } from 'firebase/auth';
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured } from '@/lib/firebase';
@@ -18,11 +18,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Define paths that do not require teacher authentication.
+const publicPaths = ['/'];
+const studentPaths = ['/join', '/classroom'];
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
@@ -50,6 +55,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  // This useEffect handles route protection.
+  useEffect(() => {
+    // Do not run redirection logic until loading is complete and there are no auth errors.
+    if (loading || authError) return;
+
+    // Determine if the current path is a public page or a student-facing page.
+    const isPublic = publicPaths.includes(pathname);
+    const isStudentPath = studentPaths.some(path => pathname.startsWith(path));
+
+    // If the user is on a student path, do not redirect them.
+    // This allows anonymous students to access the join/classroom pages.
+    if (isStudentPath) {
+      return;
+    }
+
+    // If the user is not logged in and is trying to access a protected page, redirect to home.
+    if (!user && !isPublic) {
+      router.push('/');
+    } 
+    // If a logged-in user is on the home page, redirect them to the dashboard.
+    else if (user && isPublic) {
+      router.push('/dashboard');
+    }
+  }, [user, loading, authError, pathname, router]);
+
   const signInWithGoogle = async () => {
     if (!isFirebaseConfigured || !auth || !googleProvider) {
       const errorMsg = 'Firebase is not configured. Cannot sign in.';
@@ -61,8 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await signInWithPopup(auth, googleProvider);
       setAuthError(null);
-      // On successful sign-in, always go to the dashboard.
-      router.push('/dashboard');
+      // Let the useEffect handle the redirection to the dashboard.
     } catch (error) {
       const caughtError = error as AuthError;
       console.error('Google Sign-In failed:', caughtError);
