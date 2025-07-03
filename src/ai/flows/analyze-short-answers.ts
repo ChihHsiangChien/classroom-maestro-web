@@ -51,6 +51,8 @@ Here are the student answers:
 - {{{this}}}
 {{/each}}
 
+The entire output, including the summary and all keywords, must be in Traditional Chinese (繁體中文).
+
 Produce the output in the specified JSON format.
 `,
 });
