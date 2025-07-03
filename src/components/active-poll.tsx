@@ -136,7 +136,7 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
           </div>
           <CollapsibleContent>
             <div className="mt-2 rounded-md border">
-              <ScrollArea className="max-h-96 w-full">
+              <ScrollArea className="h-96 w-full">
                 <Table>
                   <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
                     <TableRow>
