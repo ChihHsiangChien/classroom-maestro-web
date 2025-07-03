@@ -18,6 +18,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 
 function ClassroomPageContent() {
+  console.log('[DEBUG] ClassroomPageContent mounting...');
   const { t } = useI18n();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -27,13 +28,20 @@ function ClassroomPageContent() {
   const studentId = searchParams.get('studentId');
   const studentName = searchParams.get('name') || t('studentManagement.default_student_name');
 
+  console.log('[DEBUG] Classroom Page - Params:', params);
+  console.log('[DEBUG] Classroom Page - classId:', classId);
+  console.log('[DEBUG] Classroom Page - studentId:', studentId);
+  console.log('[DEBUG] Classroom Page - studentName:', studentName);
+
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
   const [lastAnsweredQuestionId, setLastAnsweredQuestionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (classId) {
+      console.log(`[DEBUG] Listening for classroom with ID: ${classId}`);
       const unsubscribe = listenForClassroom(classId, (updatedClassroom) => {
+        console.log('[DEBUG] Received classroom update:', updatedClassroom);
         setClassroom(updatedClassroom);
         const question = updatedClassroom.activeQuestion ?? null;
         const currentQuestionId = activeQuestion ? (activeQuestion as any).id : null;
@@ -45,6 +53,7 @@ function ClassroomPageContent() {
         }
       });
       return () => {
+        console.log(`[DEBUG] Unsubscribing from classroom ${classId}`);
         unsubscribe();
       }
     }
@@ -62,6 +71,7 @@ function ClassroomPageContent() {
   const hasVoted = activeQuestion ? lastAnsweredQuestionId === (activeQuestion as any).id : false;
   
   if (!studentId || !classId) {
+    console.error('[DEBUG] Missing studentId or classId. Rendering error message.');
     return (
       <Alert variant="destructive" className="max-w-md">
         <AlertTriangle className="h-4 w-4" />
