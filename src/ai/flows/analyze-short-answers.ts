@@ -34,6 +34,7 @@ export async function analyzeShortAnswers(input: AnalyzeShortAnswersInput): Prom
 
 const prompt = ai.definePrompt({
   name: 'analyzeShortAnswersPrompt',
+  model: 'googleai/gemini-1.5-flash-latest',
   input: {schema: AnalyzeShortAnswersInputSchema},
   output: {schema: AnalyzeShortAnswersOutputSchema},
   prompt: `You are an expert educational analyst. Your task is to analyze a list of student answers to a short-answer question.

@@ -31,6 +31,7 @@ export async function generatePoll(
 
 const prompt = ai.definePrompt({
   name: 'generatePollPrompt',
+  model: 'googleai/gemini-1.5-flash-latest',
   input: {schema: GeneratePollInputSchema},
   output: {schema: GeneratePollOutputSchema},
   prompt: `You are an expert educator who creates engaging poll questions for students.
