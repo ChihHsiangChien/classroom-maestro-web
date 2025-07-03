@@ -14,16 +14,18 @@ import {
 import { CreateQuestionForm } from "@/components/create-poll-form";
 import { ActiveQuestion } from "@/components/active-poll";
 import type { QuestionData } from "@/components/create-poll-form";
-import { type Student, type Submission } from "@/components/student-management";
+import { StudentManagement, type Student, type Submission } from "@/components/student-management";
 import { LotteryModal } from "@/components/lottery-modal";
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom } from "@/contexts/classroom-context";
+import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
 
 export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { activeClassroom } = useClassroom();
+  const { activeClassroom, addStudent, updateStudent, deleteStudent, importStudents } = useClassroom();
+  const { toast } = useToast();
 
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -31,6 +33,8 @@ export default function ActivityPage() {
     responses: true,
   });
   const [lotteryStudent, setLotteryStudent] = useState<(Student & { submission?: Submission }) | null>(null);
+  const [excludePicked, setExcludePicked] = useState(true);
+  const [pickedStudentIds, setPickedStudentIds] = useState<string[]>([]);
 
   // If there's no active classroom, redirect back to the dashboard.
   useEffect(() => {
@@ -45,19 +49,41 @@ export default function ActivityPage() {
 
   const handleEndQuestion = () => {
     setActiveQuestion(null);
+    setPickedStudentIds([]); // Reset lottery
   };
   
   const handleQuestionCreate = (question: QuestionData) => {
     setActiveQuestion(question);
     setSubmissions([]);
+    setPickedStudentIds([]); // Reset lottery for new question
   };
 
   const handlePickStudent = () => {
     if (!activeClassroom || activeClassroom.students.length === 0) {
       return;
     }
-    const randomIndex = Math.floor(Math.random() * activeClassroom.students.length);
-    const student = activeClassroom.students[randomIndex];
+    
+    let availableStudents = activeClassroom.students;
+    if (excludePicked) {
+        availableStudents = activeClassroom.students.filter(s => !pickedStudentIds.includes(s.id));
+    }
+
+    if (availableStudents.length === 0) {
+        toast({
+            title: t('lotteryModal.lottery_reset_title'),
+            description: t('lotteryModal.lottery_reset_description'),
+        });
+        setPickedStudentIds([]);
+        availableStudents = activeClassroom.students;
+    }
+
+    const randomIndex = Math.floor(Math.random() * availableStudents.length);
+    const student = availableStudents[randomIndex];
+
+    if (excludePicked) {
+        setPickedStudentIds(prev => [...prev, student.id]);
+    }
+
     const submission = submissions.find(s => s.studentId.toString() === student.id);
     setLotteryStudent({ ...student, submission });
   };
@@ -65,6 +91,14 @@ export default function ActivityPage() {
   const handleCloseLottery = (open: boolean) => {
     if (!open) {
       setLotteryStudent(null);
+    }
+  };
+
+  const handleExcludeChange = (checked: boolean | 'indeterminate') => {
+    const isChecked = !!checked;
+    setExcludePicked(isChecked);
+    if (!isChecked) {
+        setPickedStudentIds([]);
     }
   };
 
@@ -118,6 +152,14 @@ export default function ActivityPage() {
               onResponsesToggle={() => handleToggleSection('responses')}
             />
           )}
+
+          <StudentManagement
+            classroom={activeClassroom}
+            onAddStudent={(name) => addStudent(activeClassroom.id, name)}
+            onUpdateStudent={(id, name) => updateStudent(activeClassroom.id, id, name)}
+            onDeleteStudent={(id) => deleteStudent(activeClassroom.id, id)}
+            onImportStudents={(names) => importStudents(activeClassroom.id, names)}
+          />
         </div>
       </div>
        <LotteryModal 
@@ -125,6 +167,8 @@ export default function ActivityPage() {
           onOpenChange={handleCloseLottery}
           onPickAgain={handlePickStudent} 
           activeQuestion={activeQuestion}
+          excludePicked={excludePicked}
+          onExcludePickedChange={handleExcludeChange}
       />
     </>
   );

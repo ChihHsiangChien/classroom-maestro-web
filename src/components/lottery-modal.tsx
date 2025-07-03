@@ -15,12 +15,16 @@ import { User, FileText } from 'lucide-react';
 import type { Student, Submission } from '@/components/student-management';
 import type { QuestionData } from './create-poll-form';
 import { useI18n } from '@/lib/i18n/provider';
+import { Checkbox } from './ui/checkbox';
+import { Label } from './ui/label';
 
 interface LotteryModalProps {
   studentData: (Student & { submission?: Submission }) | null;
   onOpenChange: (open: boolean) => void;
   onPickAgain: () => void;
   activeQuestion: QuestionData | null;
+  excludePicked: boolean;
+  onExcludePickedChange: (checked: boolean | 'indeterminate') => void;
 }
 
 function AnswerDisplay({ submission, question }: { submission: Submission; question: QuestionData }) {
@@ -58,7 +62,7 @@ function AnswerDisplay({ submission, question }: { submission: Submission; quest
 }
 
 
-export function LotteryModal({ studentData, onOpenChange, onPickAgain, activeQuestion }: LotteryModalProps) {
+export function LotteryModal({ studentData, onOpenChange, onPickAgain, activeQuestion, excludePicked, onExcludePickedChange }: LotteryModalProps) {
   const { t } = useI18n();
 
   if (!studentData) {
@@ -93,8 +97,15 @@ export function LotteryModal({ studentData, onOpenChange, onPickAgain, activeQue
                 {t('lotteryModal.not_submitted_message')}
             </div>
         ) : null}
+        
+        <div className="flex items-center space-x-2 justify-center pt-4">
+          <Checkbox id="exclude-picked" checked={excludePicked} onCheckedChange={onExcludePickedChange} />
+          <Label htmlFor="exclude-picked" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            {t('lotteryModal.exclude_picked_label')}
+          </Label>
+        </div>
 
-        <DialogFooter className="sm:justify-between sm:flex-row-reverse mt-4">
+        <DialogFooter className="sm:justify-between sm:flex-row-reverse mt-2">
           <Button onClick={onPickAgain}>{t('lotteryModal.pick_again_button')}</Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.close')}</Button>
         </DialogFooter>

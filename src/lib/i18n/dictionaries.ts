@@ -1,3 +1,4 @@
+
 // @ts-nocheck
 // Disabling TypeScript checking for this file because it's a massive object of strings
 // and the type inference can be slow. The structure is validated by usage in the app.
@@ -43,7 +44,7 @@ export const dictionaries = {
       start_activity: '開始活動',
       back_to_classes: '返回班級列表',
       import_students: '匯入學生',
-      import_students_description: '從文字檔匯入學生名單，每行一個名字。',
+      import_students_description: '將學生名單貼到下方，每行一個名字。',
       select_file: '選擇檔案',
       or_drop_file: '或將檔案拖放到此處',
       txt_files_only: '僅限 .txt 檔案',
@@ -175,6 +176,9 @@ export const dictionaries = {
       submission_title: '提交的答案',
       not_submitted_message: '這位學生尚未提交答案。',
       pick_again_button: '再抽一位',
+      exclude_picked_label: '抽過不再抽',
+      lottery_reset_title: '抽獎重置',
+      lottery_reset_description: '所有學生都已經被抽過了。新一輪抽獎現在開始。'
     },
     studentManagement: {
       title: '學生管理',
@@ -398,6 +402,9 @@ export const dictionaries = {
       submission_title: 'Submitted Answer',
       not_submitted_message: 'This student has not submitted an answer yet.',
       pick_again_button: 'Pick Another',
+      exclude_picked_label: 'Exclude already picked students',
+      lottery_reset_title: 'Lottery Reset',
+      lottery_reset_description: 'All students have been picked. A new round will begin.'
     },
     studentManagement: {
       title: 'Student Management',
