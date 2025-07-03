@@ -20,27 +20,6 @@ interface ClassroomPageProps {
   };
 }
 
-const mockMultipleChoice: QuestionData = {
-  type: 'multiple-choice',
-  question: "What is the powerhouse of the cell?",
-  options: [
-    { value: "Nucleus" },
-    { value: "Ribosome" },
-    { value: "Mitochondria" },
-    { value: "Chloroplast" },
-  ],
-  allowMultipleAnswers: false
-};
-const mockTrueFalse: QuestionData = { type: 'true-false', question: 'The Great Wall of China is visible from space with the naked eye.' };
-const mockShortAnswer: QuestionData = { type: 'short-answer', question: 'In one sentence, what is the meaning of life?' };
-const mockDrawing: QuestionData = { type: 'drawing', question: 'Draw your favorite animal.' };
-const mockImageAnnotation: QuestionData = {
-  type: 'image-annotation',
-  question: 'Label the parts of the plant cell.',
-  imageUrl: 'https://placehold.co/600x400.png'
-};
-
-
 export default function ClassroomPage({ params }: ClassroomPageProps) {
   const { t } = useI18n();
   // Per Next.js warning, we unwrap the params object which is a promise-like.
@@ -49,6 +28,28 @@ export default function ClassroomPage({ params }: ClassroomPageProps) {
   
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
+
+  // Moved mock data inside component to use translations
+  const mockMultipleChoice: QuestionData = {
+    type: 'multiple-choice',
+    question: t('classroomPage.mock_mc_question'),
+    options: [
+      { value: t('classroomPage.mock_mc_option1') },
+      { value: t('classroomPage.mock_mc_option2') },
+      { value: t('classroomPage.mock_mc_option3') },
+      { value: t('classroomPage.mock_mc_option4') },
+    ],
+    allowMultipleAnswers: false
+  };
+  const mockTrueFalse: QuestionData = { type: 'true-false', question: t('classroomPage.mock_tf_question') };
+  const mockShortAnswer: QuestionData = { type: 'short-answer', question: t('classroomPage.mock_sa_question') };
+  const mockDrawing: QuestionData = { type: 'drawing', question: t('classroomPage.mock_drawing_question') };
+  const mockImageAnnotation: QuestionData = {
+    type: 'image-annotation',
+    question: t('classroomPage.mock_ia_question'),
+    imageUrl: 'https://placehold.co/600x400.png'
+  };
+
 
   const handleVoteSubmit = () => {
     setHasVoted(true);

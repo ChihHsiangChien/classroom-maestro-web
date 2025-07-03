@@ -389,7 +389,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" type="button">{t('drawingEditor.size_button', { brushWidth })}</Button>
+              <Button variant="outline" type="button">{`Size: ${brushWidth}`}</Button>
             </PopoverTrigger>
             <PopoverContent>
               <Slider
