@@ -74,8 +74,7 @@ function JoinPageContent() {
 
   const handleStudentClick = (student: Student) => {
     if (!classroom) return;
-    const url = `/classroom/${classroom.id}/${student.id}?name=${encodeURIComponent(student.name)}`;
-    // Using router.push for client-side navigation within the app
+    const url = `/classroom/${classroom.id}?studentId=${student.id}&name=${encodeURIComponent(student.name)}`;
     router.push(url);
   };
 

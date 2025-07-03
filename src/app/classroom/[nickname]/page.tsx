@@ -1,37 +1,31 @@
 
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Hourglass, CheckSquare } from "lucide-react";
+import { Hourglass, CheckSquare, School, AlertTriangle } from "lucide-react";
 import { StudentQuestionForm } from "@/components/student-poll";
 import type { QuestionData } from "@/components/create-poll-form";
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom, type Classroom } from "@/contexts/classroom-context";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
-interface ClassroomPageProps {
-  params: {
-    classId: string;
-    studentId: string;
-  };
-}
 
-export default function ClassroomPage({ params }: ClassroomPageProps) {
+function ClassroomPageContent() {
   const { t } = useI18n();
+  const params = useParams();
   const searchParams = useSearchParams();
   const { listenForClassroom, addSubmission } = useClassroom();
   
-  const classId = params.classId;
-  const studentId = params.studentId;
-  const studentName = searchParams.get('name') || 'Student';
+  const classId = params.nickname as string;
+  const studentId = searchParams.get('studentId');
+  const studentName = searchParams.get('name') || t('studentManagement.default_student_name');
 
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
@@ -42,24 +36,41 @@ export default function ClassroomPage({ params }: ClassroomPageProps) {
       const unsubscribe = listenForClassroom(classId, (updatedClassroom) => {
         setClassroom(updatedClassroom);
         const question = updatedClassroom.activeQuestion ?? null;
-        setActiveQuestion(question);
+        
+        const currentQuestionId = activeQuestion ? (activeQuestion as any).id : null;
+        
         // If question changes, allow student to answer again
-        if (question?.id !== activeQuestion?.id) {
+        if (question?.id !== currentQuestionId) {
+          setActiveQuestion(question);
           setLastAnsweredQuestionId(null);
         }
       });
       return () => unsubscribe();
     }
-  }, [classId, listenForClassroom, activeQuestion?.id]);
+  }, [classId, listenForClassroom, activeQuestion]);
+
 
   const handleVoteSubmit = (answer: string | string[]) => {
-    if (activeQuestion && classId && studentId) {
-      addSubmission(classId, (activeQuestion as any).id, studentId, studentName, answer);
-      setLastAnsweredQuestionId((activeQuestion as any).id);
+    const questionId = activeQuestion ? (activeQuestion as any).id : null;
+    if (questionId && classId && studentId) {
+      addSubmission(classId, questionId, studentId, studentName, answer);
+      setLastAnsweredQuestionId(questionId);
     }
   };
 
   const hasVoted = activeQuestion ? lastAnsweredQuestionId === (activeQuestion as any).id : false;
+  
+  if (!studentId || !classId) {
+    return (
+      <Alert variant="destructive" className="max-w-md">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>{t('joinPage.error_title')}</AlertTitle>
+        <AlertDescription>
+          {t('joinPage.invalid_link_error')}
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   const renderContent = () => {
     if (activeQuestion && !hasVoted) {
@@ -72,8 +83,8 @@ export default function ClassroomPage({ params }: ClassroomPageProps) {
       return (
         <Card className="w-full max-w-2xl animate-in fade-in text-center shadow-lg">
           <CardHeader>
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-              <CheckSquare className="h-6 w-6 text-green-600" />
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/50">
+              <CheckSquare className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <CardTitle>{t('classroomPage.submission_received_title')}</CardTitle>
             <CardDescription>
@@ -99,9 +110,22 @@ export default function ClassroomPage({ params }: ClassroomPageProps) {
     );
   };
 
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
-      {renderContent()}
-    </main>
-  );
+  return renderContent();
+}
+
+// Wrap the client component in a Suspense boundary
+export default function ClassroomPage() {
+    const { t } = useI18n();
+    return (
+        <main className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
+            <Suspense fallback={
+                <div className="flex flex-col items-center justify-center">
+                    <School className="h-12 w-12 animate-pulse text-primary" />
+                    <p className="mt-4 text-muted-foreground">{t('common.loading')}</p>
+                </div>
+            }>
+                <ClassroomPageContent />
+            </Suspense>
+        </main>
+    );
 }
