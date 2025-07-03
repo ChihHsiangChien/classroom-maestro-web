@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import type { User, AuthError } from 'firebase/auth';
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured } from '@/lib/firebase';
@@ -18,14 +18,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const publicPaths = ['/'];
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
@@ -52,17 +49,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     return () => unsubscribe();
   }, []);
-
-  useEffect(() => {
-    if (loading || authError || !isFirebaseConfigured) return;
-
-    const isPublic = publicPaths.includes(pathname);
-
-    // If user is not logged in and not on a public page, redirect to home.
-    if (!user && !isPublic) {
-      router.push('/');
-    }
-  }, [user, loading, pathname, router, authError, isFirebaseConfigured]);
 
   const signInWithGoogle = async () => {
     if (!isFirebaseConfigured || !auth || !googleProvider) {

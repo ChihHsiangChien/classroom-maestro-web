@@ -1,6 +1,8 @@
 
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { School, LogOut, User as UserIcon } from "lucide-react";
@@ -13,9 +15,28 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const { t } = useI18n();
+  const router = useRouter();
 
+  // This layout is the "auth guard" for all dashboard pages.
+  // It redirects to the home page if the user is not logged in.
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/');
+    }
+  }, [user, loading, router]);
+
+  // While loading, show a simplified layout or a spinner
+  if (loading || !user) {
+     return (
+      <div className="flex min-h-screen w-full flex-col items-center justify-center">
+        <School className="h-12 w-12 animate-pulse text-primary" />
+        <p className="mt-4 text-muted-foreground">{t('common.loading')}</p>
+      </div>
+    );
+  }
+  
   return (
     <div className="flex min-h-screen flex-col bg-muted/40">
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-2">

@@ -22,18 +22,19 @@ export default function Home() {
     }
   }, []);
 
+  // This page is responsible for redirecting logged-in users to the dashboard.
   useEffect(() => {
-    // Only redirect if there's no error, not loading, and user state is definitive
-    if (!loading && !authError && user) {
+    if (!loading && user) {
       router.push('/dashboard');
     }
-  }, [user, loading, authError, router]);
+  }, [user, loading, router]);
 
   const handleLogin = async () => {
     await signInWithGoogle();
   };
 
-  if (loading) {
+  // If we are loading, or if the user is logged in (and about to be redirected), show a loading spinner.
+  if (loading || user) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
         <School className="h-12 w-12 animate-pulse text-primary" />
@@ -95,15 +96,6 @@ export default function Home() {
           </AlertDescription>
         </Alert>
       </main>
-    );
-  }
-
-  if (user) {
-    return (
-      <div className="flex min-h-screen w-full flex-col items-center justify-center">
-        <School className="h-12 w-12 animate-pulse text-primary" />
-        <p className="mt-4 text-muted-foreground">{t('common.loading')}</p>
-      </div>
     );
   }
 
