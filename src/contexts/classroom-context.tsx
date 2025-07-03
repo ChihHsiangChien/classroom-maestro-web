@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
 import { 
@@ -112,7 +112,6 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     toast({ variant: "destructive", title, description });
   }, [toast, t]);
 
-  // This ref pattern ensures the useEffect below doesn't re-run just because the error handler function is re-created.
   const handleErrorRef = useRef(handleFirestoreError);
   useEffect(() => {
     handleErrorRef.current = handleFirestoreError;
@@ -141,25 +140,25 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const addClassroom = async (name: string) => {
+  const addClassroom = useCallback(async (name: string) => {
     if (!user || !db) return;
     try {
       await addDoc(collection(db, "classrooms"), { name, ownerId: user.uid, students: [] });
     } catch (error) {
       handleFirestoreError(error, 'add-classroom');
     }
-  };
+  }, [user, handleFirestoreError]);
 
-  const updateClassroom = async (id: string, name: string) => {
+  const updateClassroom = useCallback(async (id: string, name: string) => {
     if (!db) return;
     try {
       await updateDoc(doc(db, 'classrooms', id), { name });
     } catch (error) {
       handleFirestoreError(error, 'update-classroom');
     }
-  };
+  }, [handleFirestoreError]);
 
-  const deleteClassroom = async (id: string) => {
+  const deleteClassroom = useCallback(async (id: string) => {
     if (!db) return;
     try {
       await deleteDoc(doc(db, 'classrooms', id));
@@ -169,9 +168,9 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       handleFirestoreError(error, 'delete-classroom');
     }
-  };
+  }, [activeClassroom?.id, handleFirestoreError]);
 
-  const addStudent = async (classroomId: string, studentName: string) => {
+  const addStudent = useCallback(async (classroomId: string, studentName: string) => {
     const classroom = classrooms.find(c => c.id === classroomId);
     if (!db || !classroom) return;
     const newStudent: Student = { id: generateId(), name: studentName.trim() };
@@ -182,9 +181,9 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       handleFirestoreError(error, 'add-student');
     }
-  };
+  }, [classrooms, handleFirestoreError]);
   
-  const updateStudent = async (classroomId: string, studentId: string, newName: string) => {
+  const updateStudent = useCallback(async (classroomId: string, studentId: string, newName: string) => {
     const classroom = classrooms.find(c => c.id === classroomId);
     if (!db || !classroom) return;
     const updatedStudents = classroom.students.map(s => s.id === studentId ? { ...s, name: newName.trim() } : s);
@@ -193,18 +192,18 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       handleFirestoreError(error, 'update-student');
     }
-  };
+  }, [classrooms, handleFirestoreError]);
 
-  const reorderStudents = async (classroomId: string, students: Student[]) => {
+  const reorderStudents = useCallback(async (classroomId: string, students: Student[]) => {
     if (!db) return;
     try {
       await updateDoc(doc(db, 'classrooms', classroomId), { students });
     } catch (error) {
       handleFirestoreError(error, 'reorder-students');
     }
-  };
+  }, [handleFirestoreError]);
 
-  const deleteStudent = async (classroomId: string, studentId: string) => {
+  const deleteStudent = useCallback(async (classroomId: string, studentId: string) => {
     const classroom = classrooms.find(c => c.id === classroomId);
     if (!db || !classroom) return;
     const updatedStudents = classroom.students.filter(s => s.id !== studentId);
@@ -213,9 +212,9 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       handleFirestoreError(error, 'delete-student');
     }
-  };
+  }, [classrooms, handleFirestoreError]);
   
-  const importStudents = async (classroomId: string, studentNames: string[]) => {
+  const importStudents = useCallback(async (classroomId: string, studentNames: string[]) => {
       const classroom = classrooms.find(c => c.id === classroomId);
       if (!db || !classroom) return;
       const newStudents: Student[] = studentNames.map(name => ({ id: generateId(), name }));
@@ -227,18 +226,18 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         handleFirestoreError(error, 'import-students');
       }
-  };
+  }, [classrooms, handleFirestoreError]);
 
-  const setActiveQuestionInDB = async (classroomId: string, question: any | null) => {
+  const setActiveQuestionInDB = useCallback(async (classroomId: string, question: any | null) => {
     if (!db) return;
     try {
       await updateDoc(doc(db, 'classrooms', classroomId), { activeQuestion: question });
     } catch (error) {
       handleFirestoreError(error, 'set-active-question');
     }
-  };
+  }, [handleFirestoreError]);
   
-  const addSubmission = async (classroomId: string, questionId: string, studentId: string, studentName: string, answer: string | string[]) => {
+  const addSubmission = useCallback(async (classroomId: string, questionId: string, studentId: string, studentName: string, answer: string | string[]) => {
     if (!db) return;
     try {
       const submissionData = {
@@ -252,9 +251,9 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       handleFirestoreError(error, 'add-submission');
     }
-  };
+  }, [handleFirestoreError]);
 
-  const listenForSubmissions = (classroomId: string, questionId: string, callback: (submissions: Submission[]) => void) => {
+  const listenForSubmissions = useCallback((classroomId: string, questionId: string, callback: (submissions: Submission[]) => void) => {
     if (!db) return () => {};
     const q = query(collection(db, 'classrooms', classroomId, 'submissions'), where("questionId", "==", questionId));
     return onSnapshot(q, (snapshot) => {
@@ -263,9 +262,9 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     }, (error) => {
       handleErrorRef.current(error, 'listen-for-submissions');
     });
-  };
+  }, []);
 
-  const listenForClassroom = (classroomId: string, callback: (classroom: Classroom) => void) => {
+  const listenForClassroom = useCallback((classroomId: string, callback: (classroom: Classroom) => void) => {
     if (!db) return () => {};
     const classroomRef = doc(db, 'classrooms', classroomId);
     return onSnapshot(classroomRef, (doc) => {
@@ -275,9 +274,9 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     }, (error) => {
         handleErrorRef.current(error, 'listen-for-classroom');
     });
-  };
+  }, []);
 
-  const updateStudentPresence = async (classroomId: string, studentId: string, isOnline: boolean) => {
+  const updateStudentPresence = useCallback(async (classroomId: string, studentId: string, isOnline: boolean) => {
     if (!db || !classroomId || !studentId) return;
     try {
         const classroomRef = doc(db, 'classrooms', classroomId);
@@ -293,9 +292,9 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
         // This can fail silently as it's a background task.
         console.error("Failed to update presence:", error);
     }
-  };
+  }, []);
 
-  const kickStudent = async (classroomId: string, studentId: string) => {
+  const kickStudent = useCallback(async (classroomId: string, studentId: string) => {
       if (!db || !classroomId || !studentId) return;
       try {
           const classroomRef = doc(db, 'classrooms', classroomId);
@@ -311,9 +310,9 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       } catch (error) {
           handleFirestoreError(error, 'kick-student');
       }
-  };
+  }, [handleFirestoreError, t, toast]);
 
-  const acknowledgeKick = async (classroomId: string, studentId: string) => {
+  const acknowledgeKick = useCallback(async (classroomId: string, studentId: string) => {
       if (!db || !classroomId || !studentId) return;
       try {
           const classroomRef = doc(db, 'classrooms', classroomId);
@@ -328,9 +327,9 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       } catch (error) {
           console.error("Failed to acknowledge kick:", error);
       }
-  };
+  }, []);
 
-  const value = {
+  const value = useMemo(() => ({
     classrooms,
     activeClassroom,
     setActiveClassroom,
@@ -350,7 +349,26 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     kickStudent,
     updateStudentPresence,
     acknowledgeKick
-  };
+  }), [
+    classrooms,
+    activeClassroom,
+    loading,
+    addClassroom,
+    updateClassroom,
+    deleteClassroom,
+    addStudent,
+    updateStudent,
+    deleteStudent,
+    importStudents,
+    reorderStudents,
+    setActiveQuestionInDB,
+    addSubmission,
+    listenForSubmissions,
+    listenForClassroom,
+    kickStudent,
+    updateStudentPresence,
+    acknowledgeKick
+  ]);
 
   return (
     <ClassroomContext.Provider value={value}>
