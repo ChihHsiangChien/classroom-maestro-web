@@ -1,56 +1,121 @@
 
 'use client';
 
-import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { Suspense } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { useState, useEffect, Suspense } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { useClassroom } from '@/contexts/classroom-context';
+import type { Classroom } from '@/contexts/classroom-context';
+import { StudentQuestionForm } from '@/components/student-poll';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { School, Loader2 } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 
-function ClassroomDebugPage() {
+function ClassroomPageContent() {
+  const { t } = useI18n();
   const params = useParams();
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   const classId = params.nickname as string;
-  const studentId = searchParams.get('studentId');
-  const studentName = searchParams.get('name');
+  const studentId = searchParams.get('studentId') as string;
+  const studentName = searchParams.get('name') as string;
+
+  const { listenForClassroom, addSubmission, listenForSubmissions } = useClassroom();
+
+  const [classroom, setClassroom] = useState<Classroom | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submittedQuestionIds, setSubmittedQuestionIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!classId) return;
+
+    setLoading(true);
+    const unsubscribe = listenForClassroom(classId, (classroomData) => {
+      setClassroom(classroomData);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [classId, listenForClassroom]);
+
+  useEffect(() => {
+    if (!classId || !classroom?.activeQuestion?.id) return;
+    
+    const unsubscribe = listenForSubmissions(classId, classroom.activeQuestion.id, (submissions) => {
+      const studentHasSubmitted = submissions.some(s => s.studentId === studentId);
+      if (studentHasSubmitted) {
+        setSubmittedQuestionIds(prev => new Set(prev).add(classroom.activeQuestion.id));
+      }
+    });
+
+    return () => unsubscribe();
+
+  }, [classId, studentId, classroom?.activeQuestion?.id, listenForSubmissions]);
+
+
+  const handleVoteSubmit = async (answer: string | string[]) => {
+    if (!classroom?.activeQuestion?.id || !studentId || !studentName) return;
+
+    try {
+      await addSubmission(classId, classroom.activeQuestion.id, studentId, studentName, answer);
+      setSubmittedQuestionIds(prev => new Set(prev).add(classroom.activeQuestion!.id));
+    } catch (error) {
+      console.error("Failed to submit answer:", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center gap-4 text-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="text-muted-foreground">{t('common.loading')}</p>
+      </div>
+    );
+  }
+
+  const activeQuestion = classroom?.activeQuestion;
+  const hasSubmitted = activeQuestion && submittedQuestionIds.has(activeQuestion.id);
+
+  if (activeQuestion && !hasSubmitted) {
+    return <StudentQuestionForm question={activeQuestion} onVoteSubmit={handleVoteSubmit} />;
+  }
+  
+  if (hasSubmitted) {
+    return (
+      <Card className="w-full max-w-md text-center animate-in fade-in">
+        <CardHeader>
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
+            <School className="h-6 w-6 text-green-600 dark:text-green-400" />
+          </div>
+          <CardTitle>{t('classroomPage.submission_received_title')}</CardTitle>
+          <CardDescription>{t('classroomPage.submission_received_description')}</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
-    <Card className="w-full max-w-2xl">
+    <Card className="w-full max-w-md text-center animate-in fade-in">
       <CardHeader>
-        <CardTitle>Classroom Debug Page</CardTitle>
-        <CardDescription>
-          If you can see this page, the routing is working. The problem is likely in the original page's logic that was replaced by this debug view.
-        </CardDescription>
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+          <School className="h-6 w-6 text-primary" />
+        </div>
+        <CardTitle>{t('classroomPage.welcome_title', { studentName: decodeURIComponent(studentName) || 'Student' })}</CardTitle>
+        <CardDescription>{t('classroomPage.welcome_description')}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <h3 className="font-semibold">Class ID (from path):</h3>
-          <p className="font-mono p-2 bg-muted rounded-md">{classId || 'Not found'}</p>
-        </div>
-        <div>
-          <h3 className="font-semibold">Student ID (from URL parameter):</h3>
-          <p className="font-mono p-2 bg-muted rounded-md">{studentId || 'Not found'}</p>
-        </div>
-        <div>
-          <h3 className="font-semibold">Student Name (from URL parameter):</h3>
-          <p className="font-mono p-2 bg-muted rounded-md">{studentName || 'Not found'}</p>
-        </div>
-        <Button variant="outline" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
-        </Button>
-      </CardContent>
     </Card>
   );
 }
 
-// The Suspense wrapper is crucial for components that use useSearchParams
 export default function ClassroomPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
-      <Suspense fallback={<div>Loading...</div>}>
-        <ClassroomDebugPage />
+      <Suspense fallback={
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      }>
+        <ClassroomPageContent />
       </Suspense>
     </main>
   );
