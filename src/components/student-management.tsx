@@ -1,13 +1,31 @@
 
 "use client";
 
-import { useState } from 'react';
+import React, { useState } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   Users,
   UserPlus,
   Trash2,
   Edit,
   Upload,
+  GripVertical,
 } from 'lucide-react';
 import {
   Card,
@@ -61,7 +79,7 @@ interface StudentManagementProps {
 
 export function StudentManagement({ classroom }: StudentManagementProps) {
   const { t } = useI18n();
-  const { addStudent, updateStudent, deleteStudent, importStudents } = useClassroom();
+  const { addStudent, updateStudent, deleteStudent, importStudents, reorderStudents } = useClassroom();
   const [newStudentName, setNewStudentName] = useState('');
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
@@ -118,6 +136,21 @@ export function StudentManagement({ classroom }: StudentManagementProps) {
       });
   }
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = classroom.students.findIndex((s) => s.id === active.id);
+      const newIndex = classroom.students.findIndex((s) => s.id === over.id);
+      
+      const newOrder = arrayMove(classroom.students, oldIndex, newIndex);
+      // Optimistically update the UI by re-rendering with the new order before it's confirmed by the backend
+      // Note: The context's onSnapshot listener will eventually receive the backend update and re-render anyway.
+      // For instant feedback, you might manage a local state, but here we'll rely on the context update.
+      await reorderStudents(classroom.id, newOrder);
+    }
+  };
+
   return (
     <>
       <Card className="shadow-md">
@@ -145,6 +178,7 @@ export function StudentManagement({ classroom }: StudentManagementProps) {
             students={classroom.students}
             onEdit={startEditing}
             onDelete={handleDelete}
+            onDragEnd={handleDragEnd}
           />
         </CardContent>
       </Card>
@@ -201,8 +235,12 @@ export function StudentManagement({ classroom }: StudentManagementProps) {
   );
 }
 
-function StudentTable({ students, onEdit, onDelete }: { students: Student[], onEdit: (s: Student) => void, onDelete: (id: string) => void }) {
+function StudentTable({ students, onEdit, onDelete, onDragEnd }: { students: Student[], onEdit: (s: Student) => void, onDelete: (id: string) => void, onDragEnd: (event: DragEndEvent) => void }) {
     const { t } = useI18n();
+    const sensors = useSensors(
+      useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+      useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
 
     if (students.length === 0) {
         return <div className="text-center text-sm text-muted-foreground p-8 border-2 border-dashed rounded-lg">{t('studentManagement.no_students_in_roster')}</div>
@@ -212,29 +250,63 @@ function StudentTable({ students, onEdit, onDelete }: { students: Student[], onE
             <Table>
                 <TableHeader>
                     <TableRow>
+                        <TableHead className="w-[50px]"></TableHead>
                         <TableHead>{t('studentManagement.table_header_name')}</TableHead>
                         <TableHead className="text-right w-[120px]">{t('studentManagement.table_header_actions')}</TableHead>
                     </TableRow>
                 </TableHeader>
-                <TableBody>
-                    {students.map((student) => (
-                        <TableRow key={student.id}>
-                            <TableCell className="font-medium">{student.name}</TableCell>
-                            <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                    <Button variant="ghost" size="icon" onClick={() => onEdit(student)}>
-                                        <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <DeleteStudentButton student={student} onDelete={onDelete} />
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                  <SortableContext items={students} strategy={verticalListSortingStrategy}>
+                    <TableBody>
+                        {students.map((student) => (
+                          <SortableStudentRow key={student.id} student={student} onEdit={onEdit} onDelete={onDelete} />
+                        ))}
+                    </TableBody>
+                  </SortableContext>
+                </DndContext>
             </Table>
         </div>
     )
 }
+
+function SortableStudentRow({ student, onEdit, onDelete }: { student: Student, onEdit: (s: Student) => void, onDelete: (id: string) => void }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: student.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.8 : 1,
+    zIndex: isDragging ? 1 : 0,
+    position: 'relative', // for z-index to work
+  };
+
+  return (
+    <TableRow ref={setNodeRef} style={style} {...attributes}>
+      <TableCell className="w-[50px]">
+        <button {...listeners} className="p-2 cursor-grab active:cursor-grabbing">
+          <GripVertical className="h-5 w-5 text-muted-foreground" />
+        </button>
+      </TableCell>
+      <TableCell className="font-medium">{student.name}</TableCell>
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" size="icon" onClick={() => onEdit(student)}>
+                <Edit className="h-4 w-4" />
+            </Button>
+            <DeleteStudentButton student={student} onDelete={onDelete} />
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 
 function DeleteStudentButton({ student, onDelete }: { student: Student, onDelete: (id: string) => void}) {
     const { t } = useI18n();

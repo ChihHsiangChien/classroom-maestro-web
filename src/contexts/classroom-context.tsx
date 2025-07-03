@@ -54,6 +54,7 @@ interface ClassroomContextType {
   updateStudent: (classroomId: string, studentId: string, newName: string) => Promise<void>;
   deleteStudent: (classroomId: string, studentId: string) => Promise<void>;
   importStudents: (classroomId: string, studentNames: string[]) => Promise<void>;
+  reorderStudents: (classroomId: string, students: Student[]) => Promise<void>;
   setActiveQuestionInDB: (classroomId: string, question: any | null) => Promise<void>;
   addSubmission: (classroomId: string, questionId: string, studentId: string, studentName: string, answer: string | string[]) => Promise<void>;
   listenForSubmissions: (classroomId: string, questionId: string, callback: (submissions: Submission[]) => void) => () => void;
@@ -163,7 +164,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     const newStudent: Student = { id: generateId(), name: studentName.trim() };
     try {
       await updateDoc(doc(db, 'classrooms', classroomId), {
-        students: [...classroom.students, newStudent]
+        students: [newStudent, ...classroom.students]
       });
     } catch (error) {
       handleFirestoreError(error, 'add-student');
@@ -178,6 +179,15 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       await updateDoc(doc(db, 'classrooms', classroomId), { students: updatedStudents });
     } catch (error) {
       handleFirestoreError(error, 'update-student');
+    }
+  };
+
+  const reorderStudents = async (classroomId: string, students: Student[]) => {
+    if (!db) return;
+    try {
+      await updateDoc(doc(db, 'classrooms', classroomId), { students });
+    } catch (error) {
+      handleFirestoreError(error, 'reorder-students');
     }
   };
 
@@ -198,7 +208,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       const newStudents: Student[] = studentNames.map(name => ({ id: generateId(), name }));
       const batch = writeBatch(db);
       const classroomRef = doc(db, 'classrooms', classroomId);
-      batch.update(classroomRef, { students: [...classroom.students, ...newStudents] });
+      batch.update(classroomRef, { students: [...newStudents, ...classroom.students] });
       try {
         await batch.commit();
       } catch (error) {
@@ -266,6 +276,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     updateStudent,
     deleteStudent,
     importStudents,
+    reorderStudents,
     setActiveQuestionInDB,
     addSubmission,
     listenForSubmissions,
