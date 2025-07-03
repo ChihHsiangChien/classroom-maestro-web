@@ -1,18 +1,44 @@
+
 'use client';
 
-import { Crown, School } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { TeacherLoginForm } from '@/components/teacher-login-form';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { School, LogIn } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/lib/i18n/provider';
 
 export default function Home() {
   const { t } = useI18n();
+  const { user, loading, signInWithGoogle } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
+
+  const handleLogin = async () => {
+    try {
+      await signInWithGoogle();
+      router.push('/dashboard');
+    } catch (error) {
+      console.error("Google Sign-In failed:", error);
+      // You can add a toast notification here to inform the user
+    }
+  };
+
+  if (loading || user) {
+    return (
+      <div className="flex min-h-screen w-full flex-col items-center justify-center">
+        <School className="h-12 w-12 animate-pulse text-primary" />
+        <p className="mt-4 text-muted-foreground">{t('common.loading')}</p>
+      </div>
+    );
+  }
+
   return (
     <main className="flex min-h-screen w-full flex-col items-center justify-center p-4">
       <div className="flex flex-col items-center gap-2 mb-8 text-center">
@@ -26,18 +52,18 @@ export default function Home() {
           {t('landingPage.description')}
         </p>
       </div>
-      <Card className="w-full max-w-md shadow-lg">
+      <Card className="w-full max-w-sm shadow-lg">
         <CardHeader className="text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                <Crown className="h-6 w-6 text-primary" />
-            </div>
           <CardTitle>{t('landingPage.teacher_signin_title')}</CardTitle>
           <CardDescription>
-            {t('landingPage.teacher_signin_description')}
+            {t('landingPage.teacher_signin_description_google')}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TeacherLoginForm />
+          <Button onClick={handleLogin} className="w-full">
+            <LogIn className="mr-2 h-4 w-4" />
+            {t('landingPage.signin_with_google_button')}
+          </Button>
         </CardContent>
       </Card>
     </main>

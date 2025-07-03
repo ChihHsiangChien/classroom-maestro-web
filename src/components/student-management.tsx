@@ -1,17 +1,13 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import QRCode from 'qrcode.react';
+import { useState } from 'react';
 import {
   Users,
   UserPlus,
   Trash2,
   Edit,
-  LogOut,
-  Copy,
-  Check,
-  ChevronDown,
+  Upload,
 } from 'lucide-react';
 import {
   Card,
@@ -20,12 +16,6 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -55,92 +45,37 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
+import type { Classroom, Student } from '@/contexts/classroom-context';
 import { useI18n } from '@/lib/i18n/provider';
-import { Skeleton } from './ui/skeleton';
+import { StudentImporter } from './student-importer';
 
-export type Student = {
-  id: number;
-  name: string;
-  isFocused?: boolean;
-};
-
-export interface Submission {
-  studentId: number;
-  studentName: string;
-  answer: string | string[];
-}
+export type { Student, Submission } from '@/contexts/classroom-context';
 
 interface StudentManagementProps {
-  students: Student[];
-  loggedInStudents: Student[];
+  classroom: Classroom;
   onAddStudent: (name: string) => void;
-  onUpdateStudent: (id: number, name: string) => void;
-  onDeleteStudent: (id: number) => void;
-  onKickStudent: (id: number) => void;
-  onStudentLogin: (student: Student) => void; // Mock
-  onToggleStudentFocus: (id: number) => void; // Mock
-  onPickStudent: () => void;
-  isManagementOpen: boolean;
-  onManagementToggle: (isOpen: boolean) => void;
-  isRosterOpen: boolean;
-  onRosterToggle: (isOpen: boolean) => void;
+  onUpdateStudent: (id: string, name: string) => void;
+  onDeleteStudent: (id: string) => void;
+  onImportStudents: (names: string[]) => void;
 }
 
 export function StudentManagement({
-  students,
-  loggedInStudents,
+  classroom,
   onAddStudent,
   onUpdateStudent,
   onDeleteStudent,
-  onKickStudent,
-  onStudentLogin,
-  onToggleStudentFocus,
-  onPickStudent,
-  isManagementOpen,
-  onManagementToggle,
-  isRosterOpen,
-  onRosterToggle,
+  onImportStudents,
 }: StudentManagementProps) {
   const { t } = useI18n();
-  const [classroomUrl, setClassroomUrl] = useState('');
-  const [isClient, setIsClient] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
-  const [hasCopied, setHasCopied] = useState(false);
+  const [isImportDialogOpen, setImportDialogOpen] = useState(false);
   const { toast } = useToast();
-
-  const notLoggedInStudents = students.filter(
-    (s) => !loggedInStudents.find((ls) => ls.id === s.id)
-  );
-
-  useEffect(() => {
-    // This ensures window is defined, preventing SSR errors, and sets isClient to true.
-    setClassroomUrl(`${window.location.origin}/join`);
-    setIsClient(true);
-  }, []);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(classroomUrl);
-    setHasCopied(true);
-    toast({ 
-      title: t('studentManagement.copy_button_toast_title'), 
-      description: t('studentManagement.copy_button_toast_description') 
-    });
-    setTimeout(() => setHasCopied(false), 2000);
-  };
 
   const handleAdd = () => {
     if (newStudentName.trim()) {
@@ -171,221 +106,135 @@ export function StudentManagement({
     setEditingStudent({ ...student });
     setEditDialogOpen(true);
   };
+  
+  const handleImport = (names: string[]) => {
+    onImportStudents(names);
+    setImportDialogOpen(false);
+    toast({
+        title: t('dashboard.toast_students_imported_title'),
+        description: t('dashboard.toast_students_imported_description', {count: names.length}),
+    });
+  }
 
   return (
-    <TooltipProvider>
-      <>
-        <Card className="shadow-md">
-          <Collapsible open={isManagementOpen} onOpenChange={onManagementToggle}>
-            <CardHeader className="flex flex-row items-start justify-between">
-              <div>
-                <CardTitle>{t('studentManagement.title')}</CardTitle>
-                <CardDescription>
-                  {t('studentManagement.description')}
-                </CardDescription>
-              </div>
-              <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className='-mr-2 -mt-1'>
-                      <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                      <span className="sr-only">Toggle Management</span>
-                  </Button>
-              </CollapsibleTrigger>
-            </CardHeader>
-            <CollapsibleContent>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="classroom-url">{t('studentManagement.classroom_url_label')}</Label>
-                  <div className="flex gap-2">
-                    {isClient ? (
-                      <>
-                        <Input id="classroom-url" value={classroomUrl} readOnly />
-                        <Button size="icon" variant="outline" onClick={handleCopy}>
-                          {hasCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Skeleton className="h-10 flex-grow" />
-                        <Skeleton className="h-10 w-10" />
-                      </>
-                    )}
-                  </div>
-                </div>
-                {isClient && classroomUrl && (
-                  <div className="flex flex-col items-center gap-2 rounded-md bg-white p-4">
-                    <QRCode value={classroomUrl} size={128} />
-                    <p className="text-sm text-muted-foreground">{t('studentManagement.scan_to_join')}</p>
-                  </div>
-                )}
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-
-        <Card className="shadow-md">
-          <Collapsible open={isRosterOpen} onOpenChange={onRosterToggle}>
-            <CardHeader className="flex flex-row items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-sm font-medium">{t('studentManagement.roster_card_title')}</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </div>
-                 <div className="text-2xl font-bold">{loggedInStudents.length} / {students.length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {t('studentManagement.students_absent', { count: students.length - loggedInStudents.length })}
-                  </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={onPickStudent} disabled={loggedInStudents.length === 0}>
-                    {t('studentManagement.lottery_button')}
+    <>
+      <Card className="shadow-md">
+        <CardHeader className="flex-row items-center justify-between">
+            <div>
+              <CardTitle>{t('studentManagement.roster_card_title')}</CardTitle>
+              <CardDescription className="flex items-center gap-2 mt-1">
+                <Users className="h-4 w-4" />
+                {t('teacherDashboard.responses_count', { submissionsCount: classroom.students.length, studentsCount: classroom.students.length })}
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    {t('dashboard.import_students')}
                 </Button>
-                <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className='-mr-2 -mt-1'>
-                        <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                        <span className="sr-only">Toggle Roster</span>
-                    </Button>
-                </CollapsibleTrigger>
-              </div>
-            </CardHeader>
-            <CollapsibleContent>
-              <Tabs defaultValue="not-logged-in" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="not-logged-in">{t('studentManagement.tab_not_logged_in', { count: notLoggedInStudents.length })}</TabsTrigger>
-                  <TabsTrigger value="logged-in">{t('studentManagement.tab_logged_in', { count: loggedInStudents.length })}</TabsTrigger>
-                </TabsList>
-                <TabsContent value="not-logged-in">
-                  <StudentTable
-                      students={notLoggedInStudents}
-                      actionButtons={(student) => (
-                          <>
-                              <Button variant="ghost" size="icon" onClick={() => startEditing(student)}>
-                                  <Edit className="h-4 w-4" />
-                              </Button>
-                              <DeleteStudentButton student={student} onDelete={onDeleteStudent} />
-                              <Button variant="outline" size="sm" onClick={() => onStudentLogin(student)}>{t('studentManagement.simulate_login_button')}</Button>
-                          </>
-                      )}
-                      emptyMessage={t('studentManagement.all_students_present_message')}
-                  />
-                </TabsContent>
-                <TabsContent value="logged-in">
-                    <StudentTable
-                        students={loggedInStudents}
-                        onRowClick={onToggleStudentFocus}
-                        actionButtons={(student) => (
-                            <>
-                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onKickStudent(student.id); }}>
-                                    <LogOut className="h-4 w-4 text-destructive" />
-                                </Button>
-                            </>
-                        )}
-                        emptyMessage={t('studentManagement.no_students_logged_in_message')}
-                    />
-                </TabsContent>
-              </Tabs>
-              <CardContent>
-                <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full mt-4">
-                      <UserPlus className="mr-2 h-4 w-4" /> {t('studentManagement.add_student_button')}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>{t('studentManagement.add_student_dialog_title')}</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">{t('studentManagement.add_student_name_label')}</Label>
-                        <Input id="name" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} className="col-span-3" />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <DialogClose asChild><Button variant="ghost">{t('common.cancel')}</Button></DialogClose>
-                      <Button onClick={handleAdd}>{t('common.save')}</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-        
-        <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent>
-              <DialogHeader>
-                  <DialogTitle>{t('studentManagement.edit_student_dialog_title')}</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="edit-name" className="text-right">{t('studentManagement.add_student_name_label')}</Label>
-                      <Input id="edit-name" value={editingStudent?.name || ''} onChange={(e) => setEditingStudent(s => s ? {...s, name: e.target.value} : null)} className="col-span-3" />
-                  </div>
-              </div>
-              <DialogFooter>
-                  <DialogClose asChild><Button variant="ghost" onClick={() => setEditDialogOpen(false)}>{t('common.cancel')}</Button></DialogClose>
-                  <Button onClick={handleUpdate}>{t('common.save_changes')}</Button>
-              </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </>
-    </TooltipProvider>
+                <Button onClick={() => setAddDialogOpen(true)}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    {t('studentManagement.add_student_button')}
+                </Button>
+            </div>
+        </CardHeader>
+        <CardContent>
+          <StudentTable
+            students={classroom.students}
+            onEdit={startEditing}
+            onDelete={onDeleteStudent}
+          />
+        </CardContent>
+      </Card>
+      
+      {/* Add Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('studentManagement.add_student_dialog_title')}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">{t('studentManagement.add_student_name_label')}</Label>
+              <Input id="name" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} className="col-span-3" />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button variant="ghost">{t('common.cancel')}</Button></DialogClose>
+            <Button onClick={handleAdd}>{t('common.save')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>{t('studentManagement.edit_student_dialog_title')}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-name" className="text-right">{t('studentManagement.add_student_name_label')}</Label>
+                    <Input id="edit-name" value={editingStudent?.name || ''} onChange={(e) => setEditingStudent(s => s ? {...s, name: e.target.value} : null)} className="col-span-3" />
+                </div>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="ghost" onClick={() => setEditDialogOpen(false)}>{t('common.cancel')}</Button></DialogClose>
+                <Button onClick={handleUpdate}>{t('common.save_changes')}</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>{t('dashboard.import_students')}</DialogTitle>
+                <DialogDescription>{t('dashboard.import_students_description')}</DialogDescription>
+            </DialogHeader>
+            <StudentImporter onImport={handleImport} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
-function StudentTable({ students, actionButtons, emptyMessage, onRowClick }: { students: Student[], actionButtons: (s: Student) => React.ReactNode, emptyMessage: string, onRowClick?: (id: number) => void }) {
+function StudentTable({ students, onEdit, onDelete }: { students: Student[], onEdit: (s: Student) => void, onDelete: (id: string) => void }) {
     const { t } = useI18n();
+
     if (students.length === 0) {
-        return <div className="text-center text-sm text-muted-foreground p-4">{emptyMessage}</div>
+        return <div className="text-center text-sm text-muted-foreground p-8 border-2 border-dashed rounded-lg">{t('studentManagement.no_students_logged_in_message')}</div>
     }
     return (
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>{t('studentManagement.table_header_name')}</TableHead>
-                    <TableHead className="text-right">{t('studentManagement.table_header_actions')}</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {students.map((student) => {
-                  const row = (
-                     <TableRow 
-                        key={student.id}
-                        onClick={() => onRowClick?.(student.id)}
-                        className={cn(
-                            onRowClick && 'cursor-pointer',
-                            student.isFocused === false && 'bg-amber-100 hover:bg-amber-200/80 dark:bg-amber-800/30 dark:hover:bg-amber-800/50'
-                        )}
-                      >
-                        <TableCell className="font-medium">{student.name}</TableCell>
-                        <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                                {actionButtons(student)}
-                            </div>
-                        </TableCell>
+        <div className="border rounded-md">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>{t('studentManagement.table_header_name')}</TableHead>
+                        <TableHead className="text-right w-[120px]">{t('studentManagement.table_header_actions')}</TableHead>
                     </TableRow>
-                  );
-
-                  if (onRowClick) {
-                    return (
-                        <Tooltip key={student.id}>
-                            <TooltipTrigger asChild>{row}</TooltipTrigger>
-                            <TooltipContent>
-                                <p>{student.isFocused ?? true ? t('studentManagement.tooltip_focused') : t('studentManagement.tooltip_distracted')}</p>
-                                {(student.isFocused ?? true) ? null : <p className="text-xs text-muted-foreground">{t('studentManagement.tooltip_distracted_description')}</p> }
-                                <p className="text-xs text-muted-foreground">{t('studentManagement.tooltip_toggle_status_description')}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    )
-                  }
-                  return row;
-                })}
-            </TableBody>
-        </Table>
+                </TableHeader>
+                <TableBody>
+                    {students.map((student) => (
+                        <TableRow key={student.id}>
+                            <TableCell className="font-medium">{student.name}</TableCell>
+                            <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                    <Button variant="ghost" size="icon" onClick={() => onEdit(student)}>
+                                        <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <DeleteStudentButton student={student} onDelete={onDelete} />
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
     )
 }
 
-function DeleteStudentButton({ student, onDelete }: { student: Student, onDelete: (id: number) => void}) {
+function DeleteStudentButton({ student, onDelete }: { student: Student, onDelete: (id: string) => void}) {
     const { t } = useI18n();
     const { toast } = useToast();
     
