@@ -19,7 +19,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const publicPaths = ['/'];
-const studentPaths = ['/join', '/classroom'];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -55,21 +54,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (loading || authError) return; // Don't redirect if there's an error
-    
-    if (!isFirebaseConfigured) return;
+    // This hook now only runs on pages wrapped by AuthProvider.
+    // It doesn't need to worry about student paths anymore.
+    if (loading || authError || !isFirebaseConfigured) return;
 
-    const isPublic = publicPaths.some(path => pathname.startsWith(path) && path.length === pathname.length);
-    const isStudentPath = studentPaths.some(path => pathname.startsWith(path));
-    
-    if (isStudentPath) return;
+    const isPublic = publicPaths.includes(pathname);
 
     if (!user && !isPublic) {
       router.push('/');
     } else if (user && isPublic) {
       router.push('/dashboard');
     }
-  }, [user, loading, pathname, router, authError]);
+  }, [user, loading, pathname, router, authError, isFirebaseConfigured]);
 
   const signInWithGoogle = async () => {
     if (!isFirebaseConfigured || !auth || !googleProvider) {
