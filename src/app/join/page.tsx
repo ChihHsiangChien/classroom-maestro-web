@@ -32,8 +32,8 @@ function JoinPageContent() {
     const encodedData = searchParams.get('classroom');
     if (encodedData) {
       try {
-        const decodedJson = decodeURIComponent(atob(encodedData));
-        const parsedData = JSON.parse(decodedJson);
+        // searchParams.get() automatically decodes the value.
+        const parsedData = JSON.parse(encodedData);
         if (parsedData && parsedData.id && parsedData.name && Array.isArray(parsedData.students)) {
           setClassroom(parsedData);
         } else {

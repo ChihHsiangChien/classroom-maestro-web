@@ -56,8 +56,7 @@ export default function ActivityPage() {
             students: activeClassroom.students
         };
         const classroomJson = JSON.stringify(classroomToEncode);
-        // Using btoa for client-side base64 encoding
-        const encodedData = btoa(unescape(encodeURIComponent(classroomJson)));
+        const encodedData = encodeURIComponent(classroomJson);
         setJoinUrl(`${window.location.origin}/join?classroom=${encodedData}`);
       } catch (e) {
         console.error("Failed to encode classroom data for URL", e);
