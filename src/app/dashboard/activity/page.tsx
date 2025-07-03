@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import {
@@ -29,8 +29,16 @@ type QuestionDataWithId = QuestionData & { id: string };
 export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions } = useClassroom();
+  // Get the full list of classrooms and the initially selected one.
+  const { classrooms, activeClassroom: initialActiveClassroom, setActiveQuestionInDB, listenForSubmissions } = useClassroom();
   const { toast } = useToast();
+
+  // Derive the most up-to-date activeClassroom object from the live classrooms list.
+  const activeClassroom = useMemo(() => {
+    if (!initialActiveClassroom) return null;
+    return classrooms.find(c => c.id === initialActiveClassroom.id) || initialActiveClassroom;
+  }, [classrooms, initialActiveClassroom]);
+
 
   const [activeQuestion, setActiveQuestion] = useState<QuestionDataWithId | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -40,12 +48,12 @@ export default function ActivityPage() {
   const [joinUrl, setJoinUrl] = useState('');
   const [isPanelOpen, setIsPanelOpen] = useState(true);
 
-  // If there's no active classroom, redirect back to the dashboard.
+  // If there's no active classroom initially, redirect back to the dashboard.
   useEffect(() => {
-    if (!activeClassroom) {
+    if (!initialActiveClassroom) {
       router.replace('/dashboard');
     }
-  }, [activeClassroom, router]);
+  }, [initialActiveClassroom, router]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && activeClassroom) {
