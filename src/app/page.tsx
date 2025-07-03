@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { School, LogIn, Terminal, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,13 @@ export default function Home() {
   const { t } = useI18n();
   const { user, loading, signInWithGoogle, isFirebaseConfigured, authError } = useAuth();
   const router = useRouter();
+  const [hostname, setHostname] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setHostname(window.location.hostname);
+    }
+  }, []);
 
   useEffect(() => {
     // Only redirect if there's no error, not loading, and user state is definitive
@@ -24,8 +31,6 @@ export default function Home() {
 
   const handleLogin = async () => {
     await signInWithGoogle();
-    // The auth context now handles and displays the error, so no extra logic needed here.
-    // The useEffect will handle the redirect on successful login.
   };
 
   if (loading) {
@@ -36,20 +41,43 @@ export default function Home() {
       </div>
     );
   }
+  
+  const isAuthDomainError = authError === 'unauthorized-domain';
 
-  // Display specific auth error first, as it's more specific than the config error
   if (authError) {
      return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
-        <Alert variant="destructive" className="max-w-lg bg-background">
+        <Alert variant="destructive" className="max-w-xl bg-background">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Firebase Authentication Error</AlertTitle>
-          <AlertDescription>
-            <p>{authError}</p>
-            <p className="mt-2">
-              Please check your Firebase project configuration and ensure the domain is authorized.
-            </p>
-          </AlertDescription>
+          {isAuthDomainError ? (
+            <>
+              <AlertTitle>{t('firebase.auth_domain_error_title')}</AlertTitle>
+              <AlertDescription>
+                 <div className="mt-2 space-y-3">
+                  <p>{t('firebase.auth_domain_error_description')}</p>
+                  <p className="font-semibold">{t('firebase.auth_domain_error_your_domain')}</p>
+                  {hostname ? (
+                    <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">{hostname}</code>
+                  ) : (
+                    <div className="h-7 w-full animate-pulse rounded bg-muted" />
+                  )}
+                  <p>{t('firebase.auth_domain_error_instructions')}</p>
+                  <Button asChild variant="link" className="p-0 h-auto text-destructive font-semibold">
+                    <a href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/settings`} target="_blank" rel="noopener noreferrer">
+                        {t('firebase.auth_domain_error_button')}
+                      </a>
+                  </Button>
+                 </div>
+              </AlertDescription>
+            </>
+          ) : (
+             <>
+              <AlertTitle>{t('firebase.generic_auth_error_title')}</AlertTitle>
+              <AlertDescription>
+                <p>{authError}</p>
+              </AlertDescription>
+            </>
+          )}
         </Alert>
       </main>
     );
@@ -60,16 +88,10 @@ export default function Home() {
       <main className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
         <Alert variant="destructive" className="max-w-lg bg-background">
           <Terminal className="h-4 w-4" />
-          <AlertTitle>Firebase Configuration Error</AlertTitle>
+          <AlertTitle>{t('firebase.config_error_title')}</AlertTitle>
           <AlertDescription>
-            <p>Your Firebase environment variables are not set correctly.</p>
-            <p className="mt-2">
-              Please copy your Firebase project credentials into the{' '}
-              <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold">
-                .env
-              </code>{' '}
-              file at the root of this project and restart the development server.
-            </p>
+            <p>{t('firebase.config_error_description')}</p>
+            <p className="mt-2" dangerouslySetInnerHTML={{ __html: t('firebase.config_error_instructions_html') }} />
           </AlertDescription>
         </Alert>
       </main>

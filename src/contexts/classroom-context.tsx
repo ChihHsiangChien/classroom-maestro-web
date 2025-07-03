@@ -52,6 +52,14 @@ interface ClassroomContextType {
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
 
+// Helper to wrap Firestore calls with specific error handling
+const handleFirestoreError = (error: any) => {
+  if (error.code === 'permission-denied') {
+    throw new Error('firestore-permission-denied');
+  }
+  throw error;
+};
+
 export function ClassroomProvider({ children }: { children: ReactNode }) {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [activeClassroom, setActiveClassroom] = useState<Classroom | null>(null);
@@ -72,6 +80,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
           setClassrooms(fetchedClassrooms);
         } catch (error) {
           console.error("Failed to fetch classrooms:", error);
+          handleFirestoreError(error);
         } finally {
           setLoading(false);
         }
@@ -97,61 +106,89 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   
   const addClassroom = async (name: string) => {
     if (!user || !db) return;
-    const newClassroomData = { name, ownerId: user.uid, students: [] };
-    const docRef = await addDoc(collection(db, "classrooms"), newClassroomData);
-    setClassrooms(prev => [...prev, { id: docRef.id, ...newClassroomData }]);
+    try {
+        const newClassroomData = { name, ownerId: user.uid, students: [] };
+        const docRef = await addDoc(collection(db, "classrooms"), newClassroomData);
+        setClassrooms(prev => [...prev, { id: docRef.id, ...newClassroomData }]);
+    } catch (error) {
+        handleFirestoreError(error);
+    }
   };
 
   const updateClassroom = async (id: string, name: string) => {
     if (!db) return;
-    const classroomRef = doc(db, 'classrooms', id);
-    await updateDoc(classroomRef, { name });
-    updateLocalClassroom(id, c => ({ ...c, name }));
+    try {
+        const classroomRef = doc(db, 'classrooms', id);
+        await updateDoc(classroomRef, { name });
+        updateLocalClassroom(id, c => ({ ...c, name }));
+    } catch (error) {
+        handleFirestoreError(error);
+    }
   };
 
   const deleteClassroom = async (id: string) => {
     if (!db) return;
-    const classroomRef = doc(db, 'classrooms', id);
-    await deleteDoc(classroomRef);
-    setClassrooms(prev => prev.filter(c => c.id !== id));
-    if (activeClassroom?.id === id) {
-      setActiveClassroom(null);
+    try {
+        const classroomRef = doc(db, 'classrooms', id);
+        await deleteDoc(classroomRef);
+        setClassrooms(prev => prev.filter(c => c.id !== id));
+        if (activeClassroom?.id === id) {
+          setActiveClassroom(null);
+        }
+    } catch (error) {
+        handleFirestoreError(error);
     }
   };
 
   const addStudent = async (classroomId: string, studentName: string) => {
     if (!db) return;
-    const newStudent: Student = { id: `${Date.now()}`, name: studentName };
-    const classroomRef = doc(db, 'classrooms', classroomId);
-    await updateDoc(classroomRef, { students: arrayUnion(newStudent) });
-    updateLocalClassroom(classroomId, c => ({ ...c, students: [...c.students, newStudent] }));
+    try {
+        const newStudent: Student = { id: `${Date.now()}`, name: studentName };
+        const classroomRef = doc(db, 'classrooms', classroomId);
+        await updateDoc(classroomRef, { students: arrayUnion(newStudent) });
+        updateLocalClassroom(classroomId, c => ({ ...c, students: [...c.students, newStudent] }));
+    } catch (error) {
+        handleFirestoreError(error);
+    }
   };
   
   const updateStudent = async (classroomId: string, studentId: string, newName: string) => {
     const classroom = classrooms.find(c => c.id === classroomId);
     if (!db || !classroom) return;
-    const updatedStudents = classroom.students.map(s => s.id === studentId ? { ...s, name: newName } : s);
-    const classroomRef = doc(db, 'classrooms', classroomId);
-    await updateDoc(classroomRef, { students: updatedStudents });
-    updateLocalClassroom(classroomId, c => ({ ...c, students: updatedStudents }));
+    try {
+        const updatedStudents = classroom.students.map(s => s.id === studentId ? { ...s, name: newName } : s);
+        const classroomRef = doc(db, 'classrooms', classroomId);
+        await updateDoc(classroomRef, { students: updatedStudents });
+        updateLocalClassroom(classroomId, c => ({ ...c, students: updatedStudents }));
+    } catch (error) {
+        handleFirestoreError(error);
+    }
   };
 
   const deleteStudent = async (classroomId: string, studentId: string) => {
     const classroom = classrooms.find(c => c.id === classroomId);
     if (!db || !classroom) return;
-    const studentToDelete = classroom.students.find(s => s.id === studentId);
-    if (!studentToDelete) return;
-    const classroomRef = doc(db, 'classrooms', classroomId);
-    await updateDoc(classroomRef, { students: arrayRemove(studentToDelete) });
-    updateLocalClassroom(classroomId, c => ({ ...c, students: c.students.filter(s => s.id !== studentId) }));
+    try {
+        const studentToDelete = classroom.students.find(s => s.id === studentId);
+        if (!studentToDelete) return;
+        const classroomRef = doc(db, 'classrooms', classroomId);
+        await updateDoc(classroomRef, { students: arrayRemove(studentToDelete) });
+        updateLocalClassroom(classroomId, c => ({ ...c, students: c.students.filter(s => s.id !== studentId) }));
+    } catch (error) {
+        handleFirestoreError(error);
+    }
   };
 
   const importStudents = async (classroomId: string, studentNames: string[]) => {
     if (!db) return;
-    const newStudents: Student[] = studentNames.map(name => ({ id: `${Date.now()}-${name.replace(/\s/g, '-')}`, name }));
-    const classroomRef = doc(db, 'classrooms', classroomId);
-    await updateDoc(classroomRef, { students: arrayUnion(...newStudents) });
-    updateLocalClassroom(classroomId, c => ({ ...c, students: [...c.students, ...newStudents] }));
+    try {
+        const newStudents: Student[] = studentNames.map(name => ({ id: `${Date.now()}-${name.replace(/\s/g, '-')}`, name }));
+        const classroomRef = doc(db, 'classrooms', classroomId);
+        await updateDoc(classroomRef, { students: arrayUnion(...newStudents) });
+        updateLocalClassroom(classroomId, c => ({ ...c, students: [...c.students, ...newStudents] }));
+    } catch (error) {
+        handleFirestoreError(error);
+    }
   };
 
   const value = {

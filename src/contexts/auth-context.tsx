@@ -44,8 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (error: AuthError) => {
         console.error('Firebase Auth State Error:', error);
         if (error.code === 'auth/unauthorized-domain' || error.code === 'auth/configuration-not-found') {
-          const detailedError = `This app's domain (${window.location.hostname}) is not authorized for Firebase Authentication. Please go to your Firebase project's Authentication settings, and under the 'Sign-in method' tab, add this domain to the 'Authorized domains' list.`;
-          setAuthError(detailedError);
+          setAuthError('unauthorized-domain');
         } else {
           setAuthError(error.message);
         }
@@ -87,8 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const caughtError = error as AuthError;
       console.error('Google Sign-In failed:', caughtError);
       if (caughtError.code === 'auth/unauthorized-domain' || caughtError.code === 'auth/configuration-not-found') {
-        const detailedError = `This app's domain (${window.location.hostname}) is not authorized for Firebase Authentication. Please go to your Firebase project's Authentication settings, and under the 'Sign-in method' tab, add this domain to the 'Authorized domains' list.`;
-        setAuthError(detailedError);
+        setAuthError('unauthorized-domain');
       } else {
         setAuthError(caughtError.message);
       }

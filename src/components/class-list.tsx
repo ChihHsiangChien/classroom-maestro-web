@@ -52,6 +52,36 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
   const [newClassName, setNewClassName] = useState('');
   const [currentClass, setCurrentClass] = useState<Classroom | null>(null);
 
+  const handleFirestoreError = (error: any, action: 'create' | 'update' | 'delete') => {
+    console.error(`Error ${action}ing class:`, error);
+    if (error.message === 'firestore-permission-denied') {
+      toast({
+        variant: "destructive",
+        duration: 10000,
+        title: t('firebase.firestore_permission_denied_title'),
+        description: (
+            <div>
+              <p>{t('firebase.firestore_permission_denied_description')}</p>
+              <a 
+                href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/firestore/rules`} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="font-bold underline text-destructive-foreground"
+              >
+                {t('firebase.firestore_permission_denied_button')}
+              </a>
+            </div>
+        )
+      });
+    } else {
+        toast({
+            variant: "destructive",
+            title: t('common.error'),
+            description: t('firebase.firestore_generic_error_description', { action })
+        });
+    }
+  }
+
   const handleAddClass = async () => {
     if (newClassName.trim()) {
       try {
@@ -60,12 +90,7 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
         setAddDialogOpen(false);
         setNewClassName('');
       } catch (error) {
-        console.error("Error creating class:", error);
-        toast({
-          variant: "destructive",
-          title: t('common.error'),
-          description: "Could not create class. Please ensure your Firestore security rules allow writes."
-        });
+        handleFirestoreError(error, 'create');
       }
     }
   };
@@ -78,12 +103,7 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
         setEditDialogOpen(false);
         setCurrentClass(null);
       } catch (error) {
-        console.error("Error updating class:", error);
-        toast({
-          variant: "destructive",
-          title: t('common.error'),
-          description: "Could not update class. Please try again."
-        });
+        handleFirestoreError(error, 'update');
       }
     }
   };
@@ -93,12 +113,7 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
       await deleteClassroom(id);
       toast({ variant: 'destructive', title: t('dashboard.toast_class_deleted') });
     } catch (error) {
-      console.error("Error deleting class:", error);
-      toast({
-        variant: "destructive",
-        title: t('common.error'),
-        description: "Could not delete class. Please try again."
-      });
+      handleFirestoreError(error, 'delete');
     }
   };
 
