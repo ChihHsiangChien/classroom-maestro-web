@@ -21,7 +21,7 @@ function ClassroomDebugPage() {
       <CardHeader>
         <CardTitle>Classroom Debug Page</CardTitle>
         <CardDescription>
-          If you can see this page, the routing is working. The problem is in the original page's logic.
+          If you can see this page, the routing is working. The problem is likely in the original page's logic that was replaced by this debug view.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
