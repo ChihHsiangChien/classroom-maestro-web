@@ -35,15 +35,16 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import type { Classroom } from '@/contexts/classroom-context';
 import { useI18n } from '@/lib/i18n/provider';
-import { Plus, Edit, Trash2, Users, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, FileText, PlayCircle } from 'lucide-react';
 
 interface ClassListProps {
   classrooms: Classroom[];
   setClassrooms: React.Dispatch<React.SetStateAction<Classroom[]>>;
   onSelectClass: (classroom: Classroom) => void;
+  onStartActivity: (classroom: Classroom) => void;
 }
 
-export function ClassList({ classrooms, setClassrooms, onSelectClass }: ClassListProps) {
+export function ClassList({ classrooms, setClassrooms, onSelectClass, onStartActivity }: ClassListProps) {
   const { t } = useI18n();
   const { toast } = useToast();
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
@@ -107,25 +108,22 @@ export function ClassList({ classrooms, setClassrooms, onSelectClass }: ClassLis
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {classrooms.map((c) => (
             <Card key={c.id} className="flex flex-col">
-              <CardHeader>
-                <CardTitle className="truncate">{c.name}</CardTitle>
-                <CardDescription className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  <span>{c.students.length} students</span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                 {/* Can add a preview of students or other info here */}
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <div className="flex gap-2">
-                   <Button variant="outline" size="icon" onClick={() => openEditDialog(c)}>
-                      <Edit className="h-4 w-4" />
-                   </Button>
-                   <AlertDialog>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="truncate">{c.name}</CardTitle>
+                  <CardDescription className="flex items-center gap-2 pt-1">
+                    <Users className="h-4 w-4" />
+                    <span>{t('dashboard.student_count', { count: c.students.length })}</span>
+                  </CardDescription>
+                </div>
+                <div className="flex items-center">
+                  <Button variant="ghost" size="icon" onClick={() => openEditDialog(c)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="icon">
-                        <Trash2 className="h-4 w-4" />
+                       <Button variant="ghost" size="icon">
+                        <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
@@ -140,7 +138,17 @@ export function ClassList({ classrooms, setClassrooms, onSelectClass }: ClassLis
                     </AlertDialogContent>
                   </AlertDialog>
                 </div>
-                <Button onClick={() => onSelectClass(c)}>{t('dashboard.start_activity')}</Button>
+              </CardHeader>
+              <CardContent className="flex-grow" />
+              <CardFooter className="flex justify-between">
+                <Button variant="outline" onClick={() => onSelectClass(c)}>
+                  <Users className="mr-2 h-4 w-4" />
+                  {t('dashboard.edit_students_list')}
+                </Button>
+                <Button onClick={() => onStartActivity(c)}>
+                  <PlayCircle className="mr-2 h-4 w-4" />
+                  {t('dashboard.start_activity')}
+                </Button>
               </CardFooter>
             </Card>
           ))}

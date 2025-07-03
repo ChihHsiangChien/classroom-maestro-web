@@ -54,6 +54,8 @@ export const dictionaries = {
       toast_students_imported_description: '{count} 位學生已成功加入班級。',
       toast_import_error_title: '匯入失敗',
       toast_import_error_description: '無法讀取檔案。請確認它是純文字格式。',
+      edit_students_list: '編輯學生名單',
+      student_count: '{count} 位學生',
     },
     teacherLoginForm: {
       room_code_label: '教室代碼',
@@ -275,6 +277,8 @@ export const dictionaries = {
       toast_students_imported_description: '{count} students were successfully added to the class.',
       toast_import_error_title: 'Import Failed',
       toast_import_error_description: 'Could not read the file. Please ensure it is a plain text file.',
+      edit_students_list: 'Edit Student List',
+      student_count: '{count} students',
     },
     teacherLoginForm: {
       room_code_label: 'Classroom Code',
