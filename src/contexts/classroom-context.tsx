@@ -2,93 +2,166 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { useAuth } from './auth-context';
+import { db } from '@/lib/firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  addDoc, 
+  doc, 
+  updateDoc, 
+  deleteDoc, 
+  arrayUnion, 
+  arrayRemove,
+  writeBatch
+} from 'firebase/firestore';
 
 export interface Student {
   id: string;
   name: string;
 }
 
+export interface Submission {
+  studentId: number;
+  studentName: string;
+  answer: string | string[];
+}
+
 export interface Classroom {
   id: string;
   name: string;
   students: Student[];
+  ownerId: string;
 }
 
 interface ClassroomContextType {
   classrooms: Classroom[];
-  setClassrooms: React.Dispatch<React.SetStateAction<Classroom[]>>;
   activeClassroom: Classroom | null;
   setActiveClassroom: React.Dispatch<React.SetStateAction<Classroom | null>>;
-  addStudent: (classroomId: string, studentName: string) => void;
-  updateStudent: (classroomId: string, studentId: string, newName: string) => void;
-  deleteStudent: (classroomId: string, studentId: string) => void;
-  importStudents: (classroomId: string, studentNames: string[]) => void;
+  loading: boolean;
+  addClassroom: (name: string) => Promise<void>;
+  updateClassroom: (id: string, name: string) => Promise<void>;
+  deleteClassroom: (id: string) => Promise<void>;
+  addStudent: (classroomId: string, studentName: string) => Promise<void>;
+  updateStudent: (classroomId: string, studentId: string, newName: string) => Promise<void>;
+  deleteStudent: (classroomId: string, studentId: string) => Promise<void>;
+  importStudents: (classroomId: string, studentNames: string[]) => Promise<void>;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
 
-const CLASSROOM_DATA_KEY = 'classroom_data';
-
 export function ClassroomProvider({ children }: { children: ReactNode }) {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [activeClassroom, setActiveClassroom] = useState<Classroom | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
-    try {
-      const savedData = localStorage.getItem(CLASSROOM_DATA_KEY);
-      if (savedData) {
-        setClassrooms(JSON.parse(savedData));
-      }
-    } catch (error) {
-      console.error("Failed to load classroom data from localStorage", error);
+    if (user && db) {
+      setLoading(true);
+      const fetchClassrooms = async () => {
+        try {
+          const q = query(collection(db, "classrooms"), where("ownerId", "==", user.uid));
+          const querySnapshot = await getDocs(q);
+          const fetchedClassrooms = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          } as Classroom));
+          setClassrooms(fetchedClassrooms);
+        } catch (error) {
+          console.error("Failed to fetch classrooms:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchClassrooms();
+    } else {
+      setClassrooms([]);
+      setActiveClassroom(null);
+      setLoading(false);
     }
-    setIsLoaded(true);
-  }, []);
+  }, [user]);
 
-  useEffect(() => {
-    if (isLoaded) {
-      try {
-        localStorage.setItem(CLASSROOM_DATA_KEY, JSON.stringify(classrooms));
-      } catch (error) {
-        console.error("Failed to save classroom data to localStorage", error);
+  const updateLocalClassroom = (classroomId: string, updater: (classroom: Classroom) => Classroom) => {
+    const updaterWithActive = (c: Classroom) => {
+      const updated = updater(c);
+      if (activeClassroom?.id === classroomId) {
+        setActiveClassroom(updated);
       }
+      return updated;
     }
-  }, [classrooms, isLoaded]);
-
-  const updateClassroom = (classroomId: string, updater: (classroom: Classroom) => Classroom) => {
-    setClassrooms(prev => prev.map(c => c.id === classroomId ? updater(c) : c));
+    setClassrooms(prev => prev.map(c => c.id === classroomId ? updaterWithActive(c) : c));
   };
   
-  const addStudent = (classroomId: string, studentName: string) => {
-    const newStudent: Student = { id: Date.now().toString(), name: studentName };
-    updateClassroom(classroomId, c => ({ ...c, students: [...c.students, newStudent] }));
+  const addClassroom = async (name: string) => {
+    if (!user || !db) return;
+    const newClassroomData = { name, ownerId: user.uid, students: [] };
+    const docRef = await addDoc(collection(db, "classrooms"), newClassroomData);
+    setClassrooms(prev => [...prev, { id: docRef.id, ...newClassroomData }]);
   };
 
-  const updateStudent = (classroomId: string, studentId: string, newName: string) => {
-    updateClassroom(classroomId, c => ({
-      ...c,
-      students: c.students.map(s => s.id === studentId ? { ...s, name: newName } : s),
-    }));
+  const updateClassroom = async (id: string, name: string) => {
+    if (!db) return;
+    const classroomRef = doc(db, 'classrooms', id);
+    await updateDoc(classroomRef, { name });
+    updateLocalClassroom(id, c => ({ ...c, name }));
   };
 
-  const deleteStudent = (classroomId: string, studentId: string) => {
-    updateClassroom(classroomId, c => ({
-      ...c,
-      students: c.students.filter(s => s.id !== studentId),
-    }));
+  const deleteClassroom = async (id: string) => {
+    if (!db) return;
+    const classroomRef = doc(db, 'classrooms', id);
+    await deleteDoc(classroomRef);
+    setClassrooms(prev => prev.filter(c => c.id !== id));
+    if (activeClassroom?.id === id) {
+      setActiveClassroom(null);
+    }
   };
 
-  const importStudents = (classroomId: string, studentNames: string[]) => {
-    const newStudents: Student[] = studentNames.map(name => ({ id: `${Date.now()}-${name}`, name }));
-    updateClassroom(classroomId, c => ({ ...c, students: [...c.students, ...newStudents] }));
+  const addStudent = async (classroomId: string, studentName: string) => {
+    if (!db) return;
+    const newStudent: Student = { id: `${Date.now()}`, name: studentName };
+    const classroomRef = doc(db, 'classrooms', classroomId);
+    await updateDoc(classroomRef, { students: arrayUnion(newStudent) });
+    updateLocalClassroom(classroomId, c => ({ ...c, students: [...c.students, newStudent] }));
+  };
+  
+  const updateStudent = async (classroomId: string, studentId: string, newName: string) => {
+    const classroom = classrooms.find(c => c.id === classroomId);
+    if (!db || !classroom) return;
+    const updatedStudents = classroom.students.map(s => s.id === studentId ? { ...s, name: newName } : s);
+    const classroomRef = doc(db, 'classrooms', classroomId);
+    await updateDoc(classroomRef, { students: updatedStudents });
+    updateLocalClassroom(classroomId, c => ({ ...c, students: updatedStudents }));
+  };
+
+  const deleteStudent = async (classroomId: string, studentId: string) => {
+    const classroom = classrooms.find(c => c.id === classroomId);
+    if (!db || !classroom) return;
+    const studentToDelete = classroom.students.find(s => s.id === studentId);
+    if (!studentToDelete) return;
+    const classroomRef = doc(db, 'classrooms', classroomId);
+    await updateDoc(classroomRef, { students: arrayRemove(studentToDelete) });
+    updateLocalClassroom(classroomId, c => ({ ...c, students: c.students.filter(s => s.id !== studentId) }));
+  };
+
+  const importStudents = async (classroomId: string, studentNames: string[]) => {
+    if (!db) return;
+    const newStudents: Student[] = studentNames.map(name => ({ id: `${Date.now()}-${name.replace(/\s/g, '-')}`, name }));
+    const classroomRef = doc(db, 'classrooms', classroomId);
+    await updateDoc(classroomRef, { students: arrayUnion(...newStudents) });
+    updateLocalClassroom(classroomId, c => ({ ...c, students: [...c.students, ...newStudents] }));
   };
 
   const value = {
     classrooms,
-    setClassrooms,
     activeClassroom,
     setActiveClassroom,
+    loading,
+    addClassroom,
+    updateClassroom,
+    deleteClassroom,
     addStudent,
     updateStudent,
     deleteStudent,

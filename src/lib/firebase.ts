@@ -1,6 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -21,11 +22,13 @@ export let isFirebaseConfigured =
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let googleProvider: GoogleAuthProvider | null = null;
+let db: Firestore | null = null;
 
 if (isFirebaseConfigured) {
   try {
     app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     auth = getAuth(app);
+    db = getFirestore(app);
     googleProvider = new GoogleAuthProvider();
   } catch (e) {
     console.error("Failed to initialize Firebase", e);
@@ -34,6 +37,7 @@ if (isFirebaseConfigured) {
     app = null;
     auth = null;
     googleProvider = null;
+    db = null;
   }
 } else {
     if (process.env.NODE_ENV !== 'production') {
@@ -43,4 +47,4 @@ if (isFirebaseConfigured) {
     }
 }
 
-export { app, auth, googleProvider };
+export { app, auth, db, googleProvider };

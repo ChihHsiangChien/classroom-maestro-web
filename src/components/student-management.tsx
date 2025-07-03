@@ -49,28 +49,19 @@ import {
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useToast } from '@/hooks/use-toast';
-import type { Classroom, Student } from '@/contexts/classroom-context';
+import { useClassroom, type Classroom, type Student } from '@/contexts/classroom-context';
 import { useI18n } from '@/lib/i18n/provider';
 import { StudentImporter } from './student-importer';
 
-export type { Student, Submission } from '@/contexts/classroom-context';
+export type { Submission } from '@/contexts/classroom-context';
 
 interface StudentManagementProps {
   classroom: Classroom;
-  onAddStudent: (name: string) => void;
-  onUpdateStudent: (id: string, name: string) => void;
-  onDeleteStudent: (id: string) => void;
-  onImportStudents: (names: string[]) => void;
 }
 
-export function StudentManagement({
-  classroom,
-  onAddStudent,
-  onUpdateStudent,
-  onDeleteStudent,
-  onImportStudents,
-}: StudentManagementProps) {
+export function StudentManagement({ classroom }: StudentManagementProps) {
   const { t } = useI18n();
+  const { addStudent, updateStudent, deleteStudent, importStudents } = useClassroom();
   const [newStudentName, setNewStudentName] = useState('');
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
@@ -78,10 +69,10 @@ export function StudentManagement({
   const [isImportDialogOpen, setImportDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (newStudentName.trim()) {
       const name = newStudentName.trim();
-      onAddStudent(name);
+      await addStudent(classroom.id, name);
       setNewStudentName('');
       setAddDialogOpen(false);
       toast({ 
@@ -91,9 +82,9 @@ export function StudentManagement({
     }
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (editingStudent && editingStudent.name.trim()) {
-      onUpdateStudent(editingStudent.id, editingStudent.name.trim());
+      await updateStudent(classroom.id, editingStudent.id, editingStudent.name.trim());
       setEditingStudent(null);
       setEditDialogOpen(false);
       toast({ 
@@ -108,8 +99,8 @@ export function StudentManagement({
     setEditDialogOpen(true);
   };
   
-  const handleImport = (names: string[]) => {
-    onImportStudents(names);
+  const handleImport = async (names: string[]) => {
+    await importStudents(classroom.id, names);
     setImportDialogOpen(false);
     toast({
         title: t('dashboard.toast_students_imported_title'),
@@ -143,7 +134,7 @@ export function StudentManagement({
           <StudentTable
             students={classroom.students}
             onEdit={startEditing}
-            onDelete={onDeleteStudent}
+            onDelete={(studentId) => deleteStudent(classroom.id, studentId)}
           />
         </CardContent>
       </Card>
@@ -191,7 +182,7 @@ export function StudentManagement({
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>{t('dashboard.import_students')}</DialogTitle>
-                <DialogDescription>{t('studentManagement.import_students_description')}</DialogDescription>
+                <DialogDescription>{t('dashboard.import_students_description')}</DialogDescription>
             </DialogHeader>
             <StudentImporter onImport={handleImport} />
         </DialogContent>
@@ -239,8 +230,8 @@ function DeleteStudentButton({ student, onDelete }: { student: Student, onDelete
     const { t } = useI18n();
     const { toast } = useToast();
     
-    const handleDelete = () => {
-        onDelete(student.id);
+    const handleDelete = async () => {
+        await onDelete(student.id);
         toast({
             variant: "destructive",
             title: t('studentManagement.toast_student_deleted_title'),

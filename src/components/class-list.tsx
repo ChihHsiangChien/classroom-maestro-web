@@ -34,55 +34,49 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import type { Classroom } from '@/contexts/classroom-context';
+import { useClassroom } from '@/contexts/classroom-context';
 import { useI18n } from '@/lib/i18n/provider';
 import { Plus, Edit, Trash2, Users, FileText, PlayCircle } from 'lucide-react';
 
 interface ClassListProps {
-  classrooms: Classroom[];
-  setClassrooms: React.Dispatch<React.SetStateAction<Classroom[]>>;
   onSelectClass: (classroom: Classroom) => void;
   onStartActivity: (classroom: Classroom) => void;
 }
 
-export function ClassList({ classrooms, setClassrooms, onSelectClass, onStartActivity }: ClassListProps) {
+export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
   const { t } = useI18n();
   const { toast } = useToast();
+  const { classrooms, addClassroom, updateClassroom, deleteClassroom } = useClassroom();
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
   const [currentClass, setCurrentClass] = useState<Classroom | null>(null);
 
-  const handleAddClass = () => {
-    if (currentClass && currentClass.name.trim()) {
-      const newClass: Classroom = {
-        id: Date.now().toString(),
-        name: currentClass.name.trim(),
-        students: [],
-      };
-      setClassrooms((prev) => [...prev, newClass]);
+  const handleAddClass = async () => {
+    if (newClassName.trim()) {
+      await addClassroom(newClassName.trim());
       toast({ title: t('dashboard.toast_class_created') });
       setAddDialogOpen(false);
-      setCurrentClass(null);
+      setNewClassName('');
     }
   };
   
-  const handleUpdateClass = () => {
+  const handleUpdateClass = async () => {
     if (currentClass && currentClass.name.trim()) {
-      setClassrooms((prev) =>
-        prev.map((c) => (c.id === currentClass.id ? { ...c, name: currentClass.name.trim() } : c))
-      );
+      await updateClassroom(currentClass.id, currentClass.name.trim());
       toast({ title: t('dashboard.toast_class_updated') });
       setEditDialogOpen(false);
       setCurrentClass(null);
     }
   };
 
-  const handleDeleteClass = (id: string) => {
-    setClassrooms((prev) => prev.filter((c) => c.id !== id));
+  const handleDeleteClass = async (id: string) => {
+    await deleteClassroom(id);
     toast({ variant: 'destructive', title: t('dashboard.toast_class_deleted') });
   };
 
   const openAddDialog = () => {
-    setCurrentClass({ id: '', name: '', students: [] });
+    setNewClassName('');
     setAddDialogOpen(true);
   };
 
@@ -167,7 +161,7 @@ export function ClassList({ classrooms, setClassrooms, onSelectClass, onStartAct
           <DialogHeader><DialogTitle>{t('dashboard.add_class')}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <Label htmlFor="name">{t('dashboard.class_name_label')}</Label>
-            <Input id="name" value={currentClass?.name || ''} onChange={(e) => setCurrentClass(c => c ? {...c, name: e.target.value} : null)} placeholder={t('dashboard.class_name_placeholder')} />
+            <Input id="name" value={newClassName} onChange={(e) => setNewClassName(e.target.value)} placeholder={t('dashboard.class_name_placeholder')} />
           </div>
           <DialogFooter>
             <DialogClose asChild><Button variant="ghost">{t('common.cancel')}</Button></DialogClose>

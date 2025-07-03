@@ -14,10 +14,10 @@ import {
 import { CreateQuestionForm } from "@/components/create-poll-form";
 import { ActiveQuestion } from "@/components/active-poll";
 import type { QuestionData } from "@/components/create-poll-form";
-import type { Student, Submission } from "@/components/student-management";
+import type { Student, Submission } from "@/contexts/classroom-context";
 import { LotteryModal } from "@/components/lottery-modal";
 import { useI18n } from "@/lib/i18n/provider";
-import { useClassroom, type Classroom } from "@/contexts/classroom-context";
+import { useClassroom } from "@/contexts/classroom-context";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { ManagementPanel } from "@/components/management-panel";
@@ -49,19 +49,7 @@ export default function ActivityPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && activeClassroom) {
-      try {
-        const classroomToEncode: Classroom = {
-            id: activeClassroom.id,
-            name: activeClassroom.name,
-            students: activeClassroom.students
-        };
-        const classroomJson = JSON.stringify(classroomToEncode);
-        const encodedData = encodeURIComponent(classroomJson);
-        setJoinUrl(`${window.location.origin}/join?classroom=${encodedData}`);
-      } catch (e) {
-        console.error("Failed to encode classroom data for URL", e);
-        setJoinUrl(`${window.location.origin}/join`); // Fallback URL
-      }
+        setJoinUrl(`${window.location.origin}/join?classId=${activeClassroom.id}`);
     }
   }, [activeClassroom]);
 

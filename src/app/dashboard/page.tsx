@@ -8,7 +8,7 @@ import { ClassList } from '@/components/class-list';
 import { ClassDetail } from '@/components/class-detail';
 
 export default function DashboardPage() {
-  const { classrooms, setClassrooms, setActiveClassroom } = useClassroom();
+  const { classrooms, setActiveClassroom } = useClassroom();
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const router = useRouter();
 
@@ -35,8 +35,6 @@ export default function DashboardPage() {
 
   return (
     <ClassList 
-      classrooms={classrooms} 
-      setClassrooms={setClassrooms} 
       onSelectClass={handleSelectClass}
       onStartActivity={handleStartActivity}
     />

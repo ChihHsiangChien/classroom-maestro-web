@@ -20,6 +20,9 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Classroom, Student } from '@/contexts/classroom-context';
 import { useI18n } from '@/lib/i18n/provider';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+
 
 function JoinPageContent() {
   const { t } = useI18n();
@@ -29,24 +32,40 @@ function JoinPageContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const encodedData = searchParams.get('classroom');
-    if (encodedData) {
-      try {
-        // searchParams.get() automatically decodes the value.
-        const parsedData = JSON.parse(encodedData);
-        if (parsedData && parsedData.id && parsedData.name && Array.isArray(parsedData.students)) {
-          setClassroom(parsedData);
-        } else {
-          throw new Error("Invalid classroom data format.");
-        }
-      } catch (e) {
-        console.error("Failed to parse classroom data from URL", e);
-        setError(t('joinPage.invalid_link_error'));
-      }
-    } else {
+    const classId = searchParams.get('classId');
+    if (classId && db) {
+      const fetchClassroom = async () => {
+          try {
+              const classroomRef = doc(db, 'classrooms', classId);
+              const classroomSnap = await getDoc(classroomRef);
+
+              if (classroomSnap.exists()) {
+                  const classroomData = classroomSnap.data();
+                  setClassroom({
+                      id: classroomSnap.id,
+                      name: classroomData.name,
+                      students: classroomData.students,
+                      ownerId: classroomData.ownerId,
+                  });
+              } else {
+                  console.error("No such classroom document!");
+                  setError(t('joinPage.invalid_link_error'));
+              }
+          } catch (e) {
+              console.error("Failed to fetch classroom data from Firestore", e);
+              setError(t('joinPage.invalid_link_error'));
+          } finally {
+              setLoading(false);
+          }
+      };
+      fetchClassroom();
+    } else if (!classId) {
       setError(t('joinPage.no_classroom_error'));
+      setLoading(false);
+    } else if (!db) {
+       setError("Firebase is not configured correctly.");
+       setLoading(false);
     }
-    setLoading(false);
   }, [searchParams, t]);
 
   const handleStudentClick = (student: Student) => {

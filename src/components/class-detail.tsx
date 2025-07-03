@@ -15,7 +15,7 @@ interface ClassDetailProps {
 
 export function ClassDetail({ classroom, onBack }: ClassDetailProps) {
   const router = useRouter();
-  const { setActiveClassroom, ...classroomActions } = useClassroom();
+  const { setActiveClassroom } = useClassroom();
   const { t } = useI18n();
 
   const handleStartActivity = () => {
@@ -38,13 +38,7 @@ export function ClassDetail({ classroom, onBack }: ClassDetailProps) {
         </Button>
       </div>
 
-      <StudentManagement 
-        classroom={classroom}
-        onAddStudent={(name) => classroomActions.addStudent(classroom.id, name)}
-        onUpdateStudent={(id, name) => classroomActions.updateStudent(classroom.id, id, name)}
-        onDeleteStudent={(id) => classroomActions.deleteStudent(classroom.id, id)}
-        onImportStudents={(names) => classroomActions.importStudents(classroom.id, names)}
-      />
+      <StudentManagement classroom={classroom} />
     </div>
   );
 }
