@@ -6,7 +6,7 @@ import { useClassroom } from '@/contexts/classroom-context';
 import type { QuestionData } from '@/components/create-poll-form';
 import { StudentQuestionForm } from '@/components/student-poll';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Loader2, PartyPopper, LogOut } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 
@@ -15,6 +15,7 @@ function ClassroomPageContent() {
     const { t } = useI18n();
     const params = useParams();
     const searchParams = useSearchParams();
+    const router = useRouter();
     const { listenForClassroom, addSubmission } = useClassroom();
 
     const classroomId = params.nickname as string;
@@ -49,6 +50,12 @@ function ClassroomPageContent() {
         setSubmittedQuestionId(activeQuestion.id);
     };
 
+    const handleLogout = () => {
+        if (classroomId) {
+            router.push(`/join?classId=${classroomId}`);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex flex-col items-center gap-4 text-foreground">
@@ -79,33 +86,24 @@ function ClassroomPageContent() {
                 <CardTitle className="text-2xl">{messageCardTitle}</CardTitle>
                 <CardDescription>{messageCardDescription}</CardDescription>
             </CardHeader>
+            <CardFooter className="p-6 pt-2">
+                <Button
+                    variant="outline"
+                    onClick={handleLogout}
+                    className="w-full"
+                 >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    {t('dashboard.sign_out')}
+                </Button>
+            </CardFooter>
         </Card>
     );
 }
 
 
 export default function ClassroomPage() {
-    const router = useRouter();
-    const params = useParams();
-    const { t } = useI18n();
-    const classroomId = params.nickname as string;
-
-    const handleLogout = () => {
-        if (classroomId) {
-            router.push(`/join?classId=${classroomId}`);
-        }
-    };
-
     return (
         <main className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4">
-             <Button
-                variant="outline"
-                className="absolute top-4 right-4 z-10"
-                onClick={handleLogout}
-             >
-                <LogOut className="mr-2 h-4 w-4" />
-                {t('dashboard.sign_out')}
-            </Button>
              <Suspense fallback={
                 <div className="flex flex-col items-center gap-4 text-foreground">
                     <Loader2 className="h-12 w-12 animate-spin" />
