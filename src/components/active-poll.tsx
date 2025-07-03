@@ -415,86 +415,8 @@ function ImageAnnotationResults({ question, submissions, isResponsesOpen, onResp
     );
 }
 
-function SubmissionTracker({ students, submissions, onSimulateSubmission }: { students: Student[], submissions: Submission[], onSimulateSubmission: (student: Student) => void }) {
-    const { t } = useI18n();
-    const submittedIds = new Set(submissions.map(s => s.studentId));
-    
-    return (
-        <Card className="shadow-md">
-            <CardHeader>
-                <CardTitle>{t('activePoll.submission_status_card_title')}</CardTitle>
-                <CardDescription>{t('activePoll.submission_status_card_description', { submissionsCount: submissions.length, studentsCount: students.length })}</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ScrollArea className="h-48">
-                    <div className="space-y-2">
-                        {students.map(student => {
-                            const hasSubmitted = submittedIds.has(student.id);
-                            return (
-                                <div key={student.id} className="flex items-center justify-between rounded-md p-2 bg-muted/50">
-                                    <p className="font-medium">{student.name}</p>
-                                    {hasSubmitted ? (
-                                        <div className="flex items-center gap-2 text-green-600">
-                                            <CheckCircle className="h-5 w-5" />
-                                            <span>{t('activePoll.submitted_status')}</span>
-                                        </div>
-                                    ) : (
-                                        <Button size="sm" variant="outline" onClick={() => onSimulateSubmission(student)}>
-                                            {t('activePoll.simulate_submission_button')}
-                                        </Button>
-                                    )}
-                                </div>
-                            )
-                        })}
-                    </div>
-                </ScrollArea>
-            </CardContent>
-        </Card>
-    );
-}
-
-
 export function ActiveQuestion({ question, onEndQuestion, students, submissions, onSubmissionsChange, isResponsesOpen, onResponsesToggle }: ActiveQuestionProps) {
     const { t } = useI18n();
-
-    const handleSimulateSubmission = (student: Student) => {
-        let mockAnswer: string | string[] = '';
-        switch(question.type) {
-            case 'multiple-choice':
-                if (question.allowMultipleAnswers) {
-                    const options = question.options.map((o, i) => (o.value || String.fromCharCode(65 + i)));
-                    const numAnswers = Math.floor(Math.random() * options.length) + 1;
-                    mockAnswer = [...options].sort(() => 0.5 - Math.random()).slice(0, numAnswers);
-                } else {
-                    const randomIndex = Math.floor(Math.random() * question.options.length);
-                    const randomOption = question.options[randomIndex];
-                    mockAnswer = randomOption.value || String.fromCharCode(65 + randomIndex);
-                }
-                break;
-            case 'true-false':
-                mockAnswer = Math.random() > 0.5 ? 'O' : 'X';
-                break;
-            case 'short-answer':
-                const fruits = ['蘋果', '香蕉', '櫻桃', '榴槤', '草莓', '橘子', '西瓜'];
-                const shuffled = fruits.sort(() => 0.5 - Math.random());
-                mockAnswer = shuffled.slice(0, 2).join('、');
-                break;
-            case 'drawing':
-                mockAnswer = `https://placehold.co/400x300.png`;
-                break;
-            case 'image-annotation':
-                mockAnswer = `https://placehold.co/400x300.png`;
-                break;
-        }
-        
-        const newSubmission: Submission = {
-            studentId: student.id,
-            studentName: student.name,
-            answer: mockAnswer,
-        };
-        
-        onSubmissionsChange(prev => [...prev.filter(s => s.studentId !== student.id), newSubmission]);
-    };
 
     const renderResults = () => {
         const props = { submissions, isResponsesOpen, onResponsesToggle };
@@ -516,51 +438,24 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions,
     };
 
     return (
-        <div className="space-y-6">
-            <Card className="shadow-lg">
-                <CardHeader>
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <CardTitle className="text-2xl">{question.question}</CardTitle>
-                            <CardDescription>
-                                The question is live. View student responses below.
-                            </CardDescription>
-                        </div>
-                        <Button variant="destructive" onClick={onEndQuestion}>
-                            {t('teacherDashboard.end_question_button')}
-                        </Button>
+        <Card className="shadow-lg">
+            <CardHeader>
+                <div className="flex items-start justify-between">
+                    <div>
+                        <CardTitle className="text-2xl">{question.question}</CardTitle>
+                        <CardDescription>
+                            {t('teacherDashboard.live_poll_description')}
+                        </CardDescription>
                     </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {renderResults()}
-                </CardContent>
-            </Card>
-
-            <SubmissionTracker 
-                students={students}
-                submissions={submissions}
-                onSimulateSubmission={handleSimulateSubmission}
-            />
-
-            <Card className="shadow-md">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {t('teacherDashboard.lesson_status_card_title')}
-                  </CardTitle>
-                  <Clapperboard className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-lg font-bold">
-                    {question ? t('teacherDashboard.question_active') : t('teacherDashboard.idle')}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {question
-                      ? t('teacherDashboard.responses_count', { submissionsCount: submissions.length, studentsCount: students.length })
-                      : t('teacherDashboard.start_a_question_prompt')}
-                  </p>
-                </CardContent>
-              </Card>
-        </div>
+                    <Button variant="destructive" onClick={onEndQuestion}>
+                        {t('teacherDashboard.end_question_button')}
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                {renderResults()}
+            </CardContent>
+        </Card>
     );
 }
 

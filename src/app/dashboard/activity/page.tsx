@@ -14,17 +14,18 @@ import {
 import { CreateQuestionForm } from "@/components/create-poll-form";
 import { ActiveQuestion } from "@/components/active-poll";
 import type { QuestionData } from "@/components/create-poll-form";
-import { StudentManagement, type Student, type Submission } from "@/components/student-management";
+import type { Student, Submission } from "@/components/student-management";
 import { LotteryModal } from "@/components/lottery-modal";
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom } from "@/contexts/classroom-context";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
+import { ManagementPanel } from "@/components/management-panel";
 
 export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { activeClassroom, addStudent, updateStudent, deleteStudent, importStudents } = useClassroom();
+  const { activeClassroom } = useClassroom();
   const { toast } = useToast();
 
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
@@ -35,6 +36,7 @@ export default function ActivityPage() {
   const [lotteryStudent, setLotteryStudent] = useState<(Student & { submission?: Submission }) | null>(null);
   const [excludePicked, setExcludePicked] = useState(true);
   const [pickedStudentIds, setPickedStudentIds] = useState<string[]>([]);
+  const [joinUrl, setJoinUrl] = useState('');
 
   // If there's no active classroom, redirect back to the dashboard.
   useEffect(() => {
@@ -42,6 +44,12 @@ export default function ActivityPage() {
       router.replace('/dashboard');
     }
   }, [activeClassroom, router]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        setJoinUrl(`${window.location.origin}/join`);
+    }
+  }, []);
 
   const handleToggleSection = (section: keyof typeof openSections) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -112,15 +120,15 @@ export default function ActivityPage() {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-7xl">
+      <div className="mx-auto w-full max-w-full">
         <header className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="outline" size="icon" onClick={() => router.push('/dashboard')}>
               <ArrowLeft />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">{t('teacherDashboard.title')}</h1>
-              <p className="text-muted-foreground">{activeClassroom.name}</p>
+              <h1 className="text-2xl font-bold">{activeClassroom.name}</h1>
+              <p className="text-muted-foreground">{t('teacherDashboard.title')}</p>
             </div>
           </div>
           <Button variant="outline" onClick={handlePickStudent} disabled={activeClassroom.students.length === 0}>
@@ -128,38 +136,41 @@ export default function ActivityPage() {
           </Button>
         </header>
 
-        <div className="space-y-6">
-          {!activeQuestion ? (
-            <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle>{t('teacherDashboard.create_question_card_title')}</CardTitle>
-                <CardDescription>
-                  {t('teacherDashboard.create_question_card_description')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <CreateQuestionForm onQuestionCreate={handleQuestionCreate} />
-              </CardContent>
-            </Card>
-          ) : (
-            <ActiveQuestion 
-              question={activeQuestion} 
-              onEndQuestion={handleEndQuestion}
-              students={activeClassroom.students}
-              submissions={submissions}
-              onSubmissionsChange={setSubmissions}
-              isResponsesOpen={openSections.responses}
-              onResponsesToggle={() => handleToggleSection('responses')}
-            />
-          )}
-
-          <StudentManagement
-            classroom={activeClassroom}
-            onAddStudent={(name) => addStudent(activeClassroom.id, name)}
-            onUpdateStudent={(id, name) => updateStudent(activeClassroom.id, id, name)}
-            onDeleteStudent={(id) => deleteStudent(activeClassroom.id, id)}
-            onImportStudents={(names) => importStudents(activeClassroom.id, names)}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="lg:col-span-1 space-y-6 sticky top-20">
+                <ManagementPanel
+                    classroom={activeClassroom}
+                    submissions={submissions}
+                    joinUrl={joinUrl}
+                    activeQuestion={activeQuestion}
+                />
+            </div>
+            
+            <div className="lg:col-span-2 space-y-6">
+              {!activeQuestion ? (
+                <Card className="shadow-md">
+                  <CardHeader>
+                    <CardTitle>{t('teacherDashboard.create_question_card_title')}</CardTitle>
+                    <CardDescription>
+                      {t('teacherDashboard.create_question_card_description')}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <CreateQuestionForm onQuestionCreate={handleQuestionCreate} />
+                  </CardContent>
+                </Card>
+              ) : (
+                <ActiveQuestion 
+                  question={activeQuestion} 
+                  onEndQuestion={handleEndQuestion}
+                  students={activeClassroom.students}
+                  submissions={submissions}
+                  onSubmissionsChange={setSubmissions}
+                  isResponsesOpen={openSections.responses}
+                  onResponsesToggle={() => handleToggleSection('responses')}
+                />
+              )}
+            </div>
         </div>
       </div>
        <LotteryModal 

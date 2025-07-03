@@ -97,6 +97,7 @@ export const dictionaries = {
       idle: '閒置',
       responses_count: '{submissionsCount} / {studentsCount} 個回答',
       start_a_question_prompt: '開始一個問題以開始',
+      live_poll_description: '問題已啟用，請在下方查看學生回覆。',
     },
     createQuestionForm: {
       tab_true_false: '是非題',
@@ -181,9 +182,9 @@ export const dictionaries = {
       lottery_reset_description: '所有學生都已經被抽過了。新一輪抽獎現在開始。'
     },
     studentManagement: {
-      title: '學生管理',
+      title: '教室管理',
       description: '與您的班級分享連結或 QR Code。',
-      classroom_url_label: '教室 URL',
+      classroom_url_label: '教室連結',
       copy_button_toast_title: '已複製到剪貼簿！',
       copy_button_toast_description: '您現在可以與您的學生分享連結。',
       scan_to_join: '掃描加入',
@@ -323,6 +324,7 @@ export const dictionaries = {
       idle: 'Idle',
       responses_count: '{submissionsCount} / {studentsCount} responses',
       start_a_question_prompt: 'Start a question to begin',
+      live_poll_description: 'The question is live. View student responses below.',
     },
     createQuestionForm: {
       tab_true_false: 'True/False',
@@ -407,7 +409,7 @@ export const dictionaries = {
       lottery_reset_description: 'All students have been picked. A new round will begin.'
     },
     studentManagement: {
-      title: 'Student Management',
+      title: 'Classroom Management',
       description: 'Share the link or QR code with your class.',
       classroom_url_label: 'Classroom URL',
       copy_button_toast_title: 'Copied to clipboard!',
