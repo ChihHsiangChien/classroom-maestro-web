@@ -34,7 +34,6 @@ function JoinPageContent() {
 
   useEffect(() => {
     const classId = searchParams.get('classId');
-    console.log('Attempting to join class with ID from URL:', classId);
 
     if (classId && db) {
       const fetchClassroom = async () => {
@@ -44,7 +43,6 @@ function JoinPageContent() {
 
               if (classroomSnap.exists()) {
                   const classroomData = classroomSnap.data();
-                  console.log("Successfully fetched classroom data:", classroomData);
                   setClassroom({
                       id: classroomSnap.id,
                       name: classroomData.name,
@@ -52,11 +50,9 @@ function JoinPageContent() {
                       ownerId: classroomData.ownerId,
                   });
               } else {
-                  console.error("No such classroom document for ID:", classId);
                   setError(t('joinPage.class_not_found_error'));
               }
           } catch (e: any) {
-              console.error("DETAILED_FIREBASE_FETCH_ERROR:", e);
               const errorMessage = `Failed to fetch classroom. Code: ${e.code}. Message: ${e.message}`;
               setError(errorMessage);
           } finally {
@@ -74,14 +70,8 @@ function JoinPageContent() {
   }, [searchParams, t]);
 
   const handleStudentClick = (student: Student) => {
-    console.log('[DEBUG] handleStudentClick triggered for student:', student);
-    if (!classroom) {
-      console.error('[DEBUG] Classroom object is null. Cannot navigate.');
-      return;
-    }
-    console.log('[DEBUG] Classroom object is available:', classroom);
+    if (!classroom) return;
     const url = `/classroom/${classroom.id}?studentId=${student.id}&name=${encodeURIComponent(student.name)}`;
-    console.log('[DEBUG] Navigating to URL:', url);
     router.push(url);
   };
 

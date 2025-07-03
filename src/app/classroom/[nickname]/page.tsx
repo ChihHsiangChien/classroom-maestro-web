@@ -129,7 +129,14 @@ function ClassroomPageContent() {
 export default function ClassroomPage() {
     return (
         <main className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
-            <ClassroomPageContent />
+            <Suspense fallback={
+                <div className="flex flex-col items-center justify-center">
+                    <School className="h-12 w-12 animate-pulse text-primary" />
+                    <p className="mt-4 text-muted-foreground">Loading classroom...</p>
+                </div>
+            }>
+                <ClassroomPageContent />
+            </Suspense>
         </main>
     );
 }
