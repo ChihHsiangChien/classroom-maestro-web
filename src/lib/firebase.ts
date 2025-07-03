@@ -12,10 +12,10 @@ const firebaseConfig = {
 };
 
 // Check if the essential Firebase config values are provided and don't contain placeholder text.
-export const isFirebaseConfigured =
-  firebaseConfig.apiKey &&
+export let isFirebaseConfigured =
+  !!firebaseConfig.apiKey &&
   !firebaseConfig.apiKey.includes("YOUR_") &&
-  firebaseConfig.projectId &&
+  !!firebaseConfig.projectId &&
   !firebaseConfig.projectId.includes("YOUR_");
 
 let app: FirebaseApp | null = null;
@@ -29,12 +29,18 @@ if (isFirebaseConfigured) {
     googleProvider = new GoogleAuthProvider();
   } catch (e) {
     console.error("Failed to initialize Firebase", e);
-    // Overwrite the flag if initialization fails
+    // Overwrite the flag if initialization fails, so the UI can show a helpful error.
+    isFirebaseConfigured = false;
+    app = null;
+    auth = null;
+    googleProvider = null;
   }
 } else {
-  console.warn(
-    "Firebase is not configured. Please add your Firebase credentials to the .env file. The app will run in a limited mode."
-  );
+    if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+            "Firebase is not configured. Please add your Firebase credentials to the .env file. The app will run in a limited mode."
+        );
+    }
 }
 
 export { app, auth, googleProvider };
