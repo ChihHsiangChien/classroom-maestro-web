@@ -1,8 +1,25 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import QRCode from "qrcode.react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   Card,
   CardContent,
@@ -15,13 +32,15 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut } from 'lucide-react';
+import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut, GripVertical, ChevronDown } from 'lucide-react';
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom, type Classroom, type Submission, type Student } from '@/contexts/classroom-context';
 import type { QuestionData } from "./create-poll-form";
 import { Timestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
 
 interface ManagementPanelProps {
   classroom: Classroom;
@@ -31,15 +50,93 @@ interface ManagementPanelProps {
   onEndQuestion: () => void;
 }
 
+const LOCAL_STORAGE_KEY = 'management-panel-layout';
+
+// A single sortable and collapsible card component
+function SortableCard({ id, children }: { id: string; children: React.ReactNode }) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.8 : 1,
+        zIndex: isDragging ? 1 : 0,
+        position: 'relative' as React.CSSProperties['position'],
+    };
+
+    // The drag handle needs to be passed down to the trigger element inside the card
+    const handleProps = { ...attributes, ...listeners };
+
+    // We pass down the handleProps to the children via cloneElement
+    return (
+        <div ref={setNodeRef} style={style}>
+            {React.cloneElement(children as React.ReactElement, { handleProps })}
+        </div>
+    );
+}
+
 export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestion, onEndQuestion }: ManagementPanelProps) {
   const { t } = useI18n();
   const { toast } = useToast();
   const { kickStudent } = useClassroom();
   const submittedIds = new Set(submissions.map(s => s.studentId));
 
-  const QR_CODE_URL_MAX_LENGTH = 2000;
-  const canDisplayQrCode = joinUrl && joinUrl.length < QR_CODE_URL_MAX_LENGTH;
+  const [cardOrder, setCardOrder] = useState(['join', 'status', 'lesson']);
+  const [openStates, setOpenStates] = useState({ join: true, status: true, lesson: true });
 
+  // Load state from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedState = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedState) {
+        const { order, open } = JSON.parse(savedState);
+        if (Array.isArray(order) && typeof open === 'object') {
+          setCardOrder(order);
+          setOpenStates(open);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load layout from localStorage", error);
+    }
+  }, []);
+
+  // Save state to localStorage on change
+  useEffect(() => {
+    try {
+      const stateToSave = JSON.stringify({ order: cardOrder, open: openStates });
+      localStorage.setItem(LOCAL_STORAGE_KEY, stateToSave);
+    } catch (error) {
+      console.error("Failed to save layout to localStorage", error);
+    }
+  }, [cardOrder, openStates]);
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setCardOrder((items) => {
+        const oldIndex = items.indexOf(active.id as string);
+        const newIndex = items.indexOf(over.id as string);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
+  const handleOpenChange = (cardId: string, isOpen: boolean) => {
+    setOpenStates(prev => ({ ...prev, [cardId]: isOpen }));
+  };
+  
   const handleCopy = () => {
     navigator.clipboard.writeText(joinUrl);
     toast({
@@ -50,138 +147,221 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
   
   const handleKickStudent = (studentId: string, studentName: string) => {
     kickStudent(classroom.id, studentId);
-  }
+  };
+  
+  const canDisplayQrCode = joinUrl && joinUrl.length < 2000;
 
-  return (
-    <div className="space-y-6">
+  const cards: { [key: string]: React.ReactElement } = {
+    join: (
       <Card>
-        <CardHeader>
-          <CardTitle>{t('studentManagement.title')}</CardTitle>
-          <CardDescription>{t('studentManagement.description')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="p-2 border rounded-md bg-white">
-              {canDisplayQrCode ? (
-                <QRCode value={joinUrl} size={128} />
-              ) : joinUrl ? (
-                <div className="w-32 h-32 flex flex-col items-center justify-center bg-muted text-muted-foreground p-2 text-center">
-                  <AlertTriangle className="h-6 w-6 mb-2" />
-                  <p className="text-xs">{t('studentManagement.url_too_long_for_qr')}</p>
-                </div>
-              ) : (
-                <div className="w-32 h-32 bg-gray-200 animate-pulse rounded-md" />
-              )}
-            </div>
-            <p className="text-sm font-medium">{t('studentManagement.scan_to_join')}</p>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">{t('studentManagement.classroom_url_label')}</label>
-            <div className="flex items-center gap-2">
-              <Input value={joinUrl} readOnly />
-              <Button size="icon" variant="outline" onClick={handleCopy}>
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader className="pb-4">
-            <CardTitle>{t('activePoll.submission_status_card_title')}</CardTitle>
-            <CardDescription>
-                {t('activePoll.submission_status_card_description', { submissionsCount: submissions.length, studentsCount: classroom.students?.length || 0 })}
-            </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-            <ScrollArea className="h-72 px-6">
-                <div className="space-y-2 py-4">
-                    <TooltipProvider>
-                    {classroom.students && classroom.students.map(student => {
-                        const hasSubmitted = submittedIds.has(student.id);
-                        const isConsideredOnline = student.isOnline === true && student.lastSeen && (Timestamp.now().seconds - student.lastSeen.seconds < 45);
-
-                        return (
-                            <div
-                                key={student.id}
-                                className={cn(
-                                    "flex items-center justify-between rounded-md p-2 transition-all",
-                                    hasSubmitted ? "bg-green-500/10" : "bg-muted/50",
-                                    !isConsideredOnline && "opacity-50"
-                                )}
-                            >
-                                <div className="flex items-center gap-2 overflow-hidden">
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <span className={cn(
-                                                "h-2.5 w-2.5 rounded-full block flex-shrink-0 transition-colors",
-                                                isConsideredOnline ? 'bg-green-500' : 'bg-slate-400'
-                                            )} />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{isConsideredOnline ? t('studentManagement.status_online') : t('studentManagement.status_offline')}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                    <p className="font-medium truncate">{student.name}</p>
-                                </div>
-                                <div className='flex items-center gap-1'>
-                                    {hasSubmitted ? (
-                                        <div className="flex items-center gap-1 text-green-600">
-                                            <CheckCircle className="h-5 w-5" />
-                                            <span className="text-xs hidden sm:inline">{t('activePoll.submitted_status')}</span>
-                                        </div>
-                                    ) : (
-                                        activeQuestion && <span className="text-xs text-muted-foreground pr-2">Waiting...</span>
-                                    )}
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleKickStudent(student.id, student.name)}>
-                                                <LogOut className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{t('studentManagement.kick_student_tooltip')}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </div>
-                            </div>
-                        )
-                    })}
-                    </TooltipProvider>
-                    {(!classroom.students || classroom.students.length === 0) && (
-                        <p className="text-center text-muted-foreground py-4">{t('studentManagement.no_students_logged_in_message')}</p>
-                    )}
-                </div>
-            </ScrollArea>
-        </CardContent>
-      </Card>
-      
-      <Card className="shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium">
-            {t('teacherDashboard.lesson_status_card_title')}
-          </CardTitle>
-          <Clapperboard className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-lg font-bold">
-            {activeQuestion ? t('teacherDashboard.question_active') : t('teacherDashboard.idle')}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {activeQuestion
-              ? t('teacherDashboard.responses_count', { submissionsCount: submissions.length, studentsCount: classroom.students?.length || 0 })
-              : t('teacherDashboard.start_a_question_prompt')}
-          </p>
-        </CardContent>
-        {activeQuestion && (
-            <CardFooter>
-                <Button variant="destructive" className="w-full" onClick={onEndQuestion}>
-                    {t('teacherDashboard.end_question_button')}
+        <Collapsible
+          open={openStates.join}
+          onOpenChange={(isOpen) => handleOpenChange('join', isOpen)}
+        >
+          <CardHeader className="flex flex-row items-start justify-between pb-4">
+              <div className="flex-1">
+                <CardTitle>{t('studentManagement.title')}</CardTitle>
+                <CardDescription>{t('studentManagement.description')}</CardDescription>
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                    <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
                 </Button>
-            </CardFooter>
-        )}
+              </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col items-center gap-4 text-center">
+                <div className="p-2 border rounded-md bg-white">
+                  {canDisplayQrCode ? (
+                    <QRCode value={joinUrl} size={128} />
+                  ) : joinUrl ? (
+                    <div className="w-32 h-32 flex flex-col items-center justify-center bg-muted text-muted-foreground p-2 text-center">
+                      <AlertTriangle className="h-6 w-6 mb-2" />
+                      <p className="text-xs">{t('studentManagement.url_too_long_for_qr')}</p>
+                    </div>
+                  ) : (
+                    <div className="w-32 h-32 bg-gray-200 animate-pulse rounded-md" />
+                  )}
+                </div>
+                <p className="text-sm font-medium">{t('studentManagement.scan_to_join')}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('studentManagement.classroom_url_label')}</label>
+                <div className="flex items-center gap-2">
+                  <Input value={joinUrl} readOnly />
+                  <Button size="icon" variant="outline" onClick={handleCopy}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
-    </div>
+    ),
+    status: (
+      <Card>
+         <Collapsible
+            open={openStates.status}
+            onOpenChange={(isOpen) => handleOpenChange('status', isOpen)}
+          >
+            <CardHeader className="flex flex-row items-start justify-between pb-4">
+               <div className="flex-1">
+                <CardTitle>{t('activePoll.submission_status_card_title')}</CardTitle>
+                <CardDescription>
+                    {t('activePoll.submission_status_card_description', { submissionsCount: submissions.length, studentsCount: classroom.students?.length || 0 })}
+                </CardDescription>
+               </div>
+               <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                      <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                  </Button>
+                </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+                <CardContent className="p-0">
+                    <ScrollArea className="h-72 px-6">
+                        <div className="space-y-2 py-4">
+                            <TooltipProvider>
+                            {classroom.students && classroom.students.map(student => {
+                                const hasSubmitted = submittedIds.has(student.id);
+                                const isConsideredOnline = student.isOnline === true && student.lastSeen && (Timestamp.now().seconds - student.lastSeen.seconds < 45);
+                                return (
+                                    <div
+                                        key={student.id}
+                                        className={cn(
+                                            "flex items-center justify-between rounded-md p-2 transition-all",
+                                            hasSubmitted ? "bg-green-500/10" : "bg-muted/50",
+                                            !isConsideredOnline && "opacity-50"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <span className={cn(
+                                                        "h-2.5 w-2.5 rounded-full block flex-shrink-0 transition-colors",
+                                                        isConsideredOnline ? 'bg-green-500' : 'bg-slate-400'
+                                                    )} />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{isConsideredOnline ? t('studentManagement.status_online') : t('studentManagement.status_offline')}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <p className="font-medium truncate">{student.name}</p>
+                                        </div>
+                                        <div className='flex items-center gap-1'>
+                                            {hasSubmitted ? (
+                                                <div className="flex items-center gap-1 text-green-600">
+                                                    <CheckCircle className="h-5 w-5" />
+                                                    <span className="text-xs hidden sm:inline">{t('activePoll.submitted_status')}</span>
+                                                </div>
+                                            ) : (
+                                                activeQuestion && <span className="text-xs text-muted-foreground pr-2">Waiting...</span>
+                                            )}
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleKickStudent(student.id, student.name)}>
+                                                        <LogOut className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{t('studentManagement.kick_student_tooltip')}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                            </TooltipProvider>
+                            {(!classroom.students || classroom.students.length === 0) && (
+                                <p className="text-center text-muted-foreground py-4">{t('studentManagement.no_students_logged_in_message')}</p>
+                            )}
+                        </div>
+                    </ScrollArea>
+                </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+      </Card>
+    ),
+    lesson: (
+      <Card>
+        <Collapsible
+            open={openStates.lesson}
+            onOpenChange={(isOpen) => handleOpenChange('lesson', isOpen)}
+        >
+            <CardHeader className="flex flex-row items-start justify-between pb-2">
+                <div className="flex-1">
+                    <CardTitle className="text-base font-medium">
+                        {t('teacherDashboard.lesson_status_card_title')}
+                    </CardTitle>
+                    <CardDescription className="flex items-center gap-2 mt-1">
+                        <Clapperboard className="h-4 w-4" />
+                        <span className="font-bold">
+                          {activeQuestion ? t('teacherDashboard.question_active') : t('teacherDashboard.idle')}
+                        </span>
+                    </CardDescription>
+                </div>
+                <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                        <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                    </Button>
+                </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+                <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                        {activeQuestion
+                        ? t('teacherDashboard.responses_count', { submissionsCount: submissions.length, studentsCount: classroom.students?.length || 0 })
+                        : t('teacherDashboard.start_a_question_prompt')}
+                    </p>
+                </CardContent>
+                {activeQuestion && (
+                    <CardFooter>
+                        <Button variant="destructive" className="w-full" onClick={onEndQuestion}>
+                            {t('teacherDashboard.end_question_button')}
+                        </Button>
+                    </CardFooter>
+                )}
+            </CollapsibleContent>
+        </Collapsible>
+      </Card>
+    )
+  };
+
+  const getCardWithHandle = (id: string, handleProps: any) => {
+    const cardElement = cards[id];
+    const header = cardElement.props.children.props.children[0]; // Card -> Collapsible -> CardHeader
+    
+    const newHeader = React.cloneElement(header, {
+        children: (
+            <>
+                <div className="flex items-center gap-1 -ml-2">
+                    <Button variant="ghost" size="icon" {...handleProps} className="cursor-grab active:cursor-grabbing h-8 w-8">
+                        <GripVertical className="h-5 w-5 text-muted-foreground" />
+                    </Button>
+                    {header.props.children[0]}
+                </div>
+                {header.props.children[1]}
+            </>
+        )
+    });
+
+    const newCollapsible = React.cloneElement(cardElement.props.children, { children: [newHeader, cardElement.props.children.props.children[1]] });
+    return React.cloneElement(cardElement, { children: newCollapsible });
+  };
+  
+  return (
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={cardOrder} strategy={verticalListSortingStrategy}>
+          <div className="space-y-4">
+            {cardOrder.map(id => (
+              <SortableCard key={id} id={id}>
+                {getCardWithHandle(id, {})}
+              </SortableCard>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
   );
 }
