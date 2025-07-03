@@ -299,24 +299,59 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const listenForClassroom = useCallback((classroomId: string, callback: (classroom: Classroom | null) => void) => {
     if (!db) return () => {};
     const classroomRef = doc(db, 'classrooms', classroomId);
-    return onSnapshot(classroomRef, (doc) => {
-        if (doc.exists()) {
-            callback({ id: doc.id, ...doc.data() } as Classroom);
-        } else {
-            callback(null);
+
+    // If there is a logged-in user (teacher), use a real-time listener.
+    if (user) {
+        return onSnapshot(classroomRef, (doc) => {
+            if (doc.exists()) {
+                callback({ id: doc.id, ...doc.data() } as Classroom);
+            } else {
+                callback(null);
+            }
+        }, (error) => {
+            handleFirestoreErrorRef.current?.(error, 'listen-for-classroom');
+        });
+    }
+    
+    // If no logged-in user (student), poll the document every few seconds using getDoc.
+    // This works with the `allow get: true` rule for unauthenticated users.
+    let isCancelled = false;
+    let pollTimeout: NodeJS.Timeout;
+    const poll = async () => {
+        if (isCancelled) return;
+        try {
+            const docSnap = await getDoc(classroomRef);
+            if (!isCancelled) {
+              if (docSnap.exists()) {
+                  callback({ id: docSnap.id, ...docSnap.data() } as Classroom);
+              } else {
+                  callback(null);
+              }
+            }
+        } catch(error) {
+            handleFirestoreErrorRef.current?.(error, 'poll-for-classroom');
         }
-    }, (error) => {
-        handleFirestoreErrorRef.current?.(error, 'listen-for-classroom');
-    });
-  }, []);
-  
+        
+        if (!isCancelled) {
+            pollTimeout = setTimeout(poll, 3000); // Poll every 3 seconds
+        }
+    };
+    poll();
+    
+    // Return a function to stop the polling
+    return () => {
+        isCancelled = true;
+        clearTimeout(pollTimeout);
+    };
+  }, [user]);
+
   const listenForStudentPresence = useCallback((classroomId: string, studentId: string, callback: (presence: PresenceData | null) => void) => {
-    if(!db || !classroomId || !studentId) return () => {};
+    if (!db || !classroomId || !studentId) return () => { };
     const presenceRef = doc(db, 'classrooms', classroomId, 'presence', studentId);
-    return onSnapshot(presenceRef, (doc) => {
-        callback(doc.exists() ? doc.data() as PresenceData : null);
+    return onSnapshot(presenceRef, (snapshot) => {
+      callback(snapshot.exists() ? snapshot.data() as PresenceData : null);
     }, (error) => {
-        handleFirestoreErrorRef.current?.(error, 'listen-for-student-presence');
+      handleFirestoreErrorRef.current?.(error, 'listen-for-student-presence');
     });
   }, []);
 
@@ -326,7 +361,8 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
         const presenceRef = doc(db, 'classrooms', classroomId, 'presence', studentId);
         await setDoc(presenceRef, { isOnline, lastSeen: Timestamp.now() }, { merge: true });
     } catch (error) {
-        console.error("Failed to update presence:", error); // Log silently to avoid spamming user with toasts
+        // Log silently to avoid spamming user with toasts for background tasks
+        console.error("Failed to update presence:", error);
     }
   }, []);
 
