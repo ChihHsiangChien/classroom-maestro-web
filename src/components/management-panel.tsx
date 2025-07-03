@@ -53,7 +53,7 @@ interface ManagementPanelProps {
 const LOCAL_STORAGE_KEY = 'management-panel-layout';
 
 // A single sortable and collapsible card component
-function SortableCard({ id, children }: { id: string; children: React.ReactNode }) {
+function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & { open: boolean, onOpenChange: (isOpen: boolean) => void }) {
     const {
         attributes,
         listeners,
@@ -71,25 +71,200 @@ function SortableCard({ id, children }: { id: string; children: React.ReactNode 
         position: 'relative' as React.CSSProperties['position'],
     };
 
-    // The drag handle needs to be passed down to the trigger element inside the card
     const handleProps = { ...attributes, ...listeners };
 
-    // We pass down the handleProps to the children via cloneElement
+    const { t } = useI18n();
+    const { kickStudent } = useClassroom();
+    const { toast } = useToast();
+    const submittedIds = new Set(props.submissions.map(s => s.studentId));
+    const canDisplayQrCode = props.joinUrl && props.joinUrl.length < 2000;
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(props.joinUrl);
+        toast({
+            title: t('studentManagement.copy_button_toast_title'),
+            description: t('studentManagement.copy_button_toast_description'),
+        });
+    };
+    
+    const handleKickStudent = (studentId: string, studentName: string) => {
+        kickStudent(props.classroom.id, studentId);
+    };
+
+    const cardsContent: { [key: string]: {header: React.ReactNode, content: React.ReactNode, footer?: React.ReactNode} } = {
+        join: {
+            header: (
+                <div className="flex-1">
+                    <CardTitle>{t('studentManagement.title')}</CardTitle>
+                    <CardDescription>{t('studentManagement.description')}</CardDescription>
+                </div>
+            ),
+            content: (
+                <CardContent className="space-y-4">
+                    <div className="flex flex-col items-center gap-4 text-center">
+                        <div className="p-2 border rounded-md bg-white">
+                        {canDisplayQrCode ? (
+                            <QRCode value={props.joinUrl} size={128} />
+                        ) : props.joinUrl ? (
+                            <div className="w-32 h-32 flex flex-col items-center justify-center bg-muted text-muted-foreground p-2 text-center">
+                                <AlertTriangle className="h-6 w-6 mb-2" />
+                                <p className="text-xs">{t('studentManagement.url_too_long_for_qr')}</p>
+                            </div>
+                        ) : (
+                            <div className="w-32 h-32 bg-gray-200 animate-pulse rounded-md" />
+                        )}
+                        </div>
+                        <p className="text-sm font-medium">{t('studentManagement.scan_to_join')}</p>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">{t('studentManagement.classroom_url_label')}</label>
+                        <div className="flex items-center gap-2">
+                            <Input value={props.joinUrl} readOnly />
+                            <Button size="icon" variant="outline" onClick={handleCopy}>
+                                <Copy className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            ),
+        },
+        status: {
+            header: (
+                <div className="flex-1">
+                    <CardTitle>{t('activePoll.submission_status_card_title')}</CardTitle>
+                    <CardDescription>
+                        {t('activePoll.submission_status_card_description', { submissionsCount: props.submissions.length, studentsCount: props.classroom.students?.length || 0 })}
+                    </CardDescription>
+                </div>
+            ),
+            content: (
+                <CardContent className="p-0">
+                    <ScrollArea className="h-72 px-6">
+                        <div className="space-y-2 py-4">
+                            <TooltipProvider>
+                            {props.classroom.students && props.classroom.students.map(student => {
+                                const hasSubmitted = submittedIds.has(student.id);
+                                const isConsideredOnline = student.isOnline === true && student.lastSeen && (Timestamp.now().seconds - student.lastSeen.seconds < 45);
+                                return (
+                                    <div
+                                        key={student.id}
+                                        className={cn(
+                                            "flex items-center justify-between rounded-md p-2 transition-all",
+                                            hasSubmitted ? "bg-green-500/10" : "bg-muted/50",
+                                            !isConsideredOnline && "opacity-50"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <span className={cn(
+                                                        "h-2.5 w-2.5 rounded-full block flex-shrink-0 transition-colors",
+                                                        isConsideredOnline ? 'bg-green-500' : 'bg-slate-400'
+                                                    )} />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{isConsideredOnline ? t('studentManagement.status_online') : t('studentManagement.status_offline')}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <p className="font-medium truncate">{student.name}</p>
+                                        </div>
+                                        <div className='flex items-center gap-1'>
+                                            {hasSubmitted ? (
+                                                <div className="flex items-center gap-1 text-green-600">
+                                                    <CheckCircle className="h-5 w-5" />
+                                                    <span className="text-xs hidden sm:inline">{t('activePoll.submitted_status')}</span>
+                                                </div>
+                                            ) : (
+                                                props.activeQuestion && <span className="text-xs text-muted-foreground pr-2">Waiting...</span>
+                                            )}
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleKickStudent(student.id, student.name)}>
+                                                        <LogOut className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{t('studentManagement.kick_student_tooltip')}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                            </TooltipProvider>
+                            {(!props.classroom.students || props.classroom.students.length === 0) && (
+                                <p className="text-center text-muted-foreground py-4">{t('studentManagement.no_students_logged_in_message')}</p>
+                            )}
+                        </div>
+                    </ScrollArea>
+                </CardContent>
+            )
+        },
+        lesson: {
+            header: (
+                <div className="flex-1">
+                    <CardTitle className="text-base font-medium">
+                        {t('teacherDashboard.lesson_status_card_title')}
+                    </CardTitle>
+                    <CardDescription className="flex items-center gap-2 mt-1">
+                        <Clapperboard className="h-4 w-4" />
+                        <span className="font-bold">
+                          {props.activeQuestion ? t('teacherDashboard.question_active') : t('teacherDashboard.idle')}
+                        </span>
+                    </CardDescription>
+                </div>
+            ),
+            content: (
+                 <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                        {props.activeQuestion
+                        ? t('teacherDashboard.responses_count', { submissionsCount: props.submissions.length, studentsCount: props.classroom.students?.length || 0 })
+                        : t('teacherDashboard.start_a_question_prompt')}
+                    </p>
+                </CardContent>
+            ),
+            footer: props.activeQuestion && (
+                <CardFooter>
+                    <Button variant="destructive" className="w-full" onClick={props.onEndQuestion}>
+                        {t('teacherDashboard.end_question_button')}
+                    </Button>
+                </CardFooter>
+            )
+        }
+    };
+
+    const cardData = cardsContent[id];
+
     return (
         <div ref={setNodeRef} style={style}>
-            {React.cloneElement(children as React.ReactElement, { handleProps })}
+            <Card>
+                <Collapsible open={props.open} onOpenChange={props.onOpenChange}>
+                    <CardHeader className="flex flex-row items-start justify-between pb-2">
+                        <div className="flex items-center gap-1 -ml-2">
+                            <Button variant="ghost" size="icon" {...handleProps} className="cursor-grab active:cursor-grabbing h-8 w-8">
+                                <GripVertical className="h-5 w-5 text-muted-foreground" />
+                            </Button>
+                            {cardData.header}
+                        </div>
+                        <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                                <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                            </Button>
+                        </CollapsibleTrigger>
+                    </CardHeader>
+                    <CollapsibleContent>
+                        {cardData.content}
+                        {cardData.footer}
+                    </CollapsibleContent>
+                </Collapsible>
+            </Card>
         </div>
-    );
+    )
 }
 
 export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestion, onEndQuestion }: ManagementPanelProps) {
-  const { t } = useI18n();
-  const { toast } = useToast();
-  const { kickStudent } = useClassroom();
-  const submittedIds = new Set(submissions.map(s => s.studentId));
-
   const [cardOrder, setCardOrder] = useState(['join', 'status', 'lesson']);
-  const [openStates, setOpenStates] = useState({ join: true, status: true, lesson: true });
+  const [openStates, setOpenStates] = useState<{ [key: string]: boolean }>({ join: true, status: true, lesson: true });
 
   // Load state from localStorage on mount
   useEffect(() => {
@@ -137,228 +312,22 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
     setOpenStates(prev => ({ ...prev, [cardId]: isOpen }));
   };
   
-  const handleCopy = () => {
-    navigator.clipboard.writeText(joinUrl);
-    toast({
-      title: t('studentManagement.copy_button_toast_title'),
-      description: t('studentManagement.copy_button_toast_description'),
-    });
-  };
-  
-  const handleKickStudent = (studentId: string, studentName: string) => {
-    kickStudent(classroom.id, studentId);
-  };
-  
-  const canDisplayQrCode = joinUrl && joinUrl.length < 2000;
-
-  const cards: { [key: string]: React.ReactElement } = {
-    join: (
-      <Card>
-        <Collapsible
-          open={openStates.join}
-          onOpenChange={(isOpen) => handleOpenChange('join', isOpen)}
-        >
-          <CardHeader className="flex flex-row items-start justify-between pb-4">
-              <div className="flex-1">
-                <CardTitle>{t('studentManagement.title')}</CardTitle>
-                <CardDescription>{t('studentManagement.description')}</CardDescription>
-              </div>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                    <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                </Button>
-              </CollapsibleTrigger>
-          </CardHeader>
-          <CollapsibleContent>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col items-center gap-4 text-center">
-                <div className="p-2 border rounded-md bg-white">
-                  {canDisplayQrCode ? (
-                    <QRCode value={joinUrl} size={128} />
-                  ) : joinUrl ? (
-                    <div className="w-32 h-32 flex flex-col items-center justify-center bg-muted text-muted-foreground p-2 text-center">
-                      <AlertTriangle className="h-6 w-6 mb-2" />
-                      <p className="text-xs">{t('studentManagement.url_too_long_for_qr')}</p>
-                    </div>
-                  ) : (
-                    <div className="w-32 h-32 bg-gray-200 animate-pulse rounded-md" />
-                  )}
-                </div>
-                <p className="text-sm font-medium">{t('studentManagement.scan_to_join')}</p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t('studentManagement.classroom_url_label')}</label>
-                <div className="flex items-center gap-2">
-                  <Input value={joinUrl} readOnly />
-                  <Button size="icon" variant="outline" onClick={handleCopy}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
-    ),
-    status: (
-      <Card>
-         <Collapsible
-            open={openStates.status}
-            onOpenChange={(isOpen) => handleOpenChange('status', isOpen)}
-          >
-            <CardHeader className="flex flex-row items-start justify-between pb-4">
-               <div className="flex-1">
-                <CardTitle>{t('activePoll.submission_status_card_title')}</CardTitle>
-                <CardDescription>
-                    {t('activePoll.submission_status_card_description', { submissionsCount: submissions.length, studentsCount: classroom.students?.length || 0 })}
-                </CardDescription>
-               </div>
-               <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                      <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                  </Button>
-                </CollapsibleTrigger>
-            </CardHeader>
-            <CollapsibleContent>
-                <CardContent className="p-0">
-                    <ScrollArea className="h-72 px-6">
-                        <div className="space-y-2 py-4">
-                            <TooltipProvider>
-                            {classroom.students && classroom.students.map(student => {
-                                const hasSubmitted = submittedIds.has(student.id);
-                                const isConsideredOnline = student.isOnline === true && student.lastSeen && (Timestamp.now().seconds - student.lastSeen.seconds < 45);
-                                return (
-                                    <div
-                                        key={student.id}
-                                        className={cn(
-                                            "flex items-center justify-between rounded-md p-2 transition-all",
-                                            hasSubmitted ? "bg-green-500/10" : "bg-muted/50",
-                                            !isConsideredOnline && "opacity-50"
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-2 overflow-hidden">
-                                            <Tooltip>
-                                                <TooltipTrigger>
-                                                    <span className={cn(
-                                                        "h-2.5 w-2.5 rounded-full block flex-shrink-0 transition-colors",
-                                                        isConsideredOnline ? 'bg-green-500' : 'bg-slate-400'
-                                                    )} />
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{isConsideredOnline ? t('studentManagement.status_online') : t('studentManagement.status_offline')}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            <p className="font-medium truncate">{student.name}</p>
-                                        </div>
-                                        <div className='flex items-center gap-1'>
-                                            {hasSubmitted ? (
-                                                <div className="flex items-center gap-1 text-green-600">
-                                                    <CheckCircle className="h-5 w-5" />
-                                                    <span className="text-xs hidden sm:inline">{t('activePoll.submitted_status')}</span>
-                                                </div>
-                                            ) : (
-                                                activeQuestion && <span className="text-xs text-muted-foreground pr-2">Waiting...</span>
-                                            )}
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleKickStudent(student.id, student.name)}>
-                                                        <LogOut className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{t('studentManagement.kick_student_tooltip')}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                            </TooltipProvider>
-                            {(!classroom.students || classroom.students.length === 0) && (
-                                <p className="text-center text-muted-foreground py-4">{t('studentManagement.no_students_logged_in_message')}</p>
-                            )}
-                        </div>
-                    </ScrollArea>
-                </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-      </Card>
-    ),
-    lesson: (
-      <Card>
-        <Collapsible
-            open={openStates.lesson}
-            onOpenChange={(isOpen) => handleOpenChange('lesson', isOpen)}
-        >
-            <CardHeader className="flex flex-row items-start justify-between pb-2">
-                <div className="flex-1">
-                    <CardTitle className="text-base font-medium">
-                        {t('teacherDashboard.lesson_status_card_title')}
-                    </CardTitle>
-                    <CardDescription className="flex items-center gap-2 mt-1">
-                        <Clapperboard className="h-4 w-4" />
-                        <span className="font-bold">
-                          {activeQuestion ? t('teacherDashboard.question_active') : t('teacherDashboard.idle')}
-                        </span>
-                    </CardDescription>
-                </div>
-                <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                        <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                    </Button>
-                </CollapsibleTrigger>
-            </CardHeader>
-            <CollapsibleContent>
-                <CardContent>
-                    <p className="text-xs text-muted-foreground">
-                        {activeQuestion
-                        ? t('teacherDashboard.responses_count', { submissionsCount: submissions.length, studentsCount: classroom.students?.length || 0 })
-                        : t('teacherDashboard.start_a_question_prompt')}
-                    </p>
-                </CardContent>
-                {activeQuestion && (
-                    <CardFooter>
-                        <Button variant="destructive" className="w-full" onClick={onEndQuestion}>
-                            {t('teacherDashboard.end_question_button')}
-                        </Button>
-                    </CardFooter>
-                )}
-            </CollapsibleContent>
-        </Collapsible>
-      </Card>
-    )
-  };
-
-  const getCardWithHandle = (id: string, handleProps: any) => {
-    const cardElement = cards[id];
-    const header = cardElement.props.children.props.children[0]; // Card -> Collapsible -> CardHeader
-    
-    const newHeader = React.cloneElement(header, {
-        children: (
-            <>
-                <div className="flex items-center gap-1 -ml-2">
-                    <Button variant="ghost" size="icon" {...handleProps} className="cursor-grab active:cursor-grabbing h-8 w-8">
-                        <GripVertical className="h-5 w-5 text-muted-foreground" />
-                    </Button>
-                    {header.props.children[0]}
-                </div>
-                {header.props.children[1]}
-            </>
-        )
-    });
-
-    const newCollapsible = React.cloneElement(cardElement.props.children, { children: [newHeader, cardElement.props.children.props.children[1]] });
-    return React.cloneElement(cardElement, { children: newCollapsible });
-  };
-  
   return (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={cardOrder} strategy={verticalListSortingStrategy}>
           <div className="space-y-4">
             {cardOrder.map(id => (
-              <SortableCard key={id} id={id}>
-                {getCardWithHandle(id, {})}
-              </SortableCard>
+              <SortableItem
+                key={id}
+                id={id}
+                classroom={classroom}
+                submissions={submissions}
+                joinUrl={joinUrl}
+                activeQuestion={activeQuestion}
+                onEndQuestion={onEndQuestion}
+                open={openStates[id]}
+                onOpenChange={(isOpen) => handleOpenChange(id, isOpen)}
+              />
             ))}
           </div>
         </SortableContext>
