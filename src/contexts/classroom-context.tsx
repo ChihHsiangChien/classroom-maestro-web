@@ -86,6 +86,11 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { t } = useI18n();
   const handleFirestoreErrorRef = useRef<(error: any, action: string) => void>();
+  const classroomsRef = useRef(classrooms);
+
+  useEffect(() => {
+    classroomsRef.current = classrooms;
+  }, [classrooms]);
 
   const handleFirestoreError = useCallback((error: any, action: string) => {
     console.error(`Error performing '${action}':`, error);
@@ -229,36 +234,36 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addStudent = useCallback(async (classroomId: string, studentName: string) => {
-    const classroom = classrooms.find(c => c.id === classroomId);
+    const classroom = classroomsRef.current.find(c => c.id === classroomId);
     if (!classroom) return;
     const newStudent: Student = { id: generateId(), name: studentName.trim() };
     await updateStudentList(classroomId, [newStudent, ...classroom.students]);
-  }, [classrooms, updateStudentList]);
+  }, [updateStudentList]);
   
   const updateStudent = useCallback(async (classroomId: string, studentId: string, newName: string) => {
-    const classroom = classrooms.find(c => c.id === classroomId);
+    const classroom = classroomsRef.current.find(c => c.id === classroomId);
     if (!classroom) return;
     const updatedStudents = classroom.students.map(s => s.id === studentId ? { ...s, name: newName.trim() } : s);
     await updateStudentList(classroomId, updatedStudents);
-  }, [classrooms, updateStudentList]);
+  }, [updateStudentList]);
 
   const reorderStudents = useCallback(async (classroomId: string, students: Student[]) => {
     await updateStudentList(classroomId, students);
   }, [updateStudentList]);
 
   const deleteStudent = useCallback(async (classroomId: string, studentId: string) => {
-    const classroom = classrooms.find(c => c.id === classroomId);
+    const classroom = classroomsRef.current.find(c => c.id === classroomId);
     if (!classroom) return;
     const updatedStudents = classroom.students.filter(s => s.id !== studentId);
     await updateStudentList(classroomId, updatedStudents);
-  }, [classrooms, updateStudentList]);
+  }, [updateStudentList]);
   
   const importStudents = useCallback(async (classroomId: string, studentNames: string[]) => {
-    const classroom = classrooms.find(c => c.id === classroomId);
+    const classroom = classroomsRef.current.find(c => c.id === classroomId);
     if (!classroom) return;
     const newStudents: Student[] = studentNames.map(name => ({ id: generateId(), name }));
     await updateStudentList(classroomId, [...newStudents, ...classroom.students]);
-  }, [classrooms, updateStudentList]);
+  }, [updateStudentList]);
 
   const setActiveQuestionInDB = useCallback(async (classroomId: string, question: any | null) => {
     if (!db) return;
@@ -299,51 +304,20 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const listenForClassroom = useCallback((classroomId: string, callback: (classroom: Classroom | null) => void) => {
     if (!db) return () => {};
     const classroomRef = doc(db, 'classrooms', classroomId);
-
-    // If there is a logged-in user (teacher), use a real-time listener.
-    if (user) {
-        return onSnapshot(classroomRef, (doc) => {
-            if (doc.exists()) {
-                callback({ id: doc.id, ...doc.data() } as Classroom);
-            } else {
-                callback(null);
-            }
-        }, (error) => {
-            handleFirestoreErrorRef.current?.(error, 'listen-for-classroom');
-        });
-    }
     
-    // If no logged-in user (student), poll the document every few seconds using getDoc.
-    // This works with the `allow get: true` rule for unauthenticated users.
-    let isCancelled = false;
-    let pollTimeout: NodeJS.Timeout;
-    const poll = async () => {
-        if (isCancelled) return;
-        try {
-            const docSnap = await getDoc(classroomRef);
-            if (!isCancelled) {
-              if (docSnap.exists()) {
-                  callback({ id: docSnap.id, ...docSnap.data() } as Classroom);
-              } else {
-                  callback(null);
-              }
-            }
-        } catch(error) {
-            handleFirestoreErrorRef.current?.(error, 'poll-for-classroom');
+    // Use a real-time listener for everyone. This relies on the security rules being correct.
+    const unsubscribe = onSnapshot(classroomRef, (doc) => {
+        if (doc.exists()) {
+            callback({ id: doc.id, ...doc.data() } as Classroom);
+        } else {
+            callback(null);
         }
-        
-        if (!isCancelled) {
-            pollTimeout = setTimeout(poll, 3000); // Poll every 3 seconds
-        }
-    };
-    poll();
+    }, (error) => {
+        handleFirestoreErrorRef.current?.(error, 'listen-for-classroom');
+    });
     
-    // Return a function to stop the polling
-    return () => {
-        isCancelled = true;
-        clearTimeout(pollTimeout);
-    };
-  }, [user]);
+    return unsubscribe;
+  }, []);
 
   const listenForStudentPresence = useCallback((classroomId: string, studentId: string, callback: (presence: PresenceData | null) => void) => {
     if (!db || !classroomId || !studentId) return () => { };
