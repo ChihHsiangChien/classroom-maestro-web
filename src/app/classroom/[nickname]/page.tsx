@@ -1,12 +1,13 @@
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useClassroom } from '@/contexts/classroom-context';
 import type { QuestionData } from '@/components/create-poll-form';
 import { StudentQuestionForm } from '@/components/student-poll';
+import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, PartyPopper } from 'lucide-react';
+import { Loader2, PartyPopper, LogOut } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 
 
@@ -84,8 +85,27 @@ function ClassroomPageContent() {
 
 
 export default function ClassroomPage() {
+    const router = useRouter();
+    const params = useParams();
+    const { t } = useI18n();
+    const classroomId = params.nickname as string;
+
+    const handleLogout = () => {
+        if (classroomId) {
+            router.push(`/join?classId=${classroomId}`);
+        }
+    };
+
     return (
-        <main className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <main className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4">
+             <Button
+                variant="outline"
+                className="absolute top-4 right-4 z-10"
+                onClick={handleLogout}
+             >
+                <LogOut className="mr-2 h-4 w-4" />
+                {t('dashboard.sign_out')}
+            </Button>
              <Suspense fallback={
                 <div className="flex flex-col items-center gap-4 text-foreground">
                     <Loader2 className="h-12 w-12 animate-spin" />
