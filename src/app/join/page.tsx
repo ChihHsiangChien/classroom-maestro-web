@@ -1,6 +1,9 @@
+
 'use client';
 
-import { School, User } from 'lucide-react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { School, User, AlertTriangle } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -14,60 +17,126 @@ import {
   TableCell,
   TableRow,
 } from '@/components/ui/table';
-import type { Student } from '@/components/student-management';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { Classroom, Student } from '@/contexts/classroom-context';
 import { useI18n } from '@/lib/i18n/provider';
 
-// Mock data, should be the same as in teacher's page for consistency
-const students: Student[] = [
-  { id: 1, name: '01王大明' },
-  { id: 2, name: '02李小花' },
-  { id: 3, name: '03張三' },
-  { id: 4, name: '04陳四' },
-  { id: 5, name: '05林美麗' },
-];
-
-export default function JoinPage() {
+function JoinPageContent() {
   const { t } = useI18n();
+  const searchParams = useSearchParams();
+  const [classroom, setClassroom] = useState<Classroom | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const encodedData = searchParams.get('classroom');
+    if (encodedData) {
+      try {
+        const decodedJson = decodeURIComponent(atob(encodedData));
+        const parsedData = JSON.parse(decodedJson);
+        if (parsedData && parsedData.id && parsedData.name && Array.isArray(parsedData.students)) {
+          setClassroom(parsedData);
+        } else {
+          throw new Error("Invalid classroom data format.");
+        }
+      } catch (e) {
+        console.error("Failed to parse classroom data from URL", e);
+        setError(t('joinPage.invalid_link_error'));
+      }
+    } else {
+      setError(t('joinPage.no_classroom_error'));
+    }
+    setLoading(false);
+  }, [searchParams, t]);
 
   const handleStudentClick = (student: Student) => {
     const url = `/classroom/${encodeURIComponent(student.name)}`;
-    // Use window.location.href for robust navigation when router.push fails.
     window.location.href = url;
   };
 
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
+  if (loading) {
+    return (
+      <div className="flex min-h-screen w-full flex-col items-center justify-center">
+        <School className="h-12 w-12 animate-pulse text-primary" />
+        <p className="mt-4 text-muted-foreground">{t('common.loading')}</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
       <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <School className="h-6 w-6 text-primary" />
-          </div>
-          <CardTitle>{t('joinPage.title')}</CardTitle>
-          <CardDescription>
-            {t('joinPage.description')}
-          </CardDescription>
+        <CardHeader>
+          <CardTitle>{t('common.error')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableBody>
-                {students.map((student) => (
-                  <TableRow
-                    key={student.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleStudentClick(student)}
-                  >
-                    <TableCell className="flex items-center gap-4 p-4">
-                      <User className="h-5 w-5 text-muted-foreground" />
-                      <span className="font-medium">{student.name}</span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>{t('joinPage.error_title')}</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
+    )
+  }
+
+  if (!classroom || classroom.students.length === 0) {
+    return (
+       <Card className="w-full max-w-md shadow-lg">
+         <CardHeader>
+            <CardTitle>{classroom?.name || t('joinPage.title')}</CardTitle>
+         </CardHeader>
+         <CardContent>
+            <p className="text-center text-muted-foreground">{t('joinPage.no_students_error')}</p>
+         </CardContent>
+       </Card>
+    )
+  }
+
+  return (
+    <Card className="w-full max-w-md shadow-lg">
+      <CardHeader className="text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+          <School className="h-6 w-6 text-primary" />
+        </div>
+        <CardTitle>{classroom.name}</CardTitle>
+        <CardDescription>{t('joinPage.description')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-md border">
+          <Table>
+            <TableBody>
+              {classroom.students.map((student) => (
+                <TableRow
+                  key={student.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleStudentClick(student)}
+                >
+                  <TableCell className="flex items-center gap-4 p-4">
+                    <User className="h-5 w-5 text-muted-foreground" />
+                    <span className="font-medium">{student.name}</span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function JoinPage() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
+      <Suspense fallback={
+        <div className="flex min-h-screen w-full flex-col items-center justify-center">
+            <School className="h-12 w-12 animate-pulse text-primary" />
+            <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      }>
+        <JoinPageContent />
+      </Suspense>
     </main>
   );
 }

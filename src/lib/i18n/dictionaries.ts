@@ -72,6 +72,10 @@ export const dictionaries = {
     joinPage: {
       title: '加入教室',
       description: '請從下方列表選擇你的名字登入。',
+      error_title: '無法加入教室',
+      invalid_link_error: '教室連結無效或損毀。請向老師索取新的連結。',
+      no_classroom_error: '未指定教室。請使用老師提供的連結。',
+      no_students_error: '這個教室目前沒有學生。請聯繫您的老師。',
     },
     classroomPage: {
       submission_received_title: '收到提交！',
@@ -307,6 +311,10 @@ export const dictionaries = {
     joinPage: {
       title: 'Join Classroom',
       description: 'Please select your name from the list below to log in.',
+      error_title: 'Cannot Join Classroom',
+      invalid_link_error: 'The classroom link is invalid or corrupted. Please ask your teacher for a new one.',
+      no_classroom_error: 'No classroom was specified. Please use the link provided by your teacher.',
+      no_students_error: 'This classroom has no students. Please contact your teacher.',
     },
     classroomPage: {
       submission_received_title: 'Submission Received!',

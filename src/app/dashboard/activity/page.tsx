@@ -17,7 +17,7 @@ import type { QuestionData } from "@/components/create-poll-form";
 import type { Student, Submission } from "@/components/student-management";
 import { LotteryModal } from "@/components/lottery-modal";
 import { useI18n } from "@/lib/i18n/provider";
-import { useClassroom } from "@/contexts/classroom-context";
+import { useClassroom, type Classroom } from "@/contexts/classroom-context";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { ManagementPanel } from "@/components/management-panel";
@@ -48,10 +48,23 @@ export default function ActivityPage() {
   }, [activeClassroom, router]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-        setJoinUrl(`${window.location.origin}/join`);
+    if (typeof window !== 'undefined' && activeClassroom) {
+      try {
+        const classroomToEncode: Classroom = {
+            id: activeClassroom.id,
+            name: activeClassroom.name,
+            students: activeClassroom.students
+        };
+        const classroomJson = JSON.stringify(classroomToEncode);
+        // Using btoa for client-side base64 encoding
+        const encodedData = btoa(unescape(encodeURIComponent(classroomJson)));
+        setJoinUrl(`${window.location.origin}/join?classroom=${encodedData}`);
+      } catch (e) {
+        console.error("Failed to encode classroom data for URL", e);
+        setJoinUrl(`${window.location.origin}/join`); // Fallback URL
+      }
     }
-  }, []);
+  }, [activeClassroom]);
 
   const handleToggleSection = (section: keyof typeof openSections) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
