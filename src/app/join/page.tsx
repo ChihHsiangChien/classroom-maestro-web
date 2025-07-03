@@ -33,6 +33,8 @@ function JoinPageContent() {
 
   useEffect(() => {
     const classId = searchParams.get('classId');
+    console.log('Attempting to join class with ID:', classId);
+
     if (classId && db) {
       const fetchClassroom = async () => {
           try {
@@ -51,9 +53,10 @@ function JoinPageContent() {
                   console.error("No such classroom document for ID:", classId);
                   setError(t('joinPage.class_not_found_error'));
               }
-          } catch (e) {
-              console.error("Failed to fetch classroom data from Firestore", e);
-              setError(t('joinPage.generic_fetch_error'));
+          } catch (e: any) {
+              console.error("DETAILED_FIREBASE_FETCH_ERROR:", e);
+              const errorMessage = `Failed to fetch classroom. Code: ${e.code}. Message: ${e.message}`;
+              setError(errorMessage);
           } finally {
               setLoading(false);
           }
