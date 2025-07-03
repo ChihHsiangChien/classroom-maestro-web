@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import type { User, AuthError } from 'firebase/auth';
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   }, [user, loading, authError, pathname, router]);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
     if (!isFirebaseConfigured || !auth || !googleProvider) {
       const errorMsg = 'Firebase is not configured. Cannot sign in.';
       console.error(errorMsg);
@@ -108,18 +108,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     if (!isFirebaseConfigured || !auth) {
       console.error('Firebase is not configured. Cannot sign out.');
       return;
     }
     await firebaseSignOut(auth);
     router.push('/');
-  };
+  }, [router]);
 
-  const value = { user, loading, isFirebaseConfigured, authError, signInWithGoogle, signOut };
+  const value = useMemo(() => ({ 
+    user, 
+    loading, 
+    isFirebaseConfigured, 
+    authError, 
+    signInWithGoogle, 
+    signOut 
+  }), [user, loading, isFirebaseConfigured, authError, signInWithGoogle, signOut]);
 
   return (
     <AuthContext.Provider value={value}>
