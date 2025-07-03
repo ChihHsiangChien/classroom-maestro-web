@@ -34,7 +34,7 @@ function JoinPageContent() {
 
   useEffect(() => {
     const classId = searchParams.get('classId');
-    console.log('Attempting to join class with ID:', classId);
+    console.log('Attempting to join class with ID from URL:', classId);
 
     if (classId && db) {
       const fetchClassroom = async () => {
@@ -44,6 +44,7 @@ function JoinPageContent() {
 
               if (classroomSnap.exists()) {
                   const classroomData = classroomSnap.data();
+                  console.log("Successfully fetched classroom data:", classroomData);
                   setClassroom({
                       id: classroomSnap.id,
                       name: classroomData.name,
@@ -73,8 +74,14 @@ function JoinPageContent() {
   }, [searchParams, t]);
 
   const handleStudentClick = (student: Student) => {
-    if (!classroom) return;
+    console.log('[DEBUG] handleStudentClick triggered for student:', student);
+    if (!classroom) {
+      console.error('[DEBUG] Classroom object is null. Cannot navigate.');
+      return;
+    }
+    console.log('[DEBUG] Classroom object is available:', classroom);
     const url = `/classroom/${classroom.id}?studentId=${student.id}&name=${encodeURIComponent(student.name)}`;
+    console.log('[DEBUG] Navigating to URL:', url);
     router.push(url);
   };
 
@@ -146,11 +153,11 @@ function JoinPageContent() {
               {classroom.students.map((student) => (
                 <TableRow
                   key={student.id}
-                  className="hover:bg-muted/50"
+                  className="hover:bg-muted/50 cursor-pointer"
+                  onClick={() => handleStudentClick(student)}
                 >
                   <TableCell
-                    className="flex items-center gap-4 p-4 cursor-pointer"
-                    onClick={() => handleStudentClick(student)}
+                    className="flex items-center gap-4 p-4"
                   >
                     <User className="h-5 w-5 text-muted-foreground" />
                     <span className="font-medium">{student.name}</span>
