@@ -15,7 +15,8 @@ import {
   onSnapshot,
   addDoc,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  getDoc
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/provider';
@@ -23,6 +24,9 @@ import { useI18n } from '@/lib/i18n/provider';
 export interface Student {
   id: string;
   name: string;
+  isOnline?: boolean;
+  lastSeen?: Timestamp;
+  forceLogout?: boolean;
 }
 
 export interface Submission {
@@ -59,6 +63,9 @@ interface ClassroomContextType {
   addSubmission: (classroomId: string, questionId: string, studentId: string, studentName: string, answer: string | string[]) => Promise<void>;
   listenForSubmissions: (classroomId: string, questionId: string, callback: (submissions: Submission[]) => void) => () => void;
   listenForClassroom: (classroomId: string, callback: (classroom: Classroom) => void) => () => void;
+  kickStudent: (classroomId: string, studentId: string) => Promise<void>;
+  updateStudentPresence: (classroomId: string, studentId: string, isOnline: boolean) => Promise<void>;
+  acknowledgeKick: (classroomId: string, studentId: string) => Promise<void>;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
@@ -264,6 +271,59 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const updateStudentPresence = async (classroomId: string, studentId: string, isOnline: boolean) => {
+    if (!db || !classroomId || !studentId) return;
+    try {
+        const classroomRef = doc(db, 'classrooms', classroomId);
+        const classroomSnap = await getDoc(classroomRef);
+        if (classroomSnap.exists()) {
+            const students = (classroomSnap.data().students || []) as Student[];
+            const updatedStudents = students.map(s =>
+                s.id === studentId ? { ...s, isOnline, lastSeen: Timestamp.now() } : s
+            );
+            await updateDoc(classroomRef, { students: updatedStudents });
+        }
+    } catch (error) {
+        // This can fail silently as it's a background task.
+        console.error("Failed to update presence:", error);
+    }
+  };
+
+  const kickStudent = async (classroomId: string, studentId: string) => {
+      if (!db || !classroomId || !studentId) return;
+      try {
+          const classroomRef = doc(db, 'classrooms', classroomId);
+          const classroomSnap = await getDoc(classroomRef);
+          if (classroomSnap.exists()) {
+              const students = (classroomSnap.data().students || []) as Student[];
+              const updatedStudents = students.map(s =>
+                  s.id === studentId ? { ...s, forceLogout: true } : s
+              );
+              await updateDoc(classroomRef, { students: updatedStudents });
+              toast({ title: t('studentManagement.toast_student_kicked_title') });
+          }
+      } catch (error) {
+          handleFirestoreError(error, 'kick-student');
+      }
+  };
+
+  const acknowledgeKick = async (classroomId: string, studentId: string) => {
+      if (!db || !classroomId || !studentId) return;
+      try {
+          const classroomRef = doc(db, 'classrooms', classroomId);
+          const classroomSnap = await getDoc(classroomRef);
+          if (classroomSnap.exists()) {
+              const students = (classroomSnap.data().students || []) as Student[];
+              const updatedStudents = students.map(s =>
+                  s.id === studentId ? { ...s, forceLogout: false } : s
+              );
+              await updateDoc(classroomRef, { students: updatedStudents });
+          }
+      } catch (error) {
+          console.error("Failed to acknowledge kick:", error);
+      }
+  };
+
   const value = {
     classrooms,
     activeClassroom,
@@ -280,7 +340,10 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     setActiveQuestionInDB,
     addSubmission,
     listenForSubmissions,
-    listenForClassroom
+    listenForClassroom,
+    kickStudent,
+    updateStudentPresence,
+    acknowledgeKick
   };
 
   return (

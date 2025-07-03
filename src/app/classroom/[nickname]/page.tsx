@@ -1,8 +1,9 @@
+
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { useClassroom } from '@/contexts/classroom-context';
+import { useClassroom, type Student } from '@/contexts/classroom-context';
 import type { QuestionData } from '@/components/create-poll-form';
 import { StudentQuestionForm } from '@/components/student-poll';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ function ClassroomPageContent() {
     const params = useParams();
     const searchParams = useSearchParams();
     const router = useRouter();
-    const { listenForClassroom, addSubmission } = useClassroom();
+    const { listenForClassroom, addSubmission, updateStudentPresence, acknowledgeKick } = useClassroom();
 
     const classroomId = params.nickname as string;
     const studentId = searchParams.get('studentId');
@@ -26,22 +27,66 @@ function ClassroomPageContent() {
     const [submittedQuestionId, setSubmittedQuestionId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // This effect handles student presence (online status)
+    useEffect(() => {
+        if (!classroomId || !studentId) return;
+
+        const setPresence = (isOnline: boolean) => updateStudentPresence(classroomId, studentId, isOnline);
+
+        // Initial presence update and heartbeat
+        setPresence(true);
+        const heartbeatInterval = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                setPresence(true);
+            }
+        }, 30000); // every 30 seconds
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                setPresence(true);
+            } else {
+                setPresence(false);
+            }
+        };
+        
+        const handleBeforeUnload = () => {
+            setPresence(false);
+        };
+
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            clearInterval(heartbeatInterval);
+            window.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            setPresence(false);
+        };
+    }, [classroomId, studentId, updateStudentPresence]);
+
+
     useEffect(() => {
         if (!classroomId) return;
 
         setLoading(true);
         const unsubscribe = listenForClassroom(classroomId, (classroom) => {
             const currentQuestion = classroom.activeQuestion;
-            // When a new question is activated, reset the submission status
             if (currentQuestion && activeQuestion?.id !== currentQuestion.id) {
                 setSubmittedQuestionId(null);
             }
             setActiveQuestion(currentQuestion);
+
+            const me = classroom.students?.find(s => s.id === studentId);
+            if (me?.forceLogout) {
+                acknowledgeKick(classroomId, studentId);
+                router.push(`/join?classId=${classroomId}`);
+            }
+
             setLoading(false);
         });
 
         return () => unsubscribe();
-    }, [classroomId, listenForClassroom, activeQuestion?.id]);
+    }, [classroomId, listenForClassroom, activeQuestion?.id, studentId, router, acknowledgeKick]);
 
     const handleVoteSubmit = async (answer: string | string[]) => {
         if (!classroomId || !studentId || !activeQuestion) return;
@@ -52,6 +97,10 @@ function ClassroomPageContent() {
 
     const handleLogout = () => {
         if (classroomId) {
+            // Set presence to offline before logging out
+            if (studentId) {
+                updateStudentPresence(classroomId, studentId, false);
+            }
             router.push(`/join?classId=${classroomId}`);
         }
     };

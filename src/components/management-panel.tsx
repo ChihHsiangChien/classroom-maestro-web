@@ -14,10 +14,13 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, CheckCircle, Clapperboard, AlertTriangle } from 'lucide-react';
+import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut } from 'lucide-react';
 import { useI18n } from "@/lib/i18n/provider";
-import type { Classroom, Submission } from '@/contexts/classroom-context';
+import { useClassroom, type Classroom, type Submission, type Student } from '@/contexts/classroom-context';
 import type { QuestionData } from "./create-poll-form";
+import { Timestamp } from 'firebase/firestore';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface ManagementPanelProps {
   classroom: Classroom;
@@ -29,6 +32,7 @@ interface ManagementPanelProps {
 export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestion }: ManagementPanelProps) {
   const { t } = useI18n();
   const { toast } = useToast();
+  const { kickStudent } = useClassroom();
   const submittedIds = new Set(submissions.map(s => s.studentId));
 
   const QR_CODE_URL_MAX_LENGTH = 2000;
@@ -41,6 +45,10 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
       description: t('studentManagement.copy_button_toast_description'),
     });
   };
+  
+  const handleKickStudent = (studentId: string, studentName: string) => {
+    kickStudent(classroom.id, studentId);
+  }
 
   return (
     <div className="space-y-6">
@@ -87,22 +95,51 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
         <CardContent>
             <ScrollArea className="h-64">
                 <div className="space-y-2 pr-4">
+                    <TooltipProvider>
                     {classroom.students.map(student => {
                         const hasSubmitted = submittedIds.has(student.id);
+                        const isConsideredOnline = student.isOnline === true && student.lastSeen && (Timestamp.now().seconds - student.lastSeen.seconds < 45);
+
                         return (
                             <div key={student.id} className="flex items-center justify-between rounded-md p-2 bg-muted/50">
-                                <p className="font-medium">{student.name}</p>
-                                {hasSubmitted ? (
-                                    <div className="flex items-center gap-2 text-green-600">
-                                        <CheckCircle className="h-5 w-5" />
-                                        <span>{t('activePoll.submitted_status')}</span>
-                                    </div>
-                                ) : (
-                                    <span className="text-sm text-muted-foreground">Waiting...</span>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <span className={cn(
+                                                "h-2.5 w-2.5 rounded-full block transition-colors",
+                                                isConsideredOnline ? 'bg-green-500' : 'bg-slate-400'
+                                            )} />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{isConsideredOnline ? t('studentManagement.status_online') : t('studentManagement.status_offline')}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <p className="font-medium">{student.name}</p>
+                                </div>
+                                <div className='flex items-center gap-1'>
+                                    {hasSubmitted ? (
+                                        <div className="flex items-center gap-1 text-green-600">
+                                            <CheckCircle className="h-5 w-5" />
+                                            <span className="text-xs hidden sm:inline">{t('activePoll.submitted_status')}</span>
+                                        </div>
+                                    ) : (
+                                        activeQuestion && <span className="text-xs text-muted-foreground pr-2">Waiting...</span>
+                                    )}
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleKickStudent(student.id, student.name)}>
+                                                <LogOut className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{t('studentManagement.kick_student_tooltip')}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </div>
                             </div>
                         )
                     })}
+                    </TooltipProvider>
                     {classroom.students.length === 0 && (
                         <p className="text-center text-muted-foreground py-4">{t('studentManagement.no_students_logged_in_message')}</p>
                     )}
