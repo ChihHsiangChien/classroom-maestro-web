@@ -91,6 +91,8 @@ export const dictionaries = {
       invalid_link_error: '教室連結無效或損毀。請向老師索取新的連結。',
       no_classroom_error: '未指定教室。請使用老師提供的連結。',
       no_students_error: '這個教室目前沒有學生。請聯繫您的老師。',
+      class_not_found_error: '找不到此教室。請檢查連結或聯繫您的老師。',
+      generic_fetch_error: '讀取教室資料時發生錯誤。請再試一次。',
     },
     classroomPage: {
       submission_received_title: '收到提交！',
@@ -346,6 +348,8 @@ export const dictionaries = {
       invalid_link_error: 'The classroom link is invalid or corrupted. Please ask your teacher for a new one.',
       no_classroom_error: 'No classroom was specified. Please use the link provided by your teacher.',
       no_students_error: 'This classroom has no students. Please contact your teacher.',
+      class_not_found_error: 'Classroom not found. Please check the link or contact your teacher.',
+      generic_fetch_error: 'An error occurred while fetching classroom data. Please try again.',
     },
     classroomPage: {
       submission_received_title: 'Submission Received!',

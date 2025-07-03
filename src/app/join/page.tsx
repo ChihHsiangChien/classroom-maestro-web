@@ -48,12 +48,12 @@ function JoinPageContent() {
                       ownerId: classroomData.ownerId,
                   });
               } else {
-                  console.error("No such classroom document!");
-                  setError(t('joinPage.invalid_link_error'));
+                  console.error("No such classroom document for ID:", classId);
+                  setError(t('joinPage.class_not_found_error'));
               }
           } catch (e) {
               console.error("Failed to fetch classroom data from Firestore", e);
-              setError(t('joinPage.invalid_link_error'));
+              setError(t('joinPage.generic_fetch_error'));
           } finally {
               setLoading(false);
           }
