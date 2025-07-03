@@ -136,17 +136,17 @@ export default function ActivityPage() {
           </Button>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-            <div className="lg:col-span-1 space-y-6 sticky top-20">
+        <div className="flex flex-col lg:flex-row items-start gap-8">
+            <aside className="w-full lg:w-1/3 lg:sticky lg:top-6 space-y-6">
                 <ManagementPanel
                     classroom={activeClassroom}
                     submissions={submissions}
                     joinUrl={joinUrl}
                     activeQuestion={activeQuestion}
                 />
-            </div>
+            </aside>
             
-            <div className="lg:col-span-2 space-y-6">
+            <main className="w-full lg:w-2/3 space-y-6">
               {!activeQuestion ? (
                 <Card className="shadow-md">
                   <CardHeader>
@@ -170,7 +170,7 @@ export default function ActivityPage() {
                   onResponsesToggle={() => handleToggleSection('responses')}
                 />
               )}
-            </div>
+            </main>
         </div>
       </div>
        <LotteryModal 
