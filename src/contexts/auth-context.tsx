@@ -5,11 +5,12 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { useRouter, usePathname } from 'next/navigation';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
-import { auth, googleProvider } from '@/lib/firebase';
+import { auth, googleProvider, isFirebaseConfigured } from '@/lib/firebase';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isFirebaseConfigured: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -26,16 +27,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    // Only set up auth listener if Firebase is configured and auth object is valid
+    if (isFirebaseConfigured && auth) {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setLoading(false);
+      });
+      return () => unsubscribe();
+    } else {
+      // If not configured, stop loading and proceed without a user
       setLoading(false);
-    });
-
-    return () => unsubscribe();
+    }
   }, []);
 
   useEffect(() => {
     if (loading) return;
+    
+    // If firebase is not configured, don't redirect. Let the UI show the error.
+    if (!isFirebaseConfigured) return;
 
     const isPublic = publicPaths.some(path => pathname.startsWith(path) && path.length === pathname.length);
     const isStudentPath = studentPaths.some(path => pathname.startsWith(path));
@@ -50,16 +59,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, loading, pathname, router]);
 
   const signInWithGoogle = async () => {
+    if (!isFirebaseConfigured || !auth || !googleProvider) {
+      console.error("Firebase is not configured. Cannot sign in.");
+      return;
+    }
     setLoading(true);
     await signInWithPopup(auth, googleProvider);
   };
 
   const signOut = async () => {
+    if (!isFirebaseConfigured || !auth) {
+      console.error("Firebase is not configured. Cannot sign out.");
+      return;
+    }
     await firebaseSignOut(auth);
     router.push('/');
   };
 
-  const value = { user, loading, signInWithGoogle, signOut };
+  const value = { user, loading, isFirebaseConfigured, signInWithGoogle, signOut };
 
   return (
     <AuthContext.Provider value={value}>
