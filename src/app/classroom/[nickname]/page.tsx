@@ -11,6 +11,7 @@ import { School, Loader2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 
 function ClassroomPageContent() {
+  console.log('[DEBUG] ClassroomPageContent: Component rendering started.');
   const { t } = useI18n();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -19,6 +20,8 @@ function ClassroomPageContent() {
   const studentId = searchParams.get('studentId') as string;
   const studentName = searchParams.get('name') as string;
 
+  console.log(`[DEBUG] ClassroomPageContent: Received params: classId=${classId}, studentId=${studentId}, studentName=${decodeURIComponent(studentName || '')}`);
+
   const { listenForClassroom, addSubmission, listenForSubmissions } = useClassroom();
 
   const [classroom, setClassroom] = useState<Classroom | null>(null);
@@ -26,28 +29,47 @@ function ClassroomPageContent() {
   const [submittedQuestionIds, setSubmittedQuestionIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!classId) return;
+    console.log('[DEBUG] ClassroomPageContent: First useEffect triggered.');
+    if (!classId) {
+      console.log('[DEBUG] ClassroomPageContent: classId is missing, returning from useEffect.');
+      return;
+    }
 
     setLoading(true);
+    console.log('[DEBUG] ClassroomPageContent: Setting up classroom listener.');
     const unsubscribe = listenForClassroom(classId, (classroomData) => {
+      console.log('[DEBUG] ClassroomPageContent: Received classroom data from listener.', classroomData);
       setClassroom(classroomData);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('[DEBUG] ClassroomPageContent: Cleaning up classroom listener.');
+      unsubscribe();
+    }
   }, [classId, listenForClassroom]);
 
   useEffect(() => {
-    if (!classId || !classroom?.activeQuestion?.id) return;
+    console.log('[DEBUG] ClassroomPageContent: Second useEffect triggered.');
+    if (!classId || !studentId || !classroom?.activeQuestion?.id) {
+       console.log('[DEBUG] ClassroomPageContent: Missing data for submission listener, returning.', { classId, studentId, activeQuestionId: classroom?.activeQuestion?.id });
+       return;
+    }
     
+    console.log('[DEBUG] ClassroomPageContent: Setting up submissions listener.');
     const unsubscribe = listenForSubmissions(classId, classroom.activeQuestion.id, (submissions) => {
+      console.log('[DEBUG] ClassroomPageContent: Received submissions data from listener.', submissions);
       const studentHasSubmitted = submissions.some(s => s.studentId === studentId);
       if (studentHasSubmitted) {
-        setSubmittedQuestionIds(prev => new Set(prev).add(classroom.activeQuestion.id));
+        console.log('[DEBUG] ClassroomPageContent: Student has submitted for the active question.');
+        setSubmittedQuestionIds(prev => new Set(prev).add(classroom.activeQuestion!.id));
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+       console.log('[DEBUG] ClassroomPageContent: Cleaning up submissions listener.');
+       unsubscribe();
+    }
 
   }, [classId, studentId, classroom?.activeQuestion?.id, listenForSubmissions]);
 
@@ -56,6 +78,7 @@ function ClassroomPageContent() {
     if (!classroom?.activeQuestion?.id || !studentId || !studentName) return;
 
     try {
+      console.log(`[DEBUG] ClassroomPageContent: Submitting vote:`, { classId, questionId: classroom.activeQuestion.id, studentId, studentName, answer });
       await addSubmission(classId, classroom.activeQuestion.id, studentId, studentName, answer);
       setSubmittedQuestionIds(prev => new Set(prev).add(classroom.activeQuestion!.id));
     } catch (error) {
@@ -64,6 +87,7 @@ function ClassroomPageContent() {
   };
 
   if (loading) {
+    console.log('[DEBUG] ClassroomPageContent: Render - Loading state.');
     return (
       <div className="flex flex-col items-center gap-4 text-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -76,10 +100,12 @@ function ClassroomPageContent() {
   const hasSubmitted = activeQuestion && submittedQuestionIds.has(activeQuestion.id);
 
   if (activeQuestion && !hasSubmitted) {
+    console.log('[DEBUG] ClassroomPageContent: Render - Showing question form.');
     return <StudentQuestionForm question={activeQuestion} onVoteSubmit={handleVoteSubmit} />;
   }
   
   if (hasSubmitted) {
+    console.log('[DEBUG] ClassroomPageContent: Render - Showing submission received message.');
     return (
       <Card className="w-full max-w-md text-center animate-in fade-in">
         <CardHeader>
@@ -92,14 +118,15 @@ function ClassroomPageContent() {
       </Card>
     );
   }
-
+  
+  console.log('[DEBUG] ClassroomPageContent: Render - Showing welcome message.');
   return (
     <Card className="w-full max-w-md text-center animate-in fade-in">
       <CardHeader>
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
           <School className="h-6 w-6 text-primary" />
         </div>
-        <CardTitle>{t('classroomPage.welcome_title', { studentName: decodeURIComponent(studentName) || 'Student' })}</CardTitle>
+        <CardTitle>{t('classroomPage.welcome_title', { studentName: decodeURIComponent(studentName || 'Student') })}</CardTitle>
         <CardDescription>{t('classroomPage.welcome_description')}</CardDescription>
       </CardHeader>
     </Card>
