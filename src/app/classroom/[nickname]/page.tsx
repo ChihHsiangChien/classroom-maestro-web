@@ -18,6 +18,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 
 function ClassroomPageContent() {
+  console.log("DEBUG: ClassroomPageContent rendering...");
   const { t } = useI18n();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -27,13 +28,20 @@ function ClassroomPageContent() {
   const studentId = searchParams.get('studentId');
   const studentName = searchParams.get('name') || t('studentManagement.default_student_name');
 
+  console.log("DEBUG: classId from params:", classId);
+  console.log("DEBUG: studentId from searchParams:", studentId);
+  console.log("DEBUG: studentName from searchParams:", studentName);
+
+
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
   const [lastAnsweredQuestionId, setLastAnsweredQuestionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (classId) {
+      console.log("DEBUG: useEffect triggered to listen for classroom", classId);
       const unsubscribe = listenForClassroom(classId, (updatedClassroom) => {
+        console.log("DEBUG: Received classroom update", updatedClassroom);
         setClassroom(updatedClassroom);
         const question = updatedClassroom.activeQuestion ?? null;
         
@@ -45,7 +53,10 @@ function ClassroomPageContent() {
           setLastAnsweredQuestionId(null);
         }
       });
-      return () => unsubscribe();
+      return () => {
+        console.log("DEBUG: Unsubscribing from classroom listener");
+        unsubscribe();
+      }
     }
   }, [classId, listenForClassroom, activeQuestion]);
 
@@ -61,6 +72,7 @@ function ClassroomPageContent() {
   const hasVoted = activeQuestion ? lastAnsweredQuestionId === (activeQuestion as any).id : false;
   
   if (!studentId || !classId) {
+    console.error("DEBUG: Missing studentId or classId. Cannot render page content.");
     return (
       <Alert variant="destructive" className="max-w-md">
         <AlertTriangle className="h-4 w-4" />
@@ -115,17 +127,9 @@ function ClassroomPageContent() {
 
 // Wrap the client component in a Suspense boundary
 export default function ClassroomPage() {
-    const { t } = useI18n();
     return (
         <main className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
-            <Suspense fallback={
-                <div className="flex flex-col items-center justify-center">
-                    <School className="h-12 w-12 animate-pulse text-primary" />
-                    <p className="mt-4 text-muted-foreground">{t('common.loading')}</p>
-                </div>
-            }>
-                <ClassroomPageContent />
-            </Suspense>
+            <ClassroomPageContent />
         </main>
     );
 }
