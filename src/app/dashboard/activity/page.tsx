@@ -39,8 +39,9 @@ export default function ActivityPage() {
     return classrooms.find(c => c.id === initialActiveClassroom.id) || initialActiveClassroom;
   }, [classrooms, initialActiveClassroom]);
 
+  // The active question is now derived directly from the classroom data in context.
+  const activeQuestion = useMemo(() => activeClassroom?.activeQuestion || null, [activeClassroom]);
 
-  const [activeQuestion, setActiveQuestion] = useState<QuestionDataWithId | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [lotteryStudent, setLotteryStudent] = useState<(Student & { submission?: Submission }) | null>(null);
   const [excludePicked, setExcludePicked] = useState(true);
@@ -63,7 +64,13 @@ export default function ActivityPage() {
 
   // Listen for submissions in real-time when a question is active
   useEffect(() => {
-    if (activeQuestion && activeClassroom) {
+    // When the active question ends (becomes null), clear the submissions.
+    if (!activeQuestion) {
+      setSubmissions([]);
+      return;
+    }
+    
+    if (activeClassroom) {
       const unsubscribe = listenForSubmissions(activeClassroom.id, activeQuestion.id, (newSubmissions) => {
         setSubmissions(newSubmissions);
       });
@@ -75,22 +82,22 @@ export default function ActivityPage() {
     if (activeClassroom) {
       await setActiveQuestionInDB(activeClassroom.id, null);
     }
-    setActiveQuestion(null);
+    // No need to set local state for question, it will update via context.
     setPickedStudentIds([]); // Reset lottery
-    setSubmissions([]);
+    // Submissions will be cleared by the useEffect when activeQuestion becomes null.
   };
   
   const handleQuestionCreate = async (question: QuestionData) => {
     if (!activeClassroom) return;
     const newQuestion: QuestionDataWithId = { ...question, id: `q_${Date.now()}` };
     await setActiveQuestionInDB(activeClassroom.id, newQuestion);
-    setActiveQuestion(newQuestion);
+    // No need to set local state, it will update via context.
     setSubmissions([]);
     setPickedStudentIds([]);
   };
   
   const handlePickStudent = () => {
-    if (!activeClassroom || activeClassroom.students.length === 0) {
+    if (!activeClassroom || !activeClassroom.students || activeClassroom.students.length === 0) {
       return;
     }
     
@@ -168,7 +175,7 @@ export default function ActivityPage() {
               <Eye className="mr-2 h-4 w-4" />
               Simulate Student View
             </Button>
-            <Button variant="outline" onClick={handlePickStudent} disabled={activeClassroom.students.length === 0}>
+            <Button variant="outline" onClick={handlePickStudent} disabled={!activeClassroom.students || activeClassroom.students.length === 0}>
               {t('studentManagement.lottery_button')}
             </Button>
           </div>
@@ -182,6 +189,7 @@ export default function ActivityPage() {
                       submissions={submissions}
                       joinUrl={joinUrl}
                       activeQuestion={activeQuestion}
+                      onEndQuestion={handleEndQuestion}
                   />
               </aside>
             )}

@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,9 +28,10 @@ interface ManagementPanelProps {
   submissions: Submission[];
   joinUrl: string;
   activeQuestion: QuestionData | null;
+  onEndQuestion: () => void;
 }
 
-export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestion }: ManagementPanelProps) {
+export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestion, onEndQuestion }: ManagementPanelProps) {
   const { t } = useI18n();
   const { toast } = useToast();
   const { kickStudent } = useClassroom();
@@ -89,14 +91,14 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
         <CardHeader className="pb-4">
             <CardTitle>{t('activePoll.submission_status_card_title')}</CardTitle>
             <CardDescription>
-                {t('activePoll.submission_status_card_description', { submissionsCount: submissions.length, studentsCount: classroom.students.length })}
+                {t('activePoll.submission_status_card_description', { submissionsCount: submissions.length, studentsCount: classroom.students?.length || 0 })}
             </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
             <ScrollArea className="h-72 px-6">
                 <div className="space-y-2 py-4">
                     <TooltipProvider>
-                    {classroom.students.map(student => {
+                    {classroom.students && classroom.students.map(student => {
                         const hasSubmitted = submittedIds.has(student.id);
                         const isConsideredOnline = student.isOnline === true && student.lastSeen && (Timestamp.now().seconds - student.lastSeen.seconds < 45);
 
@@ -147,7 +149,7 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
                         )
                     })}
                     </TooltipProvider>
-                    {classroom.students.length === 0 && (
+                    {(!classroom.students || classroom.students.length === 0) && (
                         <p className="text-center text-muted-foreground py-4">{t('studentManagement.no_students_logged_in_message')}</p>
                     )}
                 </div>
@@ -168,10 +170,17 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
           </div>
           <p className="text-xs text-muted-foreground">
             {activeQuestion
-              ? t('teacherDashboard.responses_count', { submissionsCount: submissions.length, studentsCount: classroom.students.length })
+              ? t('teacherDashboard.responses_count', { submissionsCount: submissions.length, studentsCount: classroom.students?.length || 0 })
               : t('teacherDashboard.start_a_question_prompt')}
           </p>
         </CardContent>
+        {activeQuestion && (
+            <CardFooter>
+                <Button variant="destructive" className="w-full" onClick={onEndQuestion}>
+                    {t('teacherDashboard.end_question_button')}
+                </Button>
+            </CardFooter>
+        )}
       </Card>
     </div>
   );
