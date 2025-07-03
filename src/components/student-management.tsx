@@ -69,30 +69,82 @@ export function StudentManagement({ classroom }: StudentManagementProps) {
   const [isImportDialogOpen, setImportDialogOpen] = useState(false);
   const { toast } = useToast();
 
+  const handleFirestoreError = (error: any, action: 'add' | 'update' | 'delete' | 'import') => {
+    console.error(`Error ${action}ing student(s):`, error);
+    if (error.message === 'firestore-permission-denied') {
+      toast({
+        variant: "destructive",
+        duration: 10000,
+        title: t('firebase.firestore_permission_denied_title'),
+        description: (
+            <div>
+              <p>{t('firebase.firestore_permission_denied_description')}</p>
+              <a 
+                href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/firestore/rules`} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="font-bold underline text-destructive-foreground"
+              >
+                {t('firebase.firestore_permission_denied_button')}
+              </a>
+            </div>
+        )
+      });
+    } else {
+        toast({
+            variant: "destructive",
+            title: t('common.error'),
+            description: `Could not ${action} student(s). Please try again.`
+        });
+    }
+  }
+
   const handleAdd = async () => {
     if (newStudentName.trim()) {
-      const name = newStudentName.trim();
-      await addStudent(classroom.id, name);
-      setNewStudentName('');
-      setAddDialogOpen(false);
-      toast({ 
-        title: t('studentManagement.toast_student_added_title'), 
-        description: t('studentManagement.toast_student_added_description', { name }) 
-      });
+      try {
+        const name = newStudentName.trim();
+        await addStudent(classroom.id, name);
+        setNewStudentName('');
+        setAddDialogOpen(false);
+        toast({ 
+          title: t('studentManagement.toast_student_added_title'), 
+          description: t('studentManagement.toast_student_added_description', { name }) 
+        });
+      } catch (error) {
+        handleFirestoreError(error, 'add');
+      }
     }
   };
 
   const handleUpdate = async () => {
     if (editingStudent && editingStudent.name.trim()) {
-      await updateStudent(classroom.id, editingStudent.id, editingStudent.name.trim());
-      setEditingStudent(null);
-      setEditDialogOpen(false);
-      toast({ 
-        title: t('studentManagement.toast_student_updated_title'), 
-        description: t('studentManagement.toast_student_updated_description') 
-      });
+      try {
+        await updateStudent(classroom.id, editingStudent.id, editingStudent.name.trim());
+        setEditingStudent(null);
+        setEditDialogOpen(false);
+        toast({ 
+          title: t('studentManagement.toast_student_updated_title'), 
+          description: t('studentManagement.toast_student_updated_description') 
+        });
+      } catch (error) {
+        handleFirestoreError(error, 'update');
+      }
     }
   };
+
+  const handleDelete = async (studentId: string) => {
+    try {
+      await deleteStudent(classroom.id, studentId);
+      const studentName = classroom.students.find(s => s.id === studentId)?.name || 'The student';
+      toast({
+          variant: "destructive",
+          title: t('studentManagement.toast_student_deleted_title'),
+          description: t('studentManagement.toast_student_deleted_description', { name: studentName }),
+      });
+    } catch (error) {
+      handleFirestoreError(error, 'delete');
+    }
+  }
 
   const startEditing = (student: Student) => {
     setEditingStudent({ ...student });
@@ -100,12 +152,16 @@ export function StudentManagement({ classroom }: StudentManagementProps) {
   };
   
   const handleImport = async (names: string[]) => {
-    await importStudents(classroom.id, names);
-    setImportDialogOpen(false);
-    toast({
-        title: t('dashboard.toast_students_imported_title'),
-        description: t('dashboard.toast_students_imported_description', {count: names.length}),
-    });
+    try {
+      await importStudents(classroom.id, names);
+      setImportDialogOpen(false);
+      toast({
+          title: t('dashboard.toast_students_imported_title'),
+          description: t('dashboard.toast_students_imported_description', {count: names.length}),
+      });
+    } catch (error) {
+      handleFirestoreError(error, 'import');
+    }
   }
 
   return (
@@ -134,7 +190,7 @@ export function StudentManagement({ classroom }: StudentManagementProps) {
           <StudentTable
             students={classroom.students}
             onEdit={startEditing}
-            onDelete={(studentId) => deleteStudent(classroom.id, studentId)}
+            onDelete={handleDelete}
           />
         </CardContent>
       </Card>
@@ -228,17 +284,7 @@ function StudentTable({ students, onEdit, onDelete }: { students: Student[], onE
 
 function DeleteStudentButton({ student, onDelete }: { student: Student, onDelete: (id: string) => void}) {
     const { t } = useI18n();
-    const { toast } = useToast();
     
-    const handleDelete = async () => {
-        await onDelete(student.id);
-        toast({
-            variant: "destructive",
-            title: t('studentManagement.toast_student_deleted_title'),
-            description: t('studentManagement.toast_student_deleted_description', { name: student.name }),
-        });
-    }
-
     return (
         <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -255,7 +301,7 @@ function DeleteStudentButton({ student, onDelete }: { student: Student, onDelete
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">{t('common.delete')}</AlertDialogAction>
+                    <AlertDialogAction onClick={() => onDelete(student.id)} className="bg-destructive hover:bg-destructive/90">{t('common.delete')}</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

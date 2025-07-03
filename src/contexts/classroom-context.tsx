@@ -24,7 +24,7 @@ export interface Student {
 }
 
 export interface Submission {
-  studentId: number;
+  studentId: string;
   studentName: string;
   answer: string | string[];
 }
@@ -58,6 +58,11 @@ const handleFirestoreError = (error: any) => {
     throw new Error('firestore-permission-denied');
   }
   throw error;
+};
+
+// Generates a more robust client-side unique ID.
+const generateId = () => {
+    return Math.random().toString(36).substring(2, 15);
 };
 
 export function ClassroomProvider({ children }: { children: ReactNode }) {
@@ -143,7 +148,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const addStudent = async (classroomId: string, studentName: string) => {
     if (!db) return;
     try {
-        const newStudent: Student = { id: `${Date.now()}`, name: studentName };
+        const newStudent: Student = { id: generateId(), name: studentName };
         const classroomRef = doc(db, 'classrooms', classroomId);
         await updateDoc(classroomRef, { students: arrayUnion(newStudent) });
         updateLocalClassroom(classroomId, c => ({ ...c, students: [...c.students, newStudent] }));
@@ -182,7 +187,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const importStudents = async (classroomId: string, studentNames: string[]) => {
     if (!db) return;
     try {
-        const newStudents: Student[] = studentNames.map(name => ({ id: `${Date.now()}-${name.replace(/\s/g, '-')}`, name }));
+        const newStudents: Student[] = studentNames.map(name => ({ id: generateId(), name }));
         const classroomRef = doc(db, 'classrooms', classroomId);
         await updateDoc(classroomRef, { students: arrayUnion(...newStudents) });
         updateLocalClassroom(classroomId, c => ({ ...c, students: [...c.students, ...newStudents] }));
