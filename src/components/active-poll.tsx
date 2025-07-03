@@ -1,13 +1,13 @@
 
 "use client";
 
-import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, Clapperboard, ChevronDown, Wand2, Loader2, BrainCircuit } from "lucide-react";
+import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, ChevronDown, Wand2, Loader2, BrainCircuit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { QuestionData, MultipleChoiceQuestion, ImageAnnotationQuestion } from "./create-poll-form";
-import React, { useMemo, useState, useTransition } from "react";
-import type { Student, Submission } from "./student-management";
+import React, { useMemo, useState, useTransition, useEffect } from "react";
+import type { Student, Submission } from "@/contexts/classroom-context";
 import { ScrollArea } from "./ui/scroll-area";
 import Image from "next/image";
 import {
@@ -41,19 +41,15 @@ interface ActiveQuestionProps {
   onEndQuestion: () => void;
   students: Student[];
   submissions: Submission[];
-  onSubmissionsChange: React.Dispatch<React.SetStateAction<Submission[]>>;
-  isResponsesOpen: boolean;
-  onResponsesToggle: (isOpen: boolean) => void;
 }
 
 interface ResultsProps {
     submissions: Submission[];
-    isResponsesOpen: boolean;
-    onResponsesToggle: (isOpen: boolean) => void;
 }
 
-function MultipleChoiceResults({ question, submissions, students, isResponsesOpen, onResponsesToggle }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: { value: string }[], allowMultipleAnswers?: boolean }); submissions: Submission[], students: Student[], isResponsesOpen: boolean, onResponsesToggle: (isOpen: boolean) => void }) {
+function MultipleChoiceResults({ question, submissions, students }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: { value: string }[], allowMultipleAnswers?: boolean }); submissions: Submission[], students: Student[] }) {
   const { t } = useI18n();
+  const [isResponsesOpen, setIsResponsesOpen] = useState(true);
   const isTrueFalse = question.type === 'true-false';
   
   const results = useMemo(() => {
@@ -92,7 +88,7 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
   }, [submissions, question.options, question.allowMultipleAnswers, isTrueFalse]);
 
   const studentAnswers = useMemo(() => {
-    const answerMap = new Map<number, string | string[]>();
+    const answerMap = new Map<string, string | string[]>();
     submissions.forEach(sub => {
         answerMap.set(sub.studentId, sub.answer);
     });
@@ -103,7 +99,6 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
 
   return (
     <div className="space-y-6">
-      {/* Aggregate Results */}
       <div>
         <h3 className="mb-4 flex items-center text-lg font-semibold">
           <BarChartIcon className="mr-2 h-5 w-5" /> {t('activePoll.live_results_title')}
@@ -126,9 +121,8 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
         </div>
       </div>
 
-      {/* Individual Student Responses Table */}
       {students.length > 0 && (
-        <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
+        <Collapsible open={isResponsesOpen} onOpenChange={setIsResponsesOpen}>
           <div className="flex items-center justify-between rounded-md border p-2">
             <h3 className="flex items-center text-lg font-semibold">
               <Users className="mr-2 h-5 w-5" /> {t('activePoll.student_responses_title')}
@@ -189,8 +183,9 @@ function MultipleChoiceResults({ question, submissions, students, isResponsesOpe
   );
 }
 
-function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }: ResultsProps) {
+function TextResponseResults({ submissions }: ResultsProps) {
     const { t } = useI18n();
+    const [isResponsesOpen, setIsResponsesOpen] = useState(true);
     const [isAnalyzing, startTransition] = useTransition();
     const [analysis, setAnalysis] = useState<AnalyzeShortAnswersOutput | null>(null);
     const { toast } = useToast();
@@ -220,6 +215,11 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
             }
         });
     };
+    
+    useEffect(() => {
+        // Reset analysis when submissions change
+        setAnalysis(null);
+    }, [submissions]);
 
     if (submissions.length === 0) {
         return <div className="text-center text-muted-foreground py-8">{t('activePoll.waiting_for_submissions')}</div>;
@@ -227,7 +227,7 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
 
     return (
         <div className="space-y-4">
-            <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
+            <Collapsible open={isResponsesOpen} onOpenChange={setIsResponsesOpen}>
                  <div className="flex items-center justify-between rounded-md border p-2 mb-2">
                     <h3 className="flex items-center text-lg font-semibold">
                         <FileText className="mr-2 h-5 w-5" /> {t('activePoll.student_responses_title')}
@@ -242,8 +242,8 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
                 <CollapsibleContent>
                     <ScrollArea className="h-72 w-full rounded-md border p-4">
                         <div className="space-y-4">
-                            {submissions.map((sub, index) => (
-                                <div key={index} className="p-3 bg-muted/50 rounded-md">
+                            {submissions.map((sub) => (
+                                <div key={sub.id} className="p-3 bg-muted/50 rounded-md">
                                     <p className="font-semibold text-sm">{sub.studentName}</p>
                                     <p className="text-foreground">{sub.answer as string}</p>
                                 </div>
@@ -327,8 +327,9 @@ function TextResponseResults({ submissions, isResponsesOpen, onResponsesToggle }
     );
 }
 
-function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: ResultsProps) {
+function DrawingResults({ submissions }: ResultsProps) {
     const { t } = useI18n();
+    const [isResponsesOpen, setIsResponsesOpen] = useState(true);
     const [sliderValue, setSliderValue] = useState(3);
     const gridCols = 6 - sliderValue;
 
@@ -337,7 +338,7 @@ function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: Res
     }
 
     return (
-        <Collapsible open={isResponsesOpen} onOpenChange={onResponsesToggle}>
+        <Collapsible open={isResponsesOpen} onOpenChange={setIsResponsesOpen}>
              <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 rounded-md border p-2 mb-2">
                 <h3 className="flex items-center text-lg font-semibold flex-shrink-0">
                     <ImageIcon className="mr-2 h-5 w-5" /> {t('activePoll.student_drawings_title')}
@@ -368,8 +369,8 @@ function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: Res
                         className="grid gap-4 p-1"
                         style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}
                     >
-                        {submissions.map((sub, index) => (
-                            <Dialog key={index}>
+                        {submissions.map((sub) => (
+                            <Dialog key={sub.id}>
                                 <DialogTrigger asChild>
                                     <Card className="overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all">
                                        <div className="aspect-video w-full bg-muted relative">
@@ -397,7 +398,7 @@ function DrawingResults({ submissions, isResponsesOpen, onResponsesToggle }: Res
     );
 }
 
-function ImageAnnotationResults({ question, submissions, isResponsesOpen, onResponsesToggle }: { question: ImageAnnotationQuestion } & ResultsProps) {
+function ImageAnnotationResults({ question, submissions }: { question: ImageAnnotationQuestion } & ResultsProps) {
     const { t } = useI18n();
     return (
         <div className="space-y-6">
@@ -410,16 +411,16 @@ function ImageAnnotationResults({ question, submissions, isResponsesOpen, onResp
                 </div>
             </div>
             {submissions.length > 0 && <div className="border-t pt-6" />}
-            <DrawingResults submissions={submissions} isResponsesOpen={isResponsesOpen} onResponsesToggle={onResponsesToggle} />
+            <DrawingResults submissions={submissions} />
         </div>
     );
 }
 
-export function ActiveQuestion({ question, onEndQuestion, students, submissions, onSubmissionsChange, isResponsesOpen, onResponsesToggle }: ActiveQuestionProps) {
+export function ActiveQuestion({ question, onEndQuestion, students, submissions }: ActiveQuestionProps) {
     const { t } = useI18n();
 
     const renderResults = () => {
-        const props = { submissions, isResponsesOpen, onResponsesToggle };
+        const props = { submissions };
         switch (question.type) {
             case 'multiple-choice':
                 return <MultipleChoiceResults question={question} students={students} {...props} />;
@@ -476,14 +477,10 @@ function WordCloud({ data }: { data: { text: string; value: number }[] }) {
         return `${size.toFixed(2)}rem`;
     };
 
-    // Create a copy to sort and manipulate
     const sortedData = [...data].sort((a, b) => b.value - a.value);
-    const largestItem = sortedData.shift(); // Takes the largest item out
-    
-    // For a more natural cloud, we can shuffle the rest
+    const largestItem = sortedData.shift();
     const otherItems = sortedData.sort(() => Math.random() - 0.5);
     
-    // Insert the largest item into the middle of the other items
     const middleIndex = Math.floor(otherItems.length / 2);
     if (largestItem) {
         otherItems.splice(middleIndex, 0, largestItem);

@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       auth,
       (user) => {
         setUser(user);
-        setAuthError(null); // Clear error on successful auth state change
+        setAuthError(null); 
         setLoading(false);
       },
       (error: AuthError) => {
@@ -54,16 +54,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // This hook now only runs on pages wrapped by AuthProvider.
-    // It doesn't need to worry about student paths anymore.
     if (loading || authError || !isFirebaseConfigured) return;
 
     const isPublic = publicPaths.includes(pathname);
 
+    // If user is not logged in and not on a public page, redirect to home.
     if (!user && !isPublic) {
       router.push('/');
-    } else if (user && isPublic) {
-      router.push('/dashboard');
     }
   }, [user, loading, pathname, router, authError, isFirebaseConfigured]);
 
@@ -78,6 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await signInWithPopup(auth, googleProvider);
       setAuthError(null);
+      // On successful sign-in, always go to the dashboard.
+      router.push('/dashboard');
     } catch (error) {
       const caughtError = error as AuthError;
       console.error('Google Sign-In failed:', caughtError);

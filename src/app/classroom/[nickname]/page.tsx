@@ -1,6 +1,8 @@
-"use client";
 
-import { useState, use } from "react";
+'use client';
+
+import { useState, useEffect } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,48 +15,51 @@ import { Hourglass, CheckSquare } from "lucide-react";
 import { StudentQuestionForm } from "@/components/student-poll";
 import type { QuestionData } from "@/components/create-poll-form";
 import { useI18n } from "@/lib/i18n/provider";
+import { useClassroom, type Classroom } from "@/contexts/classroom-context";
 
 interface ClassroomPageProps {
   params: {
-    nickname: string;
+    classId: string;
+    studentId: string;
   };
 }
 
 export default function ClassroomPage({ params }: ClassroomPageProps) {
   const { t } = useI18n();
-  // Per Next.js warning, we unwrap the params object which is a promise-like.
-  const resolvedParams = use(params);
-  const studentName = decodeURIComponent(resolvedParams.nickname);
+  const searchParams = useSearchParams();
+  const { listenForClassroom, addSubmission } = useClassroom();
   
+  const classId = params.classId;
+  const studentId = params.studentId;
+  const studentName = searchParams.get('name') || 'Student';
+
+  const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
-  const [hasVoted, setHasVoted] = useState(false);
+  const [lastAnsweredQuestionId, setLastAnsweredQuestionId] = useState<string | null>(null);
 
-  // Moved mock data inside component to use translations
-  const mockMultipleChoice: QuestionData = {
-    type: 'multiple-choice',
-    question: t('classroomPage.mock_mc_question'),
-    options: [
-      { value: t('classroomPage.mock_mc_option1') },
-      { value: t('classroomPage.mock_mc_option2') },
-      { value: t('classroomPage.mock_mc_option3') },
-      { value: t('classroomPage.mock_mc_option4') },
-    ],
-    allowMultipleAnswers: false
-  };
-  const mockTrueFalse: QuestionData = { type: 'true-false', question: t('classroomPage.mock_tf_question') };
-  const mockShortAnswer: QuestionData = { type: 'short-answer', question: t('classroomPage.mock_sa_question') };
-  const mockDrawing: QuestionData = { type: 'drawing', question: t('classroomPage.mock_drawing_question') };
-  const mockImageAnnotation: QuestionData = {
-    type: 'image-annotation',
-    question: t('classroomPage.mock_ia_question'),
-    imageUrl: 'https://placehold.co/600x400.png'
+  useEffect(() => {
+    if (classId) {
+      const unsubscribe = listenForClassroom(classId, (updatedClassroom) => {
+        setClassroom(updatedClassroom);
+        const question = updatedClassroom.activeQuestion ?? null;
+        setActiveQuestion(question);
+        // If question changes, allow student to answer again
+        if (question?.id !== activeQuestion?.id) {
+          setLastAnsweredQuestionId(null);
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, [classId, listenForClassroom, activeQuestion?.id]);
+
+  const handleVoteSubmit = (answer: string | string[]) => {
+    if (activeQuestion && classId && studentId) {
+      addSubmission(classId, (activeQuestion as any).id, studentId, studentName, answer);
+      setLastAnsweredQuestionId((activeQuestion as any).id);
+    }
   };
 
-
-  const handleVoteSubmit = () => {
-    setHasVoted(true);
-    setActiveQuestion(null);
-  };
+  const hasVoted = activeQuestion ? lastAnsweredQuestionId === (activeQuestion as any).id : false;
 
   const renderContent = () => {
     if (activeQuestion && !hasVoted) {
@@ -75,9 +80,6 @@ export default function ClassroomPage({ params }: ClassroomPageProps) {
               {t('classroomPage.submission_received_description')}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button onClick={() => setHasVoted(false)}>{t('classroomPage.answer_another_question_button')}</Button>
-          </CardContent>
         </Card>
       );
     }
@@ -93,18 +95,6 @@ export default function ClassroomPage({ params }: ClassroomPageProps) {
             {t('classroomPage.welcome_description')}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col items-center gap-4">
-          <p className="text-sm text-muted-foreground">
-            {t('classroomPage.demo_prompt')}
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <Button onClick={() => setActiveQuestion(mockMultipleChoice)}>{t('classroomPage.simulate_mc_button')}</Button>
-            <Button onClick={() => setActiveQuestion(mockTrueFalse)}>{t('classroomPage.simulate_tf_button')}</Button>
-            <Button onClick={() => setActiveQuestion(mockShortAnswer)}>{t('classroomPage.simulate_sa_button')}</Button>
-            <Button onClick={() => setActiveQuestion(mockDrawing)}>{t('classroomPage.simulate_drawing_button')}</Button>
-            <Button onClick={() => setActiveQuestion(mockImageAnnotation)}>{t('classroomPage.simulate_annotation_button')}</Button>
-          </div>
-        </CardContent>
       </Card>
     );
   };

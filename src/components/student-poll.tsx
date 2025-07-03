@@ -7,7 +7,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import dynamic from 'next/dynamic';
 import {
-  CheckCircle
+  CheckCircle,
+  Loader2
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,12 @@ const DrawingEditor = dynamic(
   () => import('./drawing-editor').then((mod) => mod.DrawingEditor),
   {
     ssr: false,
-    loading: () => <p>Loading drawing editor...</p>,
+    loading: () => (
+        <div className="flex items-center justify-center w-full border rounded-md aspect-video bg-muted">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="sr-only">Loading drawing editor...</p>
+        </div>
+    )
   }
 );
 
@@ -34,27 +40,31 @@ const DrawingEditor = dynamic(
 // --- Question Answering Forms ---
 interface StudentQuestionFormProps {
   question: QuestionData;
-  onVoteSubmit: () => void;
+  onVoteSubmit: (answer: string | string[]) => void;
 }
 
 const shortAnswerSchema = z.object({ answer: z.string().min(1, { message: "Your answer cannot be empty." }) });
 
-function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQuestion, onSubmit: () => void }) {
+function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQuestion, onSubmit: (answer: string | string[]) => void }) {
     const { t } = useI18n();
     const formSchema = z.object({
         answers: question.allowMultipleAnswers
             ? z.array(z.string()).nonempty("Please select at least one option.")
-            : z.array(z.string()).length(1, "Please select an answer."),
+            : z.string().min(1, "Please select an answer."),
     });
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: { answers: [] },
+        defaultValues: { answers: question.allowMultipleAnswers ? [] : "" },
     });
+
+    const handleSubmit = (data: z.infer<typeof formSchema>) => {
+        onSubmit(data.answers);
+    };
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
                 <FormField
                     control={form.control}
                     name="answers"
@@ -62,23 +72,23 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
                         <FormItem className="space-y-3">
                             <FormLabel>{question.allowMultipleAnswers ? t('studentPoll.choose_your_answers') : t('studentPoll.choose_your_answer')}</FormLabel>
                             <FormControl>
-                                <div className="flex flex-col space-y-2">
-                                    {question.allowMultipleAnswers ? (
-                                        question.options.map((option, index) => {
+                                {question.allowMultipleAnswers ? (
+                                    <div className="flex flex-col space-y-2">
+                                        {question.options.map((option, index) => {
                                             const letter = String.fromCharCode(65 + index);
                                             const displayValue = option.value ? `${letter}. ${option.value}` : letter;
                                             const submittedValue = option.value || letter;
                                             return (
                                                 <Label key={`${submittedValue}-${index}`} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[button[data-state=checked]]:bg-primary/10 has-[button[data-state=checked]]:border-primary">
                                                     <Checkbox
-                                                        checked={field.value?.includes(submittedValue)}
+                                                        checked={(field.value as string[]).includes(submittedValue)}
                                                         onCheckedChange={(checked) => {
-                                                            const newAnswers = field.value || [];
+                                                            const currentAnswers = (field.value as string[]) || [];
                                                             if (checked) {
-                                                                field.onChange([...newAnswers, submittedValue]);
+                                                                field.onChange([...currentAnswers, submittedValue]);
                                                             } else {
                                                                 field.onChange(
-                                                                    newAnswers.filter((value) => value !== submittedValue)
+                                                                    currentAnswers.filter((value) => value !== submittedValue)
                                                                 );
                                                             }
                                                         }}
@@ -86,27 +96,27 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
                                                     <span>{displayValue}</span>
                                                 </Label>
                                             );
-                                        })
-                                    ) : (
-                                        <RadioGroup
-                                            onValueChange={(value) => field.onChange([value])}
-                                            defaultValue={field.value?.[0]}
-                                            className="w-full space-y-2"
-                                        >
-                                            {question.options.map((option, index) => {
-                                                const letter = String.fromCharCode(65 + index);
-                                                const displayValue = option.value ? `${letter}. ${option.value}` : letter;
-                                                const submittedValue = option.value || letter;
-                                                return (
-                                                    <Label key={`${submittedValue}-${index}`} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
-                                                        <RadioGroupItem value={submittedValue} />
-                                                        <span>{displayValue}</span>
-                                                    </Label>
-                                                );
-                                            })}
-                                        </RadioGroup>
-                                    )}
-                                </div>
+                                        })}
+                                    </div>
+                                ) : (
+                                    <RadioGroup
+                                        onValueChange={field.onChange}
+                                        defaultValue={field.value as string}
+                                        className="w-full space-y-2"
+                                    >
+                                        {question.options.map((option, index) => {
+                                            const letter = String.fromCharCode(65 + index);
+                                            const displayValue = option.value ? `${letter}. ${option.value}` : letter;
+                                            const submittedValue = option.value || letter;
+                                            return (
+                                                <Label key={`${submittedValue}-${index}`} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
+                                                    <RadioGroupItem value={submittedValue} />
+                                                    <span>{displayValue}</span>
+                                                </Label>
+                                            );
+                                        })}
+                                    </RadioGroup>
+                                )}
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -121,23 +131,26 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
     );
 }
 
-function TrueFalseForm({ onSubmit }: { onSubmit: () => void }) {
+function TrueFalseForm({ onSubmit }: { onSubmit: (answer: string) => void }) {
     return (
         <div className="flex justify-around gap-4 pt-4">
-            <Button onClick={onSubmit} className="w-1/2 h-24 text-6xl font-bold" variant="outline">
+            <Button onClick={() => onSubmit("O")} className="w-1/2 h-24 text-6xl font-bold" variant="outline">
                 O
             </Button>
-            <Button onClick={onSubmit} className="w-1/2 h-24 text-6xl font-bold" variant="destructive">
+            <Button onClick={() => onSubmit("X")} className="w-1/2 h-24 text-6xl font-bold" variant="destructive">
                 X
             </Button>
         </div>
     );
 }
 
-function ShortAnswerForm({ onSubmit }: { onSubmit: () => void }) {
+function ShortAnswerForm({ onSubmit }: { onSubmit: (answer: string) => void }) {
     const { t } = useI18n();
     const form = useForm<z.infer<typeof shortAnswerSchema>>({ resolver: zodResolver(shortAnswerSchema), defaultValues: { answer: "" } });
-    return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><FormField control={form.control} name="answer" render={({ field }) => (<FormItem><FormLabel>{t('studentPoll.your_answer_label')}</FormLabel><FormControl><Textarea placeholder={t('studentPoll.your_answer_placeholder')} {...field} rows={4} /></FormControl><FormMessage /></FormItem>)} /><Button type="submit" className="w-full">{t('studentPoll.submit_answer_button')}</Button></form></Form>);
+    const handleSubmit = (data: z.infer<typeof shortAnswerSchema>) => {
+        onSubmit(data.answer);
+    };
+    return (<Form {...form}><form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6"><FormField control={form.control} name="answer" render={({ field }) => (<FormItem><FormLabel>{t('studentPoll.your_answer_label')}</FormLabel><FormControl><Textarea placeholder={t('studentPoll.your_answer_placeholder')} {...field} rows={4} /></FormControl><FormMessage /></FormItem>)} /><Button type="submit" className="w-full">{t('studentPoll.submit_answer_button')}</Button></form></Form>);
 }
 
 function CanvasSubmissionForm({
@@ -173,24 +186,18 @@ export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionF
   const { toast } = useToast();
   const { t } = useI18n();
 
-  function handleSubmit() {
-    onVoteSubmit();
+  function handleSubmit(answer: string | string[]) {
+    onVoteSubmit(answer);
     toast({ title: t('studentPoll.toast_submitted_title'), description: t('studentPoll.toast_submitted_description') });
-  }
-
-  function handleDrawingSubmit(dataUrl: string) {
-    // In a real app, you would upload the dataUrl to a server
-    console.log("Drawing/Annotation submitted:", dataUrl.substring(0, 50) + "...");
-    handleSubmit();
   }
 
   const renderForm = () => {
       switch(question.type) {
           case 'multiple-choice': return <MultipleChoiceForm question={question} onSubmit={handleSubmit} />;
-          case 'true-false': return <TrueFalseForm onSubmit={handleSubmit} />;
-          case 'short-answer': return <ShortAnswerForm onSubmit={handleSubmit} />;
-          case 'drawing': return <CanvasSubmissionForm onSubmit={handleDrawingSubmit} />;
-          case 'image-annotation': return <CanvasSubmissionForm onSubmit={handleDrawingSubmit} backgroundImageUrl={question.imageUrl} />;
+          case 'true-false': return <TrueFalseForm onSubmit={(answer) => handleSubmit(answer)} />;
+          case 'short-answer': return <ShortAnswerForm onSubmit={(answer) => handleSubmit(answer)} />;
+          case 'drawing': return <CanvasSubmissionForm onSubmit={handleSubmit} />;
+          case 'image-annotation': return <CanvasSubmissionForm onSubmit={handleSubmit} backgroundImageUrl={question.imageUrl} />;
           default: return <p>{t('studentPoll.unknown_question_type')}</p>;
       }
   }

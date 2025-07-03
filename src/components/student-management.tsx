@@ -69,81 +69,39 @@ export function StudentManagement({ classroom }: StudentManagementProps) {
   const [isImportDialogOpen, setImportDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  const handleFirestoreError = (error: any, action: 'add' | 'update' | 'delete' | 'import') => {
-    console.error(`Error ${action}ing student(s):`, error);
-    if (error.message === 'firestore-permission-denied') {
-      toast({
-        variant: "destructive",
-        duration: 10000,
-        title: t('firebase.firestore_permission_denied_title'),
-        description: (
-            <div>
-              <p>{t('firebase.firestore_permission_denied_description')}</p>
-              <a 
-                href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/firestore/rules`} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="font-bold underline text-destructive-foreground"
-              >
-                {t('firebase.firestore_permission_denied_button')}
-              </a>
-            </div>
-        )
-      });
-    } else {
-        toast({
-            variant: "destructive",
-            title: t('common.error'),
-            description: `Could not ${action} student(s). Please try again.`
-        });
-    }
-  }
-
   const handleAdd = async () => {
     if (newStudentName.trim()) {
-      try {
-        const name = newStudentName.trim();
-        await addStudent(classroom.id, name);
-        setNewStudentName('');
-        setAddDialogOpen(false);
-        toast({ 
-          title: t('studentManagement.toast_student_added_title'), 
-          description: t('studentManagement.toast_student_added_description', { name }) 
-        });
-      } catch (error) {
-        handleFirestoreError(error, 'add');
-      }
+      const name = newStudentName.trim();
+      await addStudent(classroom.id, name);
+      setNewStudentName('');
+      setAddDialogOpen(false);
+      toast({ 
+        title: t('studentManagement.toast_student_added_title'), 
+        description: t('studentManagement.toast_student_added_description', { name }) 
+      });
     }
   };
 
   const handleUpdate = async () => {
     if (editingStudent && editingStudent.name.trim()) {
-      try {
-        await updateStudent(classroom.id, editingStudent.id, editingStudent.name.trim());
-        setEditingStudent(null);
-        setEditDialogOpen(false);
-        toast({ 
-          title: t('studentManagement.toast_student_updated_title'), 
-          description: t('studentManagement.toast_student_updated_description') 
-        });
-      } catch (error) {
-        handleFirestoreError(error, 'update');
-      }
+      await updateStudent(classroom.id, editingStudent.id, editingStudent.name.trim());
+      setEditingStudent(null);
+      setEditDialogOpen(false);
+      toast({ 
+        title: t('studentManagement.toast_student_updated_title'), 
+        description: t('studentManagement.toast_student_updated_description') 
+      });
     }
   };
 
   const handleDelete = async (studentId: string) => {
-    try {
-      await deleteStudent(classroom.id, studentId);
       const studentName = classroom.students.find(s => s.id === studentId)?.name || 'The student';
+      await deleteStudent(classroom.id, studentId);
       toast({
           variant: "destructive",
           title: t('studentManagement.toast_student_deleted_title'),
           description: t('studentManagement.toast_student_deleted_description', { name: studentName }),
       });
-    } catch (error) {
-      handleFirestoreError(error, 'delete');
-    }
   }
 
   const startEditing = (student: Student) => {
@@ -152,16 +110,12 @@ export function StudentManagement({ classroom }: StudentManagementProps) {
   };
   
   const handleImport = async (names: string[]) => {
-    try {
       await importStudents(classroom.id, names);
       setImportDialogOpen(false);
       toast({
           title: t('dashboard.toast_students_imported_title'),
           description: t('dashboard.toast_students_imported_description', {count: names.length}),
       });
-    } catch (error) {
-      handleFirestoreError(error, 'import');
-    }
   }
 
   return (
@@ -172,7 +126,7 @@ export function StudentManagement({ classroom }: StudentManagementProps) {
               <CardTitle>{t('studentManagement.roster_card_title')}</CardTitle>
               <CardDescription className="flex items-center gap-2 mt-1">
                 <Users className="h-4 w-4" />
-                {t('teacherDashboard.responses_count', { submissionsCount: classroom.students.length, studentsCount: classroom.students.length })}
+                {t('studentManagement.roster_student_count', { count: classroom.students.length })}
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -251,7 +205,7 @@ function StudentTable({ students, onEdit, onDelete }: { students: Student[], onE
     const { t } = useI18n();
 
     if (students.length === 0) {
-        return <div className="text-center text-sm text-muted-foreground p-8 border-2 border-dashed rounded-lg">{t('studentManagement.no_students_logged_in_message')}</div>
+        return <div className="text-center text-sm text-muted-foreground p-8 border-2 border-dashed rounded-lg">{t('studentManagement.no_students_in_roster')}</div>
     }
     return (
         <div className="border rounded-md">

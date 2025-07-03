@@ -1,22 +1,15 @@
 
 'use client';
 
-import { usePathname } from 'next/navigation';
 import { AuthProvider } from '@/contexts/auth-context';
 import { ClassroomProvider } from '@/contexts/classroom-context';
 
-const studentPaths = ['/join', '/classroom'];
-
 export function Providers({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const isStudentPath = studentPaths.some(p => pathname.startsWith(p));
-
-  if (isStudentPath) {
-    // Student pages don't need Auth or Classroom context
-    return <>{children}</>;
-  }
-
-  // Teacher/dashboard pages get the full context
+  // All pages are now wrapped by the providers.
+  // The AuthProvider will handle redirecting unauthenticated users
+  // from protected pages. Student pages are now also "protected"
+  // in the sense that they are accessed via a simulation flow
+  // by an authenticated teacher.
   return (
     <AuthProvider>
       <ClassroomProvider>

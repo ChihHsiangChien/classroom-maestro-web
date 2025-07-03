@@ -19,21 +19,21 @@ import { LotteryModal } from "@/components/lottery-modal";
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom } from "@/contexts/classroom-context";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ArrowLeft, PanelLeftClose, PanelLeftOpen, Eye } from "lucide-react";
 import { ManagementPanel } from "@/components/management-panel";
 import { cn } from "@/lib/utils";
+
+// Add a unique ID to the QuestionData type
+type QuestionDataWithId = QuestionData & { id: string };
 
 export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { activeClassroom } = useClassroom();
+  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions } = useClassroom();
   const { toast } = useToast();
 
-  const [activeQuestion, setActiveQuestion] = useState<QuestionData | null>(null);
+  const [activeQuestion, setActiveQuestion] = useState<QuestionDataWithId | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [openSections, setOpenSections] = useState({
-    responses: true,
-  });
   const [lotteryStudent, setLotteryStudent] = useState<(Student & { submission?: Submission }) | null>(null);
   const [excludePicked, setExcludePicked] = useState(true);
   const [pickedStudentIds, setPickedStudentIds] = useState<string[]>([]);
@@ -53,21 +53,34 @@ export default function ActivityPage() {
     }
   }, [activeClassroom]);
 
-  const handleToggleSection = (section: keyof typeof openSections) => {
-    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
-  };
+  // Listen for submissions in real-time when a question is active
+  useEffect(() => {
+    if (activeQuestion && activeClassroom) {
+      const unsubscribe = listenForSubmissions(activeClassroom.id, activeQuestion.id, (newSubmissions) => {
+        setSubmissions(newSubmissions);
+      });
+      return () => unsubscribe();
+    }
+  }, [activeQuestion, activeClassroom, listenForSubmissions]);
 
-  const handleEndQuestion = () => {
+  const handleEndQuestion = async () => {
+    if (activeClassroom) {
+      await setActiveQuestionInDB(activeClassroom.id, null);
+    }
     setActiveQuestion(null);
     setPickedStudentIds([]); // Reset lottery
+    setSubmissions([]);
   };
   
-  const handleQuestionCreate = (question: QuestionData) => {
-    setActiveQuestion(question);
+  const handleQuestionCreate = async (question: QuestionData) => {
+    if (!activeClassroom) return;
+    const newQuestion: QuestionDataWithId = { ...question, id: `q_${Date.now()}` };
+    await setActiveQuestionInDB(activeClassroom.id, newQuestion);
+    setActiveQuestion(newQuestion);
     setSubmissions([]);
-    setPickedStudentIds([]); // Reset lottery for new question
+    setPickedStudentIds([]);
   };
-
+  
   const handlePickStudent = () => {
     if (!activeClassroom || activeClassroom.students.length === 0) {
       return;
@@ -112,6 +125,12 @@ export default function ActivityPage() {
     }
   };
 
+  const openStudentSimulation = () => {
+    if (joinUrl) {
+      window.open(joinUrl, '_blank');
+    }
+  };
+
   if (!activeClassroom) {
       return (
         <div className="flex items-center justify-center h-full">
@@ -123,7 +142,7 @@ export default function ActivityPage() {
   return (
     <>
       <div className="mx-auto w-full max-w-full">
-        <header className="mb-6 flex items-center justify-between">
+        <header className="mb-6 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-4">
             <Button variant="outline" size="icon" onClick={() => router.push('/dashboard')}>
               <ArrowLeft />
@@ -136,9 +155,15 @@ export default function ActivityPage() {
               <p className="text-muted-foreground">{t('teacherDashboard.title')}</p>
             </div>
           </div>
-          <Button variant="outline" onClick={handlePickStudent} disabled={activeClassroom.students.length === 0}>
-            {t('studentManagement.lottery_button')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={openStudentSimulation}>
+              <Eye className="mr-2 h-4 w-4" />
+              Simulate Student View
+            </Button>
+            <Button variant="outline" onClick={handlePickStudent} disabled={activeClassroom.students.length === 0}>
+              {t('studentManagement.lottery_button')}
+            </Button>
+          </div>
         </header>
 
         <div className="flex flex-col lg:flex-row items-start gap-8">
@@ -175,9 +200,6 @@ export default function ActivityPage() {
                   onEndQuestion={handleEndQuestion}
                   students={activeClassroom.students}
                   submissions={submissions}
-                  onSubmissionsChange={setSubmissions}
-                  isResponsesOpen={openSections.responses}
-                  onResponsesToggle={() => handleToggleSection('responses')}
                 />
               )}
             </main>

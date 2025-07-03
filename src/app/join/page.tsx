@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { School, User, AlertTriangle } from 'lucide-react';
 import {
   Card,
@@ -27,6 +27,7 @@ import { doc, getDoc } from 'firebase/firestore';
 function JoinPageContent() {
   const { t } = useI18n();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,7 +47,7 @@ function JoinPageContent() {
                   setClassroom({
                       id: classroomSnap.id,
                       name: classroomData.name,
-                      students: classroomData.students,
+                      students: classroomData.students || [],
                       ownerId: classroomData.ownerId,
                   });
               } else {
@@ -72,8 +73,10 @@ function JoinPageContent() {
   }, [searchParams, t]);
 
   const handleStudentClick = (student: Student) => {
-    const url = `/classroom/${encodeURIComponent(student.name)}`;
-    window.location.href = url;
+    if (!classroom) return;
+    const url = `/classroom/${classroom.id}/${student.id}?name=${encodeURIComponent(student.name)}`;
+    // Using router.push for client-side navigation within the app
+    router.push(url);
   };
 
   if (loading) {
@@ -102,11 +105,24 @@ function JoinPageContent() {
     )
   }
 
-  if (!classroom || classroom.students.length === 0) {
-    return (
+  if (!classroom) {
+     return (
        <Card className="w-full max-w-md shadow-lg">
          <CardHeader>
-            <CardTitle>{classroom?.name || t('joinPage.title')}</CardTitle>
+            <CardTitle>{t('joinPage.title')}</CardTitle>
+         </CardHeader>
+         <CardContent>
+            <p className="text-center text-muted-foreground">{t('common.loading')}</p>
+         </CardContent>
+       </Card>
+    )
+  }
+  
+  if (classroom.students.length === 0) {
+      return (
+       <Card className="w-full max-w-md shadow-lg">
+         <CardHeader>
+            <CardTitle>{classroom.name}</CardTitle>
          </CardHeader>
          <CardContent>
             <p className="text-center text-muted-foreground">{t('joinPage.no_students_error')}</p>
