@@ -146,10 +146,12 @@ function JoinPageContent() {
               {classroom.students.map((student) => (
                 <TableRow
                   key={student.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleStudentClick(student)}
+                  className="hover:bg-muted/50"
                 >
-                  <TableCell className="flex items-center gap-4 p-4">
+                  <TableCell
+                    className="flex items-center gap-4 p-4 cursor-pointer"
+                    onClick={() => handleStudentClick(student)}
+                  >
                     <User className="h-5 w-5 text-muted-foreground" />
                     <span className="font-medium">{student.name}</span>
                   </TableCell>
