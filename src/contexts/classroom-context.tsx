@@ -275,12 +275,19 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
 
   const updateStudentPresence = useCallback(async (classroomId: string, studentId: string, isOnline: boolean) => {
     if (!db || !classroomId || !studentId) return;
-    const classroom = classroomsRef.current.find(c => c.id === classroomId);
-    if (!classroom) return;
     
     try {
         const classroomRef = doc(db, 'classrooms', classroomId);
-        const updatedStudents = classroom.students.map(s =>
+        const classroomSnap = await getDoc(classroomRef);
+
+        if (!classroomSnap.exists()) {
+            console.error("Classroom not found for presence update:", classroomId);
+            return;
+        }
+
+        const classroomData = classroomSnap.data();
+        
+        const updatedStudents = (classroomData.students || []).map((s: Student) =>
             s.id === studentId ? { ...s, isOnline, lastSeen: Timestamp.now() } : s
         );
         await updateDoc(classroomRef, { students: updatedStudents });
@@ -307,11 +314,16 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
 
   const acknowledgeKick = useCallback(async (classroomId: string, studentId: string) => {
       if (!db || !classroomId || !studentId) return;
-      const classroom = classroomsRef.current.find(c => c.id === classroomId);
-      if (!classroom) return;
       try {
           const classroomRef = doc(db, 'classrooms', classroomId);
-          const updatedStudents = classroom.students.map(s =>
+          const classroomSnap = await getDoc(classroomRef);
+
+          if (!classroomSnap.exists()) {
+              console.error("Classroom not found for kick acknowledgement:", classroomId);
+              return;
+          }
+          const classroomData = classroomSnap.data();
+          const updatedStudents = (classroomData.students || []).map((s: Student) =>
               s.id === studentId ? { ...s, forceLogout: false } : s
           );
           await updateDoc(classroomRef, { students: updatedStudents });
