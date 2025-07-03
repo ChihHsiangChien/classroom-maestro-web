@@ -3,7 +3,7 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { useClassroom, type Student } from '@/contexts/classroom-context';
+import { useClassroom } from '@/contexts/classroom-context';
 import type { QuestionData } from '@/components/create-poll-form';
 import { StudentQuestionForm } from '@/components/student-poll';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ function ClassroomPageContent() {
     const params = useParams();
     const searchParams = useSearchParams();
     const router = useRouter();
-    const { listenForClassroom, addSubmission, updateStudentPresence, acknowledgeKick } = useClassroom();
+    const { listenForClassroom, listenForStudentPresence, addSubmission, updateStudentPresence, acknowledgeKick } = useClassroom();
 
     const classroomId = params.nickname as string;
     const studentId = searchParams.get('studentId');
@@ -26,6 +26,7 @@ function ClassroomPageContent() {
     const [activeQuestion, setActiveQuestion] = useState<(QuestionData & { id: string }) | null>(null);
     const [submittedQuestionId, setSubmittedQuestionId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [kicked, setKicked] = useState(false);
 
     // This effect handles student presence (online status)
     useEffect(() => {
@@ -65,28 +66,50 @@ function ClassroomPageContent() {
     }, [classroomId, studentId, updateStudentPresence]);
 
 
+    // Listen for classroom-level changes (like the active question)
     useEffect(() => {
         if (!classroomId) return;
 
         setLoading(true);
         const unsubscribe = listenForClassroom(classroomId, (classroom) => {
+            if (!classroom) {
+                setLoading(false);
+                return;
+            };
+
             const currentQuestion = classroom.activeQuestion;
             if (currentQuestion && activeQuestion?.id !== currentQuestion.id) {
                 setSubmittedQuestionId(null);
             }
             setActiveQuestion(currentQuestion);
 
-            const me = classroom.students?.find(s => s.id === studentId);
-            if (me?.forceLogout) {
-                acknowledgeKick(classroomId, studentId);
-                router.push(`/join?classId=${classroomId}`);
-            }
-
             setLoading(false);
         });
 
         return () => unsubscribe();
-    }, [classroomId, listenForClassroom, activeQuestion?.id, studentId, router, acknowledgeKick]);
+    }, [classroomId, listenForClassroom, activeQuestion?.id]);
+
+    // Listen for student-specific changes (like being kicked)
+    useEffect(() => {
+        if (!classroomId || !studentId) return;
+
+        const unsubscribe = listenForStudentPresence(classroomId, studentId, (presence) => {
+            if (presence?.forceLogout) {
+                setKicked(true);
+            }
+        });
+
+        return () => unsubscribe();
+    }, [classroomId, studentId, listenForStudentPresence]);
+
+    // Effect to handle the kick redirection
+    useEffect(() => {
+        if (kicked && classroomId && studentId) {
+            acknowledgeKick(classroomId, studentId);
+            router.push(`/join?classId=${classroomId}`);
+        }
+    }, [kicked, classroomId, studentId, acknowledgeKick, router]);
+
 
     const handleVoteSubmit = async (answer: string | string[]) => {
         if (!classroomId || !studentId || !activeQuestion) return;
