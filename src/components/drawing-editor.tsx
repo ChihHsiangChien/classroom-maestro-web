@@ -131,10 +131,15 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
         if (!canvas || !backgroundImageUrl) return;
 
         fabric.Image.fromURL(backgroundImageUrl, (img) => {
-            if (canvas.width && img.width && canvas.height && img.height) {
-                canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
-                    scaleX: canvas.width / img.width,
-                    scaleY: canvas.height / img.height,
+            const currentCanvas = fabricCanvasRef.current;
+            // Guard against the component being unmounted before the image loads.
+            if (!currentCanvas) {
+                return;
+            }
+            if (currentCanvas.width && img.width && currentCanvas.height && img.height) {
+                currentCanvas.setBackgroundImage(img, currentCanvas.renderAll.bind(currentCanvas), {
+                    scaleX: currentCanvas.width / img.width,
+                    scaleY: currentCanvas.height / img.height,
                     originX: 'left',
                     originY: 'top',
                 });
@@ -224,8 +229,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
 
     useEffect(() => {
       const handlePaste = (e: ClipboardEvent) => {
-        const canvas = fabricCanvasRef.current;
-        if (!canvas || !e.clipboardData) return;
+        if (!e.clipboardData) return;
 
         const items = e.clipboardData.items;
         for (let i = 0; i < items.length; i++) {
@@ -237,12 +241,14 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
               reader.onload = (event) => {
                 const dataUrl = event.target?.result as string;
                 fabric.Image.fromURL(dataUrl, (img) => {
+                  const currentCanvas = fabricCanvasRef.current;
+                  if (!currentCanvas) return; // Guard
                   setTool('select');
-                  img.scaleToWidth((canvas.getWidth() || 500) / 2);
-                  canvas.add(img);
-                  canvas.centerObject(img);
-                  canvas.setActiveObject(img);
-                  canvas.renderAll();
+                  img.scaleToWidth((currentCanvas.getWidth() || 500) / 2);
+                  currentCanvas.add(img);
+                  currentCanvas.centerObject(img);
+                  currentCanvas.setActiveObject(img);
+                  currentCanvas.renderAll();
                   toast({ 
                     title: t('drawingEditor.toast_image_pasted_title'), 
                     description: t('drawingEditor.toast_image_pasted_description') 
@@ -286,7 +292,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
         const data = f.target?.result as string;
         fabric.Image.fromURL(data, (img) => {
           const canvas = fabricCanvasRef.current;
-          if (!canvas) return;
+          if (!canvas) return; // Guard
           setTool('select');
           img.scaleToWidth((canvas.getWidth() || 500) / 2);
           canvas.add(img);
@@ -300,9 +306,8 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
     };
 
     const captureFromCamera = () => {
-      const canvas = fabricCanvasRef.current;
       const video = videoRef.current;
-      if (!canvas || !video || !hasCameraPermission) return;
+      if (!video || !hasCameraPermission) return;
 
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = video.videoWidth;
@@ -310,12 +315,14 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
       tempCanvas.getContext('2d')?.drawImage(video, 0, 0);
 
       fabric.Image.fromURL(tempCanvas.toDataURL(), (img) => {
+        const currentCanvas = fabricCanvasRef.current;
+        if (!currentCanvas) return; // Guard
         setTool('select');
-        img.scaleToWidth((canvas.getWidth() || 500) / 2);
-        canvas.add(img);
-        canvas.centerObject(img);
-        canvas.setActiveObject(img);
-        canvas.renderAll();
+        img.scaleToWidth((currentCanvas.getWidth() || 500) / 2);
+        currentCanvas.add(img);
+        currentCanvas.centerObject(img);
+        currentCanvas.setActiveObject(img);
+        currentCanvas.renderAll();
       });
       setIsCameraDialogOpen(false);
     };
