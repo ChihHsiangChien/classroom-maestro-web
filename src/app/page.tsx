@@ -22,8 +22,9 @@ export default function Home() {
     }
   }, [user, loading, router]);
 
-  const handleLogin = async () => {
-    await signInWithGoogle();
+  const handleLogin = () => {
+    // This is now a simple, synchronous call from the button's perspective
+    signInWithGoogle();
   };
   
   const getHostname = () => typeof window !== 'undefined' ? window.location.hostname : '';

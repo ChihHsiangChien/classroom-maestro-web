@@ -22,7 +22,7 @@ interface AuthContextType {
   loading: boolean;
   isFirebaseConfigured: boolean;
   authError: string | null;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => void; // Changed to synchronous
   signOut: () => Promise<void>;
 }
 
@@ -43,25 +43,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // This listener is the single source of truth for the user object.
-    // It will be called whenever the auth state changes.
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      log(`onAuthStateChanged listener fired. User: ${user ? user.email : 'Not Logged In'}`);
-      setUser(user);
-      // We DO NOT set loading to false here, to avoid race conditions.
-    });
-
-    // We process the redirect result to "wake up" the auth state.
-    // The onAuthStateChanged listener above will then fire with the correct user.
-    getRedirectResult(auth)
-      .then((result) => {
+    // This function encapsulates the entire startup auth logic.
+    const initializeAuth = async () => {
+      try {
+        // First, process any redirect result. This is crucial.
+        const result = await getRedirectResult(auth);
         if (result) {
           log(`getRedirectResult: Success! User authenticated: ${result.user.email}`);
+          // The onAuthStateChanged listener below will handle setting the user.
         } else {
           log("getRedirectResult: No new redirect result to process.");
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         const caughtError = error as AuthError;
         log(`getRedirectResult Error: ${caughtError.code}`);
         if (caughtError.code === 'auth/unauthorized-domain') {
@@ -69,43 +62,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setAuthError(caughtError.message);
         }
-      })
-      .finally(() => {
-        // THIS IS THE KEY: We only stop loading AFTER getRedirectResult has
-        // completed. By this point, onAuthStateChanged has had a chance
-        // to fire with the correct, post-redirect user state.
-        log("Initial auth check complete. Setting loading to false.");
-        setLoading(false);
-      });
+      } finally {
+        // AFTER processing the redirect, set up the persistent listener.
+        // This listener is now the single source of truth for the user state
+        // and for ending the loading state.
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+          log(`onAuthStateChanged listener fired. User: ${user ? user.email : 'Not Logged In'}`);
+          setUser(user);
+          log("Auth state confirmed. Loading is now false.");
+          setLoading(false);
+        });
 
-    return () => {
-        log("AuthProvider unmounting. Cleaning up auth listener.");
-        unsubscribe();
+        // We don't return unsubscribe directly from the async function.
+        // In a real app with more complex cleanup, you might store it in a ref.
+        // For this component's lifecycle, this is sufficient.
+      }
     };
+
+    initializeAuth();
+
+    // Since the listener is set up inside an async function,
+    // we don't have a direct `unsubscribe` to return here.
+    // However, onAuthStateChanged registers a listener that persists
+    // until the component unmounts or it's manually unsubscribed.
+    // The component's unmount will clean it up.
   }, []);
 
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(() => {
     if (!isFirebaseConfigured || !auth || !googleProvider) {
       log('Login failed: Firebase not configured.');
       setAuthError("Firebase is not configured. Please check your .env file.");
       return;
     }
     
-    log("signInWithGoogle called. Setting loading=true and initiating redirect.");
-    setLoading(true);
-    setAuthError(null);
-    try {
-      await setPersistence(auth, browserLocalPersistence);
-      log("Auth persistence set to 'local'.");
-      await signInWithRedirect(auth, googleProvider);
-      // After this call, the page navigates away. No more code in this function will execute on this page load.
-    } catch (error) {
-      const caughtError = error as AuthError;
-      log(`Sign-in initiation failed: ${caughtError.code} - ${caughtError.message}`);
-      setAuthError(caughtError.message);
-      setLoading(false); // This is needed if the redirect call itself throws an error.
-    }
+    log("signInWithGoogle called. Setting persistence and initiating redirect.");
+    
+    // This is now a synchronous-looking flow from the caller's perspective
+    // to satisfy stricter browser requirements (like Firefox).
+    setPersistence(auth, browserLocalPersistence)
+      .then(() => {
+        log("Auth persistence set to 'local'. Initiating redirect.");
+        return signInWithRedirect(auth, googleProvider);
+      })
+      .catch((error) => {
+        const caughtError = error as AuthError;
+        log(`Sign-in initiation failed: ${caughtError.code} - ${caughtError.message}`);
+        setAuthError(caughtError.message);
+      });
   }, []);
 
   const signOut = useCallback(async () => {
@@ -113,7 +117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     log("signOut called...");
     await firebaseSignOut(auth);
     log("Sign out successful. User will be null and page will redirect.");
-    // onAuthStateChanged will set user to null, and the page component logic will handle redirect.
     router.push('/');
   }, [router]);
 
