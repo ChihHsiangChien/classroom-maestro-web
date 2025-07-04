@@ -32,7 +32,7 @@ export const dictionaries = {
       firestore_permission_denied_title: 'Firestore 權限錯誤',
       firestore_permission_denied_description: '您的資料庫安全規則阻止了此操作。',
       firestore_permission_denied_button: '點擊此處修正您的安全規則',
-      firestore_generic_error_description: '無法{action}班級。請再試一次。',
+      firestore_generic_error_description: 'Could not {action} class. Please try again.',
     },
     landingPage: {
       title: 'Classroom Maestro',
@@ -233,7 +233,7 @@ export const dictionaries = {
       url_too_long_for_qr: '教室連結過長，無法生成 QR Code。請直接分享連結。',
       roster_card_title: '班級名冊',
       roster_student_count: '{count} 位學生',
-      lottery_button: '抽籤',
+      lottery_button: '抽人',
       table_header_name: '姓名',
       table_header_actions: '操作',
       no_students_in_roster: '此班級名冊中沒有學生。',
