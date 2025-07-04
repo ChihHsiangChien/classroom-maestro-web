@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -19,11 +20,13 @@ export function StudentRace({ race, studentId, onClaim }: StudentRaceProps) {
     const [buttonState, setButtonState] = useState<'countdown' | 'active' | 'claiming' | 'won' | 'lost' | 'finished'>('countdown');
 
     useEffect(() => {
+        // If the race is finished, determine the final state (won or just finished for spectators)
         if (race.status === 'finished') {
             setButtonState(race.winnerId === studentId ? 'won' : 'finished');
             return;
         }
 
+        // If the race is pending, start the countdown timer.
         if (race.status === 'pending' && race.startTime) {
              const activationTime = race.startTime.toMillis() + 3000;
             const interval = setInterval(() => {
@@ -32,9 +35,9 @@ export function StudentRace({ race, studentId, onClaim }: StudentRaceProps) {
 
                 if (diff <= 0) {
                     setCountdown(0);
-                    if (buttonState === 'countdown') {
-                       setButtonState('active');
-                    }
+                    // Use functional update to ensure we're not working with a stale state.
+                    // This changes the state from 'countdown' to 'active' only once.
+                    setButtonState(current => current === 'countdown' ? 'active' : current);
                     clearInterval(interval);
                 } else {
                     setCountdown(Math.ceil(diff / 1000));
@@ -42,14 +45,14 @@ export function StudentRace({ race, studentId, onClaim }: StudentRaceProps) {
             }, 100);
             return () => clearInterval(interval);
         }
-    }, [race, studentId, buttonState]);
+    }, [race, studentId]);
     
     const handleClaim = async () => {
         if (buttonState !== 'active') return;
         setButtonState('claiming');
         const didWin = await onClaim();
-        // The useEffect will catch the 'finished' status from props and update the UI correctly.
-        // This local state change is just for immediate feedback.
+        // If the claim failed (e.g., another student was faster), set state to 'lost'.
+        // If it succeeded, the useEffect will catch the new 'finished' status from props and set state to 'won'.
         if(!didWin) {
             setButtonState('lost');
         }
