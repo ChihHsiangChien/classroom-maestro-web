@@ -186,6 +186,18 @@ export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionF
   const { toast } = useToast();
   const { t } = useI18n();
 
+  const getTranslatedQuestionType = (type: QuestionData['type']) => {
+    switch (type) {
+      case 'true-false': return t('createQuestionForm.tab_true_false');
+      case 'multiple-choice': return t('createQuestionForm.tab_multiple_choice');
+      case 'short-answer': return t('createQuestionForm.tab_short_answer');
+      case 'drawing': return t('createQuestionForm.tab_drawing');
+      case 'image-annotation': return t('createQuestionForm.tab_annotation');
+      default: return null;
+    }
+  };
+  const translatedQuestionType = getTranslatedQuestionType(question.type);
+
   function handleSubmit(answer: string | string[]) {
     onVoteSubmit(answer);
     toast({ title: t('studentPoll.toast_submitted_title'), description: t('studentPoll.toast_submitted_description') });
@@ -206,7 +218,12 @@ export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionF
     <Card className="w-full max-w-2xl animate-in fade-in shadow-lg">
       <CardHeader>
         <CardTitle className="text-2xl">{question.question}</CardTitle>
-        {(question.type === 'drawing' || question.type === 'image-annotation') && <CardDescription>{t('studentPoll.drawing_description')}</CardDescription>}
+        {translatedQuestionType && (
+            <CardDescription className="font-semibold text-primary">{translatedQuestionType}</CardDescription>
+        )}
+        {(question.type === 'drawing' || question.type === 'image-annotation') && (
+          <CardDescription>{t('studentPoll.drawing_description')}</CardDescription>
+        )}
       </CardHeader>
       <CardContent>{renderForm()}</CardContent>
     </Card>
