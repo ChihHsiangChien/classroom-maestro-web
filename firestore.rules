@@ -2,78 +2,78 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // =================================
-    // Helper Functions
-    // =================================
-    function isAuthed() {
-      return request.auth != null;
-    }
-
-    function isOwner(resource) {
-      return isAuthed() && request.auth.uid == resource.data.ownerId;
-    }
     
+    // Helper function to check for admin status
     function isAdmin() {
-      // To make a user an admin, create a document in the 'admins' collection 
-      // with the document ID set to the user's UID.
-      return isAuthed() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      // Checks if a document for the current user exists in the 'admins' collection.
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // =================================
-    // Admin & User Profile Rules
-    // =================================
-    match /admins/{adminId} {
-      // Only other admins can see or edit the list of admins.
-      allow read, write: if isAdmin();
+    // Rules for the 'users' collection
+    match /users/{userId} {
+      // Admins can read the full list of users for the admin panel.
+      allow list: if isAdmin();
+      
+      // A user can get, create, or update their OWN document. Admins can do this for any user.
+      allow get, write: if request.auth.uid == userId || isAdmin();
+      
+      // Only admins can delete user documents (part of the data deletion process).
+      allow delete: if isAdmin();
     }
     
-    match /users/{userId} {
-      // Authenticated users can create their own user document upon first sign-in.
-      allow create: if isAuthed() && request.auth.uid == userId;
-      // Users can only read/update their own document.
-      allow read, update: if isAuthed() && request.auth.uid == userId;
-      // Admins can list all users for the admin panel and delete them.
-      allow list, delete: if isAdmin();
+    // Rules for the 'admins' collection
+    match /admins/{userId} {
+      // Any authenticated user can attempt to read their own admin doc to check for admin status.
+      allow get: if request.auth.uid != null;
+      
+      // Only admins can see the full list of other admins.
+      allow list: if isAdmin();
+      
+      // Writing/deleting admins should only be done from the Firebase Console.
+      allow write, delete: if false;
     }
 
-    // =================================
-    // Main Classroom Rules
-    // =================================
+    // Rules for 'classrooms' collection and its subcollections
     match /classrooms/{classroomId} {
-      // Create: An authenticated user can create a classroom if they set themselves as the owner.
-      allow create: if isAuthed() && request.resource.data.ownerId == request.auth.uid;
       
-      // Read (get a single document): Anyone can get a single classroom's data.
-      // This is necessary for students on the /join page to get the classroom name and student list.
-      allow get: if true;
+      // This rule handles all read operations (get and list) for classrooms.
+      // It correctly differentiates between students joining and teachers listing their classes.
+      allow read: if 
+        // Rule for GET: Allow any request. This is crucial for unauthenticated students 
+        // who need to fetch classroom details when they join via a link.
+        (request.method == 'get') ||
+        // Rule for LIST: Allow if the user is an admin...
+        isAdmin() || 
+        // ...or if the user is authenticated and is the owner of the documents.
+        // Firestore is smart enough to match the `where("ownerId", "==", uid)` clause 
+        // in the client query against this `resource.data.ownerId == request.auth.uid` condition.
+        (request.auth != null && resource.data.ownerId == request.auth.uid);
 
-      // Read (list multiple documents): 
-      // - An admin can list all classrooms.
-      // - A regular user can only list the classrooms they own.
-      allow list: if isAdmin() || (isAuthed() && request.query.where[0][2] == request.auth.uid);
+      // Allow classroom owners or admins to update and delete.
+      allow update, delete: if (request.auth != null && resource.data.ownerId == request.auth.uid) || isAdmin();
+      
+      // Allow any authenticated user to create a classroom, as long as they set themselves as the owner.
+      // This uses request.resource.data because the document doesn't exist yet before creation.
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
 
-      // Update/Delete: Only the owner or an admin can update/delete the classroom document itself.
-      allow update, delete: if isOwner(resource) || isAdmin();
-
-      // --- SUBCOLLECTION RULES ---
-
-      // Presence subcollection:
-      // This collection tracks the online status of students.
-      // Since students are not authenticated with Firebase Auth, these rules must be public.
-      // This allows the student-facing pages to read the list of online students and
-      // update their own presence status.
-      match /presence/{studentId} {
-        allow read, write: if true;
-      }
-
-      // Submissions subcollection:
-      // This collection stores student answers to questions.
+      // Rules for 'submissions' subcollection
       match /submissions/{submissionId} {
-        // Create: Anyone can create a submission (i.e., answer a question).
-        allow create: if true;
-        // Read/Write: Only the classroom owner or an admin can read, update, or delete submissions.
-        allow read, write: if isOwner(get(/databases/$(database)/documents/classrooms/$(classroomId))) || isAdmin();
+        // Allow classroom owners or admins to read submissions.
+        // Students should not be able to read each other's submissions.
+        allow read: if (request.auth != null && get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid) || isAdmin();
+        
+        // Allow any authenticated user to create a submission.
+        allow create: if request.auth != null;
+        
+        // Disallow updates and deletes on submissions from the client to preserve history.
+        allow update, delete: if false;
+      }
+      
+      // Rules for 'presence' subcollection
+      match /presence/{studentId} {
+        // Allow anyone to read presence data (for student list status).
+        // Allow anyone to update presence data (for students to mark themselves online/offline).
+        allow read, write: if true;
       }
     }
   }
