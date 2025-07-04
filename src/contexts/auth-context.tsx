@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
@@ -56,17 +57,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthError(errorMsg);
       return;
     }
-    setLoading(true);
     setAuthError(null);
     try {
       await setPersistence(auth, browserLocalPersistence);
       await signInWithPopup(auth, googleProvider);
+      // On success, the onAuthStateChanged listener will handle the user state and loading state.
     } catch (error) {
       const caughtError = error as AuthError;
       if (caughtError.code === 'auth/popup-closed-by-user') {
+        // This is a normal user action, not an error to be displayed.
         console.log("Sign-in popup closed by user.");
-        // This is not a real error, so we don't set an error state.
-        // The user just decided not to sign in.
       } else {
         console.error('Google Sign-In failed:', caughtError);
         if (caughtError.code === 'auth/unauthorized-domain' || caughtError.code === 'auth/configuration-not-found') {
@@ -75,10 +75,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuthError(caughtError.message);
         }
       }
-    } finally {
-      // Set loading to false after the attempt, whether it succeeded, failed, or was cancelled.
-      // `onAuthStateChanged` will handle the final state.
-      setLoading(false);
     }
   }, []);
 
