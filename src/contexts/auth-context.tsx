@@ -43,49 +43,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // This async function ensures we await the redirect result before setting the definitive auth state listener.
-    const initializeAuth = async () => {
-      try {
-        // First, process the redirect result. This might sign the user in.
-        const result = await getRedirectResult(auth);
+    // This listener is the single source of truth for the user object.
+    // It will be called whenever the auth state changes.
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      log(`onAuthStateChanged listener fired. User: ${user ? user.email : 'Not Logged In'}`);
+      setUser(user);
+      // We DO NOT set loading to false here, to avoid race conditions.
+    });
+
+    // We process the redirect result to "wake up" the auth state.
+    // The onAuthStateChanged listener above will then fire with the correct user.
+    getRedirectResult(auth)
+      .then((result) => {
         if (result) {
-          log(`Redirect result processed successfully. User: ${result.user.email}`);
+          log(`getRedirectResult: Success! User authenticated: ${result.user.email}`);
         } else {
-          log("No redirect result to process.");
+          log("getRedirectResult: No new redirect result to process.");
         }
-      } catch (error) {
+      })
+      .catch((error) => {
         const caughtError = error as AuthError;
-        log(`Error processing redirect result: ${caughtError.code}`);
+        log(`getRedirectResult Error: ${caughtError.code}`);
         if (caughtError.code === 'auth/unauthorized-domain') {
           setAuthError('unauthorized-domain');
         } else {
           setAuthError(caughtError.message);
         }
-      }
-
-      // After redirect is handled, the onAuthStateChanged listener is the single source of truth.
-      // It will fire with the user from the redirect, a user from a previous session, or null.
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        log(`onAuthStateChanged listener fired. User: ${user?.email ?? 'Not Logged In'}`);
-        setUser(user);
-        
-        // Only now, after we have a definitive user state, do we stop loading.
+      })
+      .finally(() => {
+        // THIS IS THE KEY: We only stop loading AFTER getRedirectResult has
+        // completed. By this point, onAuthStateChanged has had a chance
+        // to fire with the correct, post-redirect user state.
+        log("Initial auth check complete. Setting loading to false.");
         setLoading(false);
-        log("Auth state confirmed. Loading is now false.");
       });
-
-      return unsubscribe;
-    };
-
-    const unsubscribePromise = initializeAuth();
 
     return () => {
-      unsubscribePromise.then(unsubscribe => {
-        if (unsubscribe) {
-          log("AuthProvider unmounting. Cleaning up listener.");
-          unsubscribe();
-        }
-      });
+        log("AuthProvider unmounting. Cleaning up auth listener.");
+        unsubscribe();
     };
   }, []);
 
@@ -97,10 +92,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    log("Initiating Google Sign-In with Redirect...");
+    log("signInWithGoogle called. Setting loading=true and initiating redirect.");
+    setLoading(true);
     setAuthError(null);
     try {
       await setPersistence(auth, browserLocalPersistence);
+      log("Auth persistence set to 'local'.");
       await signInWithRedirect(auth, googleProvider);
       // After this call, the page navigates away. No more code in this function will execute on this page load.
     } catch (error) {
@@ -113,9 +110,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (!isFirebaseConfigured || !auth) return;
-    log("Signing out...");
+    log("signOut called...");
     await firebaseSignOut(auth);
     log("Sign out successful. User will be null and page will redirect.");
+    // onAuthStateChanged will set user to null, and the page component logic will handle redirect.
     router.push('/');
   }, [router]);
 
