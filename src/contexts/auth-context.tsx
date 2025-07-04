@@ -77,11 +77,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthError(errorMsg);
       return;
     }
-    setAuthError(null);
+    
     try {
       // Ensure persistence is set before initiating the redirect.
       await setPersistence(auth, browserLocalPersistence);
-      // We do not set loading to true here to avoid a re-render that can interrupt the redirect.
+      // We do not set loading to true or clear errors here to avoid a re-render that can interrupt the redirect.
       // We also do not await signInWithRedirect, as it navigates away and never resolves.
       signInWithRedirect(auth, googleProvider);
     } catch (error) {
