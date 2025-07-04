@@ -78,16 +78,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     setAuthError(null);
-    setLoading(true); // Indicate that an async action is starting before navigating away.
     try {
+      // Ensure persistence is set before initiating the redirect.
       await setPersistence(auth, browserLocalPersistence);
-      await signInWithRedirect(auth, googleProvider);
-      // The user will be redirected away. The result is handled by the useEffect hook on the next page load.
+      // We do not set loading to true here to avoid a re-render that can interrupt the redirect.
+      // We also do not await signInWithRedirect, as it navigates away and never resolves.
+      signInWithRedirect(auth, googleProvider);
     } catch (error) {
       const caughtError = error as AuthError;
       console.error('Google Sign-In Redirect initiation failed:', caughtError);
       setAuthError(caughtError.message);
-      setLoading(false);
     }
   }, []);
 
