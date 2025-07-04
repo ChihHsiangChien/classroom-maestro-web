@@ -42,7 +42,7 @@ function ClassroomPageContent() {
             if (document.visibilityState === 'visible') {
                 updateStudentPresence(classroomId, studentId, true);
             }
-        }, 30000); // every 30 seconds
+        }, 15000); // every 15 seconds
 
         // When the user leaves, set their status to offline
         const handleBeforeUnload = () => {
@@ -71,7 +71,10 @@ function ClassroomPageContent() {
             };
             
             setIsLocked(classroom.isLocked || false);
-            setActiveRace(classroom.race || null);
+            
+            // Add a key to the race object to force re-render on new race
+            const newRace = classroom.race ? { ...classroom.race, key: classroom.race.id } : null;
+            setActiveRace(newRace);
 
             const currentQuestion = classroom.activeQuestion;
             if (currentQuestion && activeQuestion?.id !== currentQuestion.id) {
@@ -140,7 +143,7 @@ function ClassroomPageContent() {
     }
 
     if (activeRace) {
-        return <StudentRace key={activeRace.id} race={activeRace} studentId={studentId} onClaim={handleClaimRace} />;
+        return <StudentRace key={activeRace.key} race={activeRace} studentId={studentId} onClaim={handleClaimRace} />;
     }
 
     if (activeQuestion && submittedQuestionId !== activeQuestion.id) {
