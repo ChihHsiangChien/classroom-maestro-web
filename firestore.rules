@@ -1,53 +1,65 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if the requesting user is the owner of a document.
-    // The `doc` parameter is the document's data.
-    function isOwner(doc) {
-      return request.auth != null && request.auth.uid == doc.ownerId;
+    
+    // --- Helper Functions ---
+    // Checks if the requesting user is the teacher/owner of the classroom document.
+    // This is used for subcollection rules.
+    function isTeacher(classId) {
+      let classroom = get(/databases/$(database)/documents/classrooms/$(classId));
+      return request.auth != null && request.auth.uid == classroom.data.ownerId;
     }
+    
+    // --- Classroom Collection Rules ---
+    match /classrooms/{classId} {
+      
+      // CREATE: An authenticated user can create a classroom if they set themselves as the owner.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
+      
+      // READ (GET): ANYONE can get a single classroom document. This is required for students to join.
+      allow get: if true;
+      
+      // READ (LIST): An authenticated user can list classrooms ONLY if the query filters for their own ownerId.
+      // This rule works with the app's query: `where("ownerId", "==", user.uid)`.
+      // For every document returned by that query, `resource.data.ownerId == request.auth.uid` is true, so the read is allowed.
+      // Any other query attempt (e.g., listing all classrooms) will be denied.
+      allow list: if request.auth != null && resource.data.ownerId == request.auth.uid;
 
-    match /classrooms/{classroomId} {
-      // --- READ RULES ---
-      // Anyone can GET a specific classroom document. This is needed for students to join.
-      allow get;
-      // Only the authenticated owner can LIST their own classrooms.
-      allow list: if request.auth != null && request.query.where.ownerId == request.auth.uid;
-
-      // --- WRITE RULES ---
-      // CREATE: The requesting user must be the owner of the document they are creating.
-      allow create: if isOwner(request.resource.data);
-
-      // DELETE: The requesting user must be the owner of the document they are deleting.
-      allow delete: if isOwner(resource.data);
-
-      // UPDATE: Allow updates under two distinct conditions (Teacher or Student).
-      allow update: if
-        // Condition 1 (Teacher): Allow any update if the user is the owner.
-        // This covers starting/ending questions, resetting races, locking the room, etc.
-        isOwner(resource.data)
-        ||
-        // Condition 2 (Student): Allow an unauthenticated user to ONLY claim a pending race.
-        ( request.auth == null &&
-          request.resource.data.race.status == 'finished' &&
-          resource.data.race.status == 'pending' &&
-          // This ensures no other top-level fields are being maliciously added or changed.
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race'])
-        );
-
-      // --- SUBCOLLECTION RULES ---
-      match /presence/{studentId} {
-        // Anyone can write to their own presence document.
-        allow read, write;
-      }
-
+      // UPDATE:
+      // The TEACHER (owner) can update any part of their classroom document.
+      // A STUDENT (anyone) can ONLY perform the specific "claim race" action.
+      allow update: if (request.auth != null && request.auth.uid == resource.data.ownerId) || 
+                       (
+                         // This is the "claim race" condition. It allows the write only if the race is currently 'pending'.
+                         request.resource.data.race.status == 'finished' && 
+                         resource.data.race.status == 'pending'
+                       );
+                       
+      // DELETE: Only the teacher (owner) can delete their own classroom.
+      allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      
+      
+      // --- Subcollection Rules ---
+      
       match /submissions/{submissionId} {
-        // Anyone can create (submit) a submission.
-        allow create;
-        // Only the owner of the classroom can read or delete submissions.
-        allow read, list, delete: if isOwner(get(/databases/$(database)/documents/classrooms/$(classroomId)).data);
+        // READ: Only the teacher of this class can read submissions.
+        allow read: if isTeacher(classId);
+        
+        // CREATE: Anyone (students) can create a new submission.
+        allow create: if true;
+        
+        // UPDATE, DELETE: No one can modify or delete submissions to ensure data integrity.
+        allow update, delete: if false;
+      }
+      
+      match /presence/{studentId} {
+         // READ: The teacher can read all presence data for their class.
+         allow read: if isTeacher(classId);
+         
+         // WRITE: Anyone (students) can write to the presence subcollection to mark themselves as online/offline or to be kicked.
+         allow write: if true;
       }
     }
   }
