@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function Home() {
   const { t } = useI18n();
-  const { user, loading, isSigningIn, signInWithGoogle, isFirebaseConfigured, authError } = useAuth();
+  const { user, loading, signInWithGoogle, isFirebaseConfigured, authError } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -22,6 +22,8 @@ export default function Home() {
   }, [user, loading, router]);
 
   const handleLogin = async () => {
+    // signInWithGoogle now triggers a redirect, so the page will reload.
+    // The loading state is handled within the AuthProvider.
     await signInWithGoogle();
   };
   
@@ -34,45 +36,17 @@ export default function Home() {
     );
   }
 
+  // Display a generic error if something went wrong during redirect
   if (authError) {
-     const isAuthDomainError = authError === 'unauthorized-domain';
-     // We get the hostname directly here, only when needed. No useState, no useEffect.
-     const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-
      return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
         <div className="max-w-xl w-full space-y-4">
             <Alert variant="destructive" className="bg-background">
               <AlertTriangle className="h-4 w-4" />
-              {isAuthDomainError ? (
-                <>
-                  <AlertTitle>{t('firebase.auth_domain_error_title')}</AlertTitle>
-                  <AlertDescription>
-                     <div className="mt-2 space-y-3">
-                      <p>{t('firebase.auth_domain_error_description_p1')}</p>
-                      <p className="font-semibold">{t('firebase.auth_domain_error_description_p2')}</p>
-                      {hostname ? (
-                        <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">{hostname}</code>
-                      ) : (
-                        <div className="h-7 w-full animate-pulse rounded bg-muted" />
-                      )}
-                      <p>{t('firebase.auth_domain_error_instructions')}</p>
-                      <Button asChild variant="link" className="p-0 h-auto text-destructive font-semibold">
-                        <a href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/settings`} target="_blank" rel="noopener noreferrer">
-                            {t('firebase.auth_domain_error_button')}
-                          </a>
-                      </Button>
-                     </div>
-                  </AlertDescription>
-                </>
-              ) : (
-                 <>
-                  <AlertTitle>{t('firebase.generic_auth_error_title')}</AlertTitle>
-                  <AlertDescription>
-                    <p>{authError}</p>
-                  </AlertDescription>
-                </>
-              )}
+              <AlertTitle>{t('firebase.generic_auth_error_title')}</AlertTitle>
+              <AlertDescription>
+                <p>{authError}</p>
+              </AlertDescription>
             </Alert>
         </div>
       </main>
@@ -116,13 +90,9 @@ export default function Home() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={handleLogin} className="w-full" disabled={isSigningIn}>
-              {isSigningIn ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <LogIn className="mr-2 h-4 w-4" />
-              )}
-              {isSigningIn ? 'Signing in...' : t('landingPage.signin_with_google_button')}
+            <Button onClick={handleLogin} className="w-full">
+              <LogIn className="mr-2 h-4 w-4" />
+              {t('landingPage.signin_with_google_button')}
             </Button>
           </CardContent>
         </Card>
@@ -130,6 +100,8 @@ export default function Home() {
     );
   }
   
+  // This state is not expected to be reached due to the useEffect redirect,
+  // but it serves as a fallback.
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center">
       <School className="h-12 w-12 animate-pulse text-primary" />

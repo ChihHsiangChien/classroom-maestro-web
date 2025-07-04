@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation';
 import type { User, AuthError } from 'firebase/auth';
 import {
   onAuthStateChanged,
-  signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   GoogleAuthProvider,
+  getRedirectResult,
 } from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured } from '@/lib/firebase';
 
@@ -16,8 +17,7 @@ const log = (message: string) => console.log(`[AUTH] ${new Date().toLocaleTimeSt
 
 interface AuthContextType {
   user: User | null;
-  loading: boolean; // For initial app load
-  isSigningIn: boolean; // For the popup sign-in flow
+  loading: boolean;
   isFirebaseConfigured: boolean;
   authError: string | null;
   signInWithGoogle: () => Promise<void>;
@@ -29,12 +29,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isSigningIn, setIsSigningIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    log("AuthProvider mounted. Setting up auth listener.");
+    log("AuthProvider mounted. Initializing auth sequence.");
     if (!isFirebaseConfigured || !auth) {
       log("Firebase not configured. Halting.");
       setAuthError("Firebase is not configured. Please check your .env file.");
@@ -42,51 +41,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        log(`onAuthStateChanged: User is logged in: ${user.email}`);
-        setUser(user);
-      } else {
-        log("onAuthStateChanged: User is logged out.");
-        setUser(null);
-      }
-      log("Auth state confirmed. Loading is now false.");
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    // This combined approach ensures we handle both the redirect result
+    // and the normal auth state persistence.
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) {
+          log(`getRedirectResult SUCCESS! User: ${result.user.email}`);
+        } else {
+          log("getRedirectResult: No new redirect result to process.");
+        }
+      })
+      .catch((error: AuthError) => {
+        log(`getRedirectResult ERROR: ${error.code} - ${error.message}`);
+        setAuthError(error.message);
+      })
+      .finally(() => {
+        // onAuthStateChanged is the single source of truth for the user's state.
+        // It will fire after getRedirectResult resolves a user.
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+          if (user) {
+            log(`onAuthStateChanged: User is logged in: ${user.email}`);
+            setUser(user);
+          } else {
+            log("onAuthStateChanged: User is logged out.");
+            setUser(null);
+          }
+          // Only stop loading after we have a definitive auth state.
+          log("Auth state confirmed. Loading is now false.");
+          setLoading(false);
+        });
+        
+        // Cleanup subscription on component unmount
+        return () => unsubscribe();
+      });
   }, []);
 
 
   const signInWithGoogle = useCallback(async () => {
-    if (!isFirebaseConfigured || !auth || !googleProvider || isSigningIn) {
+    if (!isFirebaseConfigured || !auth || !googleProvider) {
       return;
     }
     
-    log("signInWithGoogle called. Initiating popup sign-in.");
-    setIsSigningIn(true);
+    log("signInWithGoogle called. Initiating REDIRECT sign-in.");
+    setLoading(true);
     setAuthError(null);
-
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      log(`signInWithPopup Success! User authenticated: ${result.user.email}`);
-      // onAuthStateChanged will handle setting the user state.
+      await signInWithRedirect(auth, googleProvider);
     } catch (error) {
-        const caughtError = error as AuthError;
-        // The most common error in this sandboxed environment is the domain not being authorized.
-        // Both `auth/unauthorized-domain` and `auth/popup-closed-by-user` (when the popup fails to load)
-        // often point to this same root cause. We'll set a specific error state for it.
-        if (caughtError.code === 'auth/unauthorized-domain' || caughtError.code === 'auth/popup-closed-by-user') {
-            log(`signInWithPopup Error: Detected as Unauthorized Domain issue (original code: ${caughtError.code}).`);
-            setAuthError('unauthorized-domain');
-        } else {
-            log(`signInWithPopup Error: ${caughtError.code} - ${caughtError.message}`);
-            setAuthError(caughtError.message);
-        }
-    } finally {
-        setIsSigningIn(false);
+      const e = error as AuthError;
+      log(`signInWithRedirect ERROR: ${e.code} - ${e.message}`);
+      setAuthError(e.message);
+      setLoading(false);
     }
-  }, [isSigningIn]);
+  }, []);
 
   const signOut = useCallback(async () => {
     if (!isFirebaseConfigured || !auth) return;
@@ -99,12 +106,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({
     user,
     loading,
-    isSigningIn,
     isFirebaseConfigured,
     authError,
     signInWithGoogle,
     signOut
-  }), [user, loading, isSigningIn, isFirebaseConfigured, authError, signInWithGoogle, signOut]);
+  }), [user, loading, isFirebaseConfigured, authError, signInWithGoogle, signOut]);
 
   return (
     <AuthContext.Provider value={value}>
