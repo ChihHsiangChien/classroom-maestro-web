@@ -64,8 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // On success, the onAuthStateChanged listener will handle the user state and loading state.
     } catch (error) {
       const caughtError = error as AuthError;
-      if (caughtError.code === 'auth/popup-closed-by-user') {
-        // This is a normal user action, not an error to be displayed.
+      // These are not "errors" but normal user actions. We can ignore them.
+      if (caughtError.code === 'auth/popup-closed-by-user' || caughtError.code === 'auth/cancelled-popup-request') {
         console.log("Sign-in popup closed by user.");
       } else {
         console.error('Google Sign-In failed:', caughtError);

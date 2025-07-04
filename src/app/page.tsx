@@ -34,8 +34,9 @@ export default function Home() {
     await signInWithGoogle();
   };
 
-  // Show a loading screen during the initial auth check.
-  if (loading) {
+  // Show a loading screen during the initial auth check OR while we are waiting for the redirect.
+  // This prevents the login form from flashing after a successful login, which causes a race condition.
+  if (loading || user) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
         <School className="h-12 w-12 animate-pulse text-primary" />
