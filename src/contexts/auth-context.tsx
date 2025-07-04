@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       log(`signInWithPopup Success! User authenticated: ${result.user.email}`);
-      // onAuthStateChanged will handle setting the user and redirecting.
+      // onAuthStateChanged will handle setting the user state.
     } catch (error) {
         const caughtError = error as AuthError;
         if (caughtError.code === 'auth/popup-closed-by-user') {
