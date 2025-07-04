@@ -16,20 +16,17 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect if logged in and not loading
     if (!loading && user) {
       router.push('/dashboard');
     }
   }, [user, loading, router]);
 
-  const handleLogin = () => {
-    // This is now a simple, synchronous call from the button's perspective
-    signInWithGoogle();
+  const handleLogin = async () => {
+    await signInWithGoogle();
   };
   
   const getHostname = () => typeof window !== 'undefined' ? window.location.hostname : '';
 
-  // Render a simple loading view. This will be active during initial auth check and during redirect.
   if (loading) {
      return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
@@ -39,7 +36,6 @@ export default function Home() {
     );
   }
 
-  // Render error view
   if (authError) {
      const isAuthDomainError = authError === 'unauthorized-domain';
      return (
@@ -93,8 +89,6 @@ export default function Home() {
     );
   }
 
-  // Render login page only if not loading and no user
-  // This logic is safe because of the `if (loading)` check above.
   if (!user) {
     return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center p-4">
@@ -127,7 +121,6 @@ export default function Home() {
     );
   }
   
-  // This should theoretically not be reached if the useEffect redirect works, but it's a safe fallback.
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center">
       <School className="h-12 w-12 animate-pulse text-primary" />
