@@ -37,52 +37,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // This flag helps coordinate the two async auth checks.
-    let isProcessingRedirect = true;
+    // This onAuthStateChanged listener is the single source of truth.
+    // It will fire on initial page load, and again after getRedirectResult
+    // processes a successful sign-in.
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      if (user) {
+        setAuthError(null);
+      }
+      // Only stop loading once we have a definitive answer.
+      setLoading(false);
+    }, (error) => {
+      console.error("Firebase Auth State Error:", error);
+      setAuthError(error.message);
+      setLoading(false);
+    });
 
-    // First, process the potential redirect result.
-    // This completes the sign-in if the user is returning from Google.
-    getRedirectResult(auth)
-      .catch((error: AuthError) => {
+    // Process the redirect result. This might trigger the onAuthStateChanged listener above.
+    // We only need to catch potential errors from the redirect itself.
+    getRedirectResult(auth).catch((error: AuthError) => {
         console.error('Google Redirect Sign-In failed:', error);
         if (error.code === 'auth/unauthorized-domain') {
           setAuthError('unauthorized-domain');
         } else {
           setAuthError(error.message);
         }
-      })
-      .finally(() => {
-        // The redirect check is complete.
-        isProcessingRedirect = false;
-        // If onAuthStateChanged has already run and found no user,
-        // we can now definitively say loading is finished.
-        if (auth.currentUser === null) {
-          setLoading(false);
-        }
-      });
-
-    // Set up the primary auth state listener.
-    // This will fire after getRedirectResult completes and sets the user.
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (currentUser) => {
-        setUser(currentUser);
-        if (currentUser) {
-          setAuthError(null);
-        }
-        // Only stop loading if the redirect check is also complete.
-        // This prevents a race condition where we stop loading before the
-        // redirect user is processed.
-        if (!isProcessingRedirect) {
-          setLoading(false);
-        }
-      },
-      (error: AuthError) => {
-        console.error('Firebase Auth State Error:', error);
-        setAuthError(error.message);
-        setLoading(false);
-      }
-    );
+        // The onAuthStateChanged listener above will still be responsible for setting loading to false.
+    });
 
     return () => unsubscribe();
   }, []);
