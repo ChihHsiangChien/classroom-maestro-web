@@ -22,14 +22,19 @@ export default function Home() {
     }
   }, []);
 
-  // Redirection is now handled by the AuthProvider,
-  // so this page's useEffect is no longer needed for that.
+  // If a user is logged in, redirect them to the dashboard.
+  useEffect(() => {
+    if (!loading && user) {
+      router.push('/dashboard');
+    }
+  }, [user, loading, router]);
+
 
   const handleLogin = async () => {
     await signInWithGoogle();
   };
 
-  // If we are loading, or if the user is logged in (and about to be redirected by the provider), show a loading spinner.
+  // Show a loading screen during the initial auth check or while redirecting.
   if (loading || user) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">

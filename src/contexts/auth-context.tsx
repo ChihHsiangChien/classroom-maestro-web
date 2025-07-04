@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import type { User, AuthError } from 'firebase/auth';
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured } from '@/lib/firebase';
@@ -17,16 +17,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Define paths that are public or for students, and do not require teacher authentication.
-const publicPaths = ['/']; // The homepage
-const studentPaths = ['/join', '/classroom']; // Any path starting with these is for students.
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
@@ -54,36 +49,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  // This useEffect handles all application-level route protection and redirection.
-  useEffect(() => {
-    // Do not run redirection logic until authentication is fully loaded and there are no platform errors.
-    if (loading || authError) {
-      return;
-    }
-
-    const isStudentPath = studentPaths.some(path => pathname.startsWith(path));
-    
-    // Rule 1: Always allow access to student-facing pages, regardless of auth state.
-    // This is crucial for anonymous students joining a class.
-    if (isStudentPath) {
-      return; 
-    }
-
-    // Rule 2: If a logged-in user is on the homepage, redirect them to their dashboard.
-    if (user && pathname === '/') {
-      router.push('/dashboard');
-      return;
-    }
-    
-    // Rule 3: If a user is NOT logged in and tries to access any other (protected) page, redirect to home.
-    const isPublicPath = publicPaths.includes(pathname);
-    if (!user && !isPublicPath) {
-      router.push('/');
-      return;
-    }
-
-  }, [user, loading, authError, pathname, router]);
-
   const signInWithGoogle = useCallback(async () => {
     if (!isFirebaseConfigured || !auth || !googleProvider) {
       const errorMsg = 'Firebase is not configured. Cannot sign in.';
@@ -93,22 +58,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setLoading(true);
     try {
-      // Explicitly set persistence to local storage.
-      // This can help with issues in some browser environments.
       await setPersistence(auth, browserLocalPersistence);
       await signInWithPopup(auth, googleProvider);
       setAuthError(null);
-      // Let the useEffect handle the redirection to the dashboard.
     } catch (error) {
       const caughtError = error as AuthError;
-      // This is expected user behavior, not an actual error to be shown to the user.
       if (caughtError.code === 'auth/popup-closed-by-user') {
         console.log("Sign-in popup closed by user.");
-        // We exit early. The 'finally' block will still run to set loading to false.
         return;
       }
 
-      // For all other errors, log them and set the error state.
       console.error('Google Sign-In failed:', caughtError);
       if (caughtError.code === 'auth/unauthorized-domain' || caughtError.code === 'auth/configuration-not-found') {
         setAuthError('unauthorized-domain');
