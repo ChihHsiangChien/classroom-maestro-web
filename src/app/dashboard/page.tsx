@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -21,16 +20,12 @@ export default function DashboardPage() {
     router.push('/dashboard/activity');
   };
 
-  const handleBack = () => {
-    setSelectedClassId(null);
-  };
-
   const selectedClass = selectedClassId
     ? classrooms.find((c) => c.id === selectedClassId)
     : null;
   
   if (selectedClass) {
-    return <ClassDetail classroom={selectedClass} onBack={handleBack} />;
+    return <ClassDetail classroom={selectedClass} />;
   }
 
   return (

@@ -1,19 +1,17 @@
-
 'use client';
 
 import { useRouter } from 'next/navigation';
 import { useClassroom, type Classroom } from '@/contexts/classroom-context';
 import { StudentManagement } from '@/components/student-management';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, PlayCircle } from 'lucide-react';
+import { PlayCircle } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 
 interface ClassDetailProps {
   classroom: Classroom;
-  onBack: () => void;
 }
 
-export function ClassDetail({ classroom, onBack }: ClassDetailProps) {
+export function ClassDetail({ classroom }: ClassDetailProps) {
   const router = useRouter();
   const { setActiveClassroom } = useClassroom();
   const { t } = useI18n();
@@ -27,9 +25,6 @@ export function ClassDetail({ classroom, onBack }: ClassDetailProps) {
     <div className="container mx-auto max-w-5xl py-8">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
           <h1 className="text-3xl font-bold">{classroom.name}</h1>
         </div>
         <Button onClick={handleStartActivity}>
