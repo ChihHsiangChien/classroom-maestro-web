@@ -1,71 +1,72 @@
 
 rules_version = '2';
 
-// In these rules, the `isAdmin()` function is the key to the security model.
-// It checks if the UID of the user making the request exists as a document
-// in the `/admins` collection. This is how we grant special privileges.
-
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Helper function to check for admin role
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+
+    // Helper function to check if the user is the owner of a classroom.
+    // This is used in multiple rules below for consistency.
+    function isOwner(classroomId) {
+      return get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid;
     }
 
-    // Admins Collection:
-    // Only an already authenticated user can check if they are an admin.
-    // Writing to this collection should only be done from the server or Firebase Console,
-    // so client-side writes are disallowed.
-    match /admins/{userId} {
-      allow read: if request.auth != null;
-      allow write: if false; // Prevent clients from making themselves admins
-    }
-
-    // Users Collection:
-    // - Any authenticated user can create/update their own user document.
-    // - Only admins can read the full list of users or delete a user document.
-    match /users/{userId} {
-      allow get, write: if request.auth.uid == userId;
-      allow list, delete: if isAdmin();
-    }
-    
-    // Classrooms Collection:
-    // - Teachers (owners) and admins have full control over classrooms.
-    // - Any user (including unauthenticated students) can read a specific classroom to join.
-    // - Students cannot list all classrooms.
     match /classrooms/{classroomId} {
-      // READ:
-      // - Admins can read anything.
-      // - Owners can read their own classrooms.
-      // - Anyone can `get` a single classroom document (needed for students to join).
+      // --- READ RULES ---
+
+      // LIST: A teacher can list ONLY the classrooms they own.
+      // This rule requires the client query to include: where("ownerId", "==", request.auth.uid)
+      allow list: if request.auth != null && request.query.where.ownerId == request.auth.uid;
+      
+      // GET: Anyone can get a specific classroom document if they have the ID.
+      // This is required for students to join a class.
       allow get: if true;
-      allow list: if request.auth != null && (isAdmin() || request.query.where.field == "ownerId" && request.query.where.value == request.auth.uid);
 
-      // WRITE:
-      // - Admins and owners can create/delete classrooms.
-      allow create, delete: if request.auth.uid == request.resource.data.ownerId || isAdmin();
+      // --- WRITE RULES ---
 
-      // UPDATE:
-      // Teachers (owners) and admins can update any part of their classroom document.
-      // Students have a very specific, limited permission to update ONLY the 'race' field
-      // and ONLY when a race is currently 'pending'. This is the core of the secure race feature.
-      function isStudentClaimingRace() {
-        let isUpdatingRaceOnly = request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race']);
-        let isRacePending = resource.data.race.status == 'pending';
-        let isFinishingRace = request.resource.data.race.status == 'finished';
-        return isUpdatingRaceOnly && isRacePending && isFinishingRace;
+      // CREATE: An authenticated user can create a classroom if they set themselves as the owner.
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+
+      // UPDATE: The owner can update anything, OR a student can claim a pending race.
+      allow update: if 
+          // Case 1: Teacher (owner) is updating their own classroom.
+          (request.auth != null && isOwner(classroomId)) ||
+          // Case 2: Student (unauthenticated) is claiming a pending race.
+          (request.auth == null && 
+           resource.data.race.status == 'pending' &&
+           request.resource.data.race.status == 'finished' &&
+           // Security check: ensure student is ONLY modifying the 'race' field.
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race']));
+
+      // DELETE: Only the owner can delete their classroom.
+      allow delete: if request.auth != null && isOwner(classroomId);
+
+      // --- SUBCOLLECTIONS ---
+      match /presence/{studentId} {
+        // Anyone can read presence data to see who is online.
+        allow read: if true;
+        // Unauthenticated students can update presence. A simplification for this app's auth model.
+        allow write: if request.auth == null;
       }
       
-      allow update: if (request.auth.uid == resource.data.ownerId || isAdmin()) || isStudentClaimingRace();
-
-      // Subcollections (presence and submissions)
-      // Anyone can write to these, as students are not authenticated.
-      // Reading is restricted to owners and admins for privacy.
-      match /{subcollection}/{docId} {
-         allow read: if request.auth.uid == get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId || isAdmin();
-         allow write: if true;
+      match /submissions/{submissionId} {
+        // Only the classroom owner can read submissions.
+        allow read: if isOwner(classroomId);
+        // Unauthenticated students can create submissions.
+        allow create: if request.auth == null;
       }
+    }
+    
+    // User profile and admin status collections
+    match /users/{userId} {
+      // Anyone can read user profiles (e.g., display names).
+      allow read: if true;
+      // A user can only write to their own profile document.
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /admins/{userId} {
+      // Anyone can check for the existence of an admin document.
+      allow read: if true;
     }
   }
 }
