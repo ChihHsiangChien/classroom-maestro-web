@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { School, LogIn, Terminal, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,14 +14,6 @@ export default function Home() {
   const { t } = useI18n();
   const { user, loading, isSigningIn, signInWithGoogle, isFirebaseConfigured, authError } = useAuth();
   const router = useRouter();
-  const [hostname, setHostname] = useState('');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setHostname(window.location.hostname);
-    }
-  }, []);
-
 
   useEffect(() => {
     if (!loading && user) {
@@ -43,6 +36,9 @@ export default function Home() {
 
   if (authError) {
      const isAuthDomainError = authError === 'unauthorized-domain';
+     // We get the hostname directly here, only when needed. No useState, no useEffect.
+     const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+
      return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
         <div className="max-w-xl w-full space-y-4">
