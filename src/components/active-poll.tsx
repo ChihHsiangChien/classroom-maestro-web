@@ -1,7 +1,7 @@
 
 "use client";
 
-import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, ChevronDown, Wand2, Loader2, BrainCircuit } from "lucide-react";
+import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, ChevronDown, Wand2, Loader2, BrainCircuit, ArrowDownUp, ArrowDown, ArrowUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -35,6 +35,8 @@ import { Bar, XAxis, YAxis, CartesianGrid, BarChart, Tooltip as ChartTooltip, La
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/provider";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
+
 
 interface ActiveQuestionProps {
   question: QuestionData;
@@ -331,7 +333,23 @@ function DrawingResults({ submissions }: ResultsProps) {
     const { t } = useI18n();
     const [isResponsesOpen, setIsResponsesOpen] = useState(true);
     const [sliderValue, setSliderValue] = useState(3);
+    const [sortBy, setSortBy] = useState<'time' | 'name'>('time');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const gridCols = 6 - sliderValue;
+
+    const sortedSubmissions = useMemo(() => {
+        return [...submissions].sort((a, b) => {
+            let comparison = 0;
+            if (sortBy === 'time') {
+                if (a.timestamp && b.timestamp) {
+                    comparison = a.timestamp.toMillis() - b.timestamp.toMillis();
+                }
+            } else { // 'name'
+                comparison = a.studentName.localeCompare(b.studentName);
+            }
+            return sortOrder === 'asc' ? comparison : -comparison;
+        });
+    }, [submissions, sortBy, sortOrder]);
 
     if (submissions.length === 0) {
         return <div className="text-center text-muted-foreground py-8">{t('activePoll.waiting_for_submissions')}</div>;
@@ -353,8 +371,32 @@ function DrawingResults({ submissions }: ResultsProps) {
                         value={[sliderValue]}
                         onValueChange={(value) => setSliderValue(value[0])}
                         className="w-full max-w-[200px]"
-                        dir="rtl"
                     />
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                                <ArrowDownUp className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>{t('activePoll.sort_by_label')}</DropdownMenuLabel>
+                            <DropdownMenuRadioGroup value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                                <DropdownMenuRadioItem value="time">{t('activePoll.sort_by_submission_time')}</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="name">{t('activePoll.sort_by_student_name')}</DropdownMenuRadioItem>
+                            </DropdownMenuRadioGroup>
+                            <DropdownMenuSeparator />
+                             <DropdownMenuRadioGroup value={sortOrder} onValueChange={(v) => setSortOrder(v as any)}>
+                                <DropdownMenuRadioItem value="asc">
+                                    <ArrowUp className="mr-2 h-3.5 w-3.5" />
+                                    {t('activePoll.sort_order_asc')}
+                                </DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="desc">
+                                    <ArrowDown className="mr-2 h-3.5 w-3.5" />
+                                    {t('activePoll.sort_order_desc')}
+                                </DropdownMenuRadioItem>
+                            </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm" className="flex-shrink-0">
                             <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
@@ -369,7 +411,7 @@ function DrawingResults({ submissions }: ResultsProps) {
                         className="grid gap-4 p-1"
                         style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}
                     >
-                        {submissions.map((sub) => (
+                        {sortedSubmissions.map((sub) => (
                             <Dialog key={sub.id}>
                                 <DialogTrigger asChild>
                                     <Card className="overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all">
