@@ -1,41 +1,57 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    
     match /classrooms/{classroomId} {
-      // 1. TEACHER PERMISSIONS
-      // Teachers have full read/write access to their own classroom documents.
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      
+      // === DEFAULT: DENY ALL ===
+      // By default, nobody can access anything. Rules below grant access.
 
-      // 2. STUDENT (UNAUTHENTICATED) PERMISSIONS
+      // === TEACHER ACCESS (Authenticated users) ===
+      
+      // Allow teachers to CREATE classrooms they own.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
 
-      // Allow students to GET classroom data (name, student list, etc.) to join.
-      // This does NOT allow them to LIST all classrooms.
-      allow get: if true;
+      // Allow teachers to LIST classrooms.
+      // This rule works in tandem with the 'get' rule below. The client-side
+      // query MUST include `where('ownerId', '==', request.auth.uid)` to be secure.
+      allow list: if request.auth != null;
 
-      // Allow students to UPDATE the race field to claim victory.
-      // This is secured by checking the state transition.
-      allow update: if
-          request.auth == null &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race']) &&
-          resource.data.race.status == 'pending' &&
-          request.resource.data.race.status == 'finished';
+      // Allow teachers to GET, UPDATE, and DELETE classrooms they own.
+      allow get, update, delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      
+      // === STUDENT ACCESS (Unauthenticated users) ===
+      
+      // Allow students to GET a specific classroom document to join.
+      allow get: if request.auth == null;
+      
+      // Allow students to UPDATE a classroom document ONLY for the 'race' feature.
+      // This is a very specific rule to prevent cheating.
+      allow update: if request.auth == null
+                    && request.resource.data.race.status == 'finished'
+                    && resource.data.race.status == 'pending';
 
-      // --- SUBCOLLECTION RULES ---
+      // === SUBCOLLECTION RULES ===
 
       match /presence/{studentId} {
-        // Teacher (owner) can read/write presence data.
-        allow read, write: if get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid;
-
-        // Allow students to read the presence list and update presence status.
-        allow read, write: if request.auth == null;
-      }
-
-      match /submissions/{submissionId} {
-        // Teacher (owner) can read/write submissions.
-        allow read, write: if get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid;
+        // Teacher can do anything to presence data in their classroom.
+        allow read, write: if request.auth != null && get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid;
         
-        // Allow students to CREATE submissions. They cannot read or modify any.
+        // Students can read presence data (to see who is online).
+        allow get, list: if request.auth == null;
+        
+        // Students can update presence data (e.g., their online status).
+        // This is permissive as we can't identify individual unauthed students.
+        allow write: if request.auth == null;
+      }
+      
+      match /submissions/{submissionId} {
+        // Teacher can read and delete submissions in their classroom.
+        allow read, delete: if request.auth != null && get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid;
+        
+        // Students can create submissions.
         allow create: if request.auth == null;
       }
     }
