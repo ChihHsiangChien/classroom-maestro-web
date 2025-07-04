@@ -95,6 +95,7 @@ export const dictionaries = {
       generic_fetch_error: '讀取教室資料時發生錯誤。請再試一次。',
       classroom_locked_title: '教室已鎖定',
       classroom_locked_description: '老師已鎖定此活動，目前無法加入。',
+      logged_in: '已登入',
     },
     classroomPage: {
       submission_received_title: '收到提交！',
@@ -349,6 +350,7 @@ export const dictionaries = {
       generic_fetch_error: 'An error occurred while fetching classroom data. Please try again.',
       classroom_locked_title: 'Classroom Locked',
       classroom_locked_description: "The teacher has locked this session. No new students can join at this time.",
+      logged_in: 'Logged In',
     },
     classroomPage: {
       submission_received_title: 'Submission Received!',

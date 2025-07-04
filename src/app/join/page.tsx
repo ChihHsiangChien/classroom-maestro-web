@@ -18,17 +18,18 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { Classroom, Student } from '@/contexts/classroom-context';
+import type { Classroom, Student, PresenceData } from '@/contexts/classroom-context';
 import { useI18n } from '@/lib/i18n/provider';
 import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
+import { cn } from '@/lib/utils';
 
 
 function JoinPageContent() {
   const { t } = useI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [classroom, setClassroom] = useState<Classroom | null>(null);
+  const [classroom, setClassroom] = useState<(Omit<Classroom, 'students'> & { students: (Student & { isOnline?: boolean })[] }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,14 +44,28 @@ function JoinPageContent() {
 
               if (classroomSnap.exists()) {
                   const classroomData = classroomSnap.data();
+
+                  const presenceRef = collection(db, 'classrooms', classId, 'presence');
+                  const presenceSnap = await getDocs(presenceRef);
+                  const presenceData: { [key: string]: PresenceData } = {};
+                  presenceSnap.forEach(doc => {
+                      presenceData[doc.id] = doc.data() as PresenceData;
+                  });
+
+                  const studentsWithPresence = (classroomData.students || []).map((student: Student) => {
+                      const presence = presenceData[student.id];
+                      const isConsideredOnline = !!(presence?.isOnline === true && presence?.lastSeen && (Timestamp.now().seconds - presence.lastSeen.seconds < 45));
+                      return { ...student, isOnline: isConsideredOnline };
+                  });
+                  
                   const fetchedClassroom = {
                       id: classroomSnap.id,
                       name: classroomData.name,
-                      students: classroomData.students || [],
+                      students: studentsWithPresence,
                       ownerId: classroomData.ownerId,
                       isLocked: classroomData.isLocked || false,
                   };
-                  setClassroom(fetchedClassroom as Classroom);
+                  setClassroom(fetchedClassroom as (Omit<Classroom, 'students'> & { students: (Student & { isOnline?: boolean })[] }));
               } else {
                   setError(t('joinPage.class_not_found_error'));
               }
@@ -71,8 +86,8 @@ function JoinPageContent() {
     }
   }, [searchParams, t]);
 
-  const handleStudentClick = (student: Student) => {
-    if (!classroom) return;
+  const handleStudentClick = (student: Student & { isOnline?: boolean }) => {
+    if (student.isOnline || !classroom) return;
     const url = `/classroom/${classroom.id}?studentId=${student.id}&name=${encodeURIComponent(student.name)}`;
     router.push(url);
   };
@@ -166,14 +181,25 @@ function JoinPageContent() {
               {classroom.students.map((student) => (
                 <TableRow
                   key={student.id}
-                  className="hover:bg-muted/50 cursor-pointer"
+                  className={cn(
+                    "cursor-pointer hover:bg-muted/50",
+                    student.isOnline && "cursor-not-allowed opacity-50 hover:bg-transparent"
+                  )}
                   onClick={() => handleStudentClick(student)}
                 >
                   <TableCell
-                    className="flex items-center gap-4 p-4"
+                    className="flex items-center justify-between gap-4 p-4"
                   >
-                    <User className="h-5 w-5 text-muted-foreground" />
-                    <span className="font-medium">{student.name}</span>
+                    <div className="flex items-center gap-4">
+                        <User className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium">{student.name}</span>
+                    </div>
+                     {student.isOnline && (
+                        <div className="flex items-center gap-2 text-sm text-green-600">
+                            <div className="h-2 w-2 rounded-full bg-green-500" />
+                            <span>{t('joinPage.logged_in')}</span>
+                        </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
