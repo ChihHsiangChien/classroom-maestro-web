@@ -125,9 +125,10 @@ export function LotteryModal({
         setDisplayName(null); // Clear previous name immediately
 
         const animationPool = [...unpickedStudents.map(s => s.name), pickedStudent.name];
+        if (animationPool.length === 0) animationPool.push(pickedStudent.name);
 
         // No need to animate if there's only one option left and we're in unique pick mode
-        if (isUniquePick && animationPool.length < 2) {
+        if (isUniquePick && unpickedStudents.length === 0 && pickedStudentIds.includes(pickedStudent.id)) {
             setDisplayName(pickedStudent.name);
             setIsAnimating(false);
             prevPickedStudentId.current = pickedStudent.id;
@@ -136,7 +137,7 @@ export function LotteryModal({
 
         let delay = 50; // Start fast
         let step = 0;
-        const totalSteps = 15; // Number of name flashes
+        const totalSteps = 25; // Number of name flashes
 
         const runAnimationStep = () => {
             const randomIndex = Math.floor(Math.random() * animationPool.length);
@@ -150,7 +151,11 @@ export function LotteryModal({
                 setIsAnimating(false);
             } else {
                 // Increase delay to slow down
-                delay *= 1.2;
+                 if (step > totalSteps - 5) { // last 5 steps
+                    delay *= 1.4;
+                } else if (step > totalSteps / 2) { // after half
+                    delay *= 1.15;
+                }
                 setTimeout(runAnimationStep, delay);
             }
         };
@@ -165,7 +170,7 @@ export function LotteryModal({
         setIsAnimating(false);
         prevPickedStudentId.current = null;
     }
-  }, [pickedStudent, unpickedStudents, isUniquePick]);
+  }, [pickedStudent, unpickedStudents, isUniquePick, pickedStudentIds]);
 
   if (!isOpen) {
     return null;
@@ -248,8 +253,13 @@ export function LotteryModal({
                     </CardHeader>
                     <CardContent className="h-48 flex items-center justify-center">
                        {isAnimating ? (
-                            <div className="text-center">
-                                <p className="text-4xl font-bold text-foreground transition-opacity duration-150 h-[48px]">{displayName}</p>
+                            <div className="h-[48px] overflow-hidden">
+                                <p
+                                  key={displayName}
+                                  className="text-4xl font-bold text-foreground animate-slide-down-in"
+                                >
+                                  {displayName}
+                                </p>
                             </div>
                         ) : pickedStudent && displayName ? (
                             <div className="flex flex-col items-center gap-4 text-center animate-in fade-in-50 zoom-in-95">
