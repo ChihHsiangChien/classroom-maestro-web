@@ -213,17 +213,24 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
             zip.file('submissions.csv', csvData);
         }
 
-        // Handle image submissions with sanitized filenames
+        // Handle image submissions with folder structure and improved filenames
         if (imageSubmissions.length > 0) {
-            const imagesFolder = zip.folder('images');
-            imageSubmissions.forEach((s) => {
-                const answer = s.answer as string;
-                const base64Data = answer.substring(answer.indexOf(',') + 1);
-                // Sanitize student name for filename
-                const safeStudentName = s.studentName.replace(/[^a-zA-Z0-9_.-]/g, '_');
-                const filename = `${s.questionId}_${safeStudentName}_${s.studentId.substring(0,4)}.png`;
-                imagesFolder!.file(filename, base64Data, { base64: true });
-            });
+            const imagesRootFolder = zip.folder("images");
+            if (imagesRootFolder) {
+                imageSubmissions.forEach((s) => {
+                    const questionFolder = imagesRootFolder.folder(s.questionId);
+                    if (questionFolder) {
+                        const answer = s.answer as string;
+                        const base64Data = answer.substring(answer.indexOf(',') + 1);
+                        
+                        // Sanitize for invalid filesystem characters, but allow Unicode.
+                        const safeStudentName = s.studentName.replace(/[\\/:"*?<>|]/g, '_');
+                        const filename = `${safeStudentName}_${s.studentId.substring(0, 4)}.png`;
+                        
+                        questionFolder.file(filename, base64Data, { base64: true });
+                    }
+                });
+            }
         }
         
         const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -433,3 +440,5 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
     </>
   );
 }
+
+    
