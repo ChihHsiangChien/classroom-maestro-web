@@ -1,72 +1,70 @@
 
 rules_version = '2';
 
+// In these rules, the `isAdmin()` function is the key to the security model.
+// It checks if the UID of the user making the request exists as a document
+// in the `/admins` collection. This is how we grant special privileges.
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if the requester is the owner of the classroom.
-    function isOwner(classroomId) {
-      return get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid;
+  
+    // Helper function to check for admin role
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // Rules for the 'classrooms' collection
+    // Admins Collection:
+    // Only an already authenticated user can check if they are an admin.
+    // Writing to this collection should only be done from the server or Firebase Console,
+    // so client-side writes are disallowed.
+    match /admins/{userId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Prevent clients from making themselves admins
+    }
+
+    // Users Collection:
+    // - Any authenticated user can create/update their own user document.
+    // - Only admins can read the full list of users or delete a user document.
+    match /users/{userId} {
+      allow get, write: if request.auth.uid == userId;
+      allow list, delete: if isAdmin();
+    }
+    
+    // Classrooms Collection:
+    // - Teachers (owners) and admins have full control over classrooms.
+    // - Any user (including unauthenticated students) can read a specific classroom to join.
+    // - Students cannot list all classrooms.
     match /classrooms/{classroomId} {
+      // READ:
+      // - Admins can read anything.
+      // - Owners can read their own classrooms.
+      // - Anyone can `get` a single classroom document (needed for students to join).
+      allow get: if true;
+      allow list: if request.auth != null && (isAdmin() || request.query.where.field == "ownerId" && request.query.where.value == request.auth.uid);
 
-      // --- READ Operations ---
-      
-      // Allow anyone to GET a specific classroom document.
-      // This is necessary for students to join a class using a link/ID.
-      allow get;
-      
-      // Allow an authenticated user to LIST classrooms.
-      // Security is enforced by the client-side query, which MUST include:
-      // where("ownerId", "==", user.uid)
-      allow list: if request.auth != null;
+      // WRITE:
+      // - Admins and owners can create/delete classrooms.
+      allow create, delete: if request.auth.uid == request.resource.data.ownerId || isAdmin();
 
-      // --- WRITE Operations ---
-
-      // Allow authenticated users to CREATE a classroom if they set themselves as the owner.
-      allow create: if request.auth.uid == request.resource.data.ownerId;
-      
-      // Allow the owner to DELETE their classroom.
-      allow delete: if isOwner(classroomId);
-
-      // --- UPDATE Operations ---
-      // This is the most complex rule. It must allow two distinct actors to update the document.
-      
-      // Helper function for a student claiming a race victory.
-      function isStudentClaimingRace(request, resource) {
-        let before = resource.data;
-        let after = request.resource.data;
-        // The request must not be from an authenticated teacher
-        return request.auth == null
-               // The race object must exist and must have been 'pending'
-               && before.race != null && before.race.status == 'pending'
-               // The after-state must have the race object and it must be 'finished'
-               && after.race != null && after.race.status == 'finished'
-               // The student must provide a winnerId and winnerName
-               && after.race.winnerId != null && after.race.winnerName != null
-               // IMPORTANT: Ensure no other fields were changed besides the 'race' field.
-               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race']);
-      }
-
-      // Allow UPDATE if the user is the owner OR if it's a valid student race claim.
-      allow update: if isOwner(classroomId) || isStudentClaimingRace(request, resource);
-
-      // --- Subcollections ---
-
-      // Any authenticated user (i.e., the teacher) can manage their own submissions.
-      // Students need to be able to create submissions.
-      match /submissions/{submissionId} {
-        // Teacher can do anything.
-        allow read, write: if isOwner(classroomId);
-        // Student can create a submission.
-        allow create; 
+      // UPDATE:
+      // Teachers (owners) and admins can update any part of their classroom document.
+      // Students have a very specific, limited permission to update ONLY the 'race' field
+      // and ONLY when a race is currently 'pending'. This is the core of the secure race feature.
+      function isStudentClaimingRace() {
+        let isUpdatingRaceOnly = request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race']);
+        let isRacePending = resource.data.race.status == 'pending';
+        let isFinishingRace = request.resource.data.race.status == 'finished';
+        return isUpdatingRaceOnly && isRacePending && isFinishingRace;
       }
       
-      // Allow anyone to update their presence (students joining) or the owner to manage presence.
-      match /presence/{studentId} {
-         allow read, write: if request.auth == null || isOwner(classroomId);
+      allow update: if (request.auth.uid == resource.data.ownerId || isAdmin()) || isStudentClaimingRace();
+
+      // Subcollections (presence and submissions)
+      // Anyone can write to these, as students are not authenticated.
+      // Reading is restricted to owners and admins for privacy.
+      match /{subcollection}/{docId} {
+         allow read: if request.auth.uid == get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId || isAdmin();
+         allow write: if true;
       }
     }
   }

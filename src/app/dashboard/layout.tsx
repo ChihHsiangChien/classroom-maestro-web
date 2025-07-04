@@ -5,29 +5,27 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
-import { School, LogOut, User as UserIcon } from "lucide-react";
+import { School, LogOut, User as UserIcon, Shield } from "lucide-react";
 import Image from "next/image";
 import { useI18n } from "@/lib/i18n/provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import Link from 'next/link';
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading, signOut } = useAuth();
+  const { user, isAdmin, loading, signOut } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
 
-  // This layout is the "auth guard" for all dashboard pages.
-  // It redirects to the home page if the user is not logged in.
   useEffect(() => {
     if (!loading && !user) {
       router.push('/');
     }
   }, [user, loading, router]);
 
-  // While loading, show a simplified layout or a spinner
   if (loading || !user) {
      return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
@@ -40,12 +38,20 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen flex-col bg-muted/40">
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-2">
-        <div className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex items-center gap-2">
           <School className="h-6 w-6 text-primary" />
           <h1 className="text-xl font-semibold">{t('dashboard.title')}</h1>
-        </div>
+        </Link>
         <div className="ml-auto flex items-center gap-4">
           <LanguageSwitcher />
+          {isAdmin && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/dashboard/admin">
+                <Shield className="mr-2 h-4 w-4" />
+                {t('admin.title')}
+              </Link>
+            </Button>
+          )}
           {user && (
             <div className="flex items-center gap-2">
                 {user.photoURL ? (

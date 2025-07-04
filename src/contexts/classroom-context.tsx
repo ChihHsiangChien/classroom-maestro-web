@@ -90,6 +90,7 @@ interface ClassroomContextType {
   startRace: (classroomId: string) => Promise<void>;
   claimRace: (classroomId: string, raceId: string, studentId: string, studentName: string) => Promise<boolean>;
   resetRace: (classroomId: string) => Promise<void>;
+  deleteTeacherAndData: (ownerId: string) => Promise<void>;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
@@ -473,15 +474,13 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
                         'race.status': 'finished'
                     });
                 } else {
-                    // Race is already won or doesn't exist. This is not an error, just means they were too slow.
-                    // We throw to abort the transaction and signal that the user did not win.
                     throw new Error("Race already finished or invalid.");
                 }
             });
-            return true; // Transaction succeeded, user won.
+            return true;
         } catch (error) {
             console.log("Failed to claim race (or was too slow):", (error as Error).message);
-            return false; // Transaction failed, user did not win.
+            return false;
         }
     }, []);
 
@@ -495,6 +494,50 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
             handleFirestoreErrorRef.current?.(error, 'reset-race');
         }
     }, []);
+
+    const deleteTeacherAndData = useCallback(async (ownerId: string) => {
+        if (!db || !user || !user.uid) {
+            toast({ variant: "destructive", title: t('admin.error_not_logged_in') });
+            return;
+        };
+        try {
+            const batch = writeBatch(db);
+
+            // 1. Find and delete all classrooms owned by the teacher
+            const classroomsQuery = query(collection(db, "classrooms"), where("ownerId", "==", ownerId));
+            const classroomsSnapshot = await getDocs(classroomsQuery);
+            
+            if (classroomsSnapshot.empty) {
+                console.log("No classrooms found for this teacher, deleting user doc only.");
+            } else {
+                 for (const classroomDoc of classroomsSnapshot.docs) {
+                    console.log(`Scheduling deletion for classroom ${classroomDoc.id}`);
+                    batch.delete(classroomDoc.ref);
+                    
+                    // Note: Deleting subcollections this way on the client is not recommended for large scale.
+                    // For this app's scale, we assume it's okay, but a Cloud Function would be better.
+                    const submissionsRef = collection(db, 'classrooms', classroomDoc.id, 'submissions');
+                    const presenceRef = collection(db, 'classrooms', classroomDoc.id, 'presence');
+                    const subsSnapshot = await getDocs(submissionsRef);
+                    subsSnapshot.forEach(subDoc => batch.delete(subDoc.ref));
+                    const presenceSnapshot = await getDocs(presenceRef);
+                    presenceSnapshot.forEach(pDoc => batch.delete(pDoc.ref));
+                }
+            }
+
+            // 2. Delete the user's document from the 'users' collection
+            const userDocRef = doc(db, 'users', ownerId);
+            batch.delete(userDocRef);
+
+            // 3. Commit the batch
+            await batch.commit();
+
+            toast({ title: t('admin.delete_data_success_title') });
+
+        } catch (error) {
+            handleFirestoreErrorRef.current?.(error, 'delete-teacher-data');
+        }
+    }, [user, toast, t]);
 
 
   const value = useMemo(() => ({
@@ -524,6 +567,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     startRace,
     claimRace,
     resetRace,
+    deleteTeacherAndData,
   }), [
     classrooms,
     activeClassroom,
@@ -550,6 +594,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     startRace,
     claimRace,
     resetRace,
+    deleteTeacherAndData,
   ]);
 
   return (
