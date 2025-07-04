@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let isProcessingRedirect = true;
 
     // First, process the potential redirect result.
+    // This completes the sign-in if the user is returning from Google.
     getRedirectResult(auth)
       .catch((error: AuthError) => {
         console.error('Google Redirect Sign-In failed:', error);
@@ -61,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
     // Set up the primary auth state listener.
+    // This will fire after getRedirectResult completes and sets the user.
     const unsubscribe = onAuthStateChanged(
       auth,
       (currentUser) => {
@@ -69,7 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuthError(null);
         }
         // Only stop loading if the redirect check is also complete.
-        // This prevents a race condition.
+        // This prevents a race condition where we stop loading before the
+        // redirect user is processed.
         if (!isProcessingRedirect) {
           setLoading(false);
         }
@@ -94,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     try {
       await setPersistence(auth, browserLocalPersistence);
+      // signInWithRedirect will unmount the current page, so no state changes are needed here.
       signInWithRedirect(auth, googleProvider);
     } catch (error) {
       const caughtError = error as AuthError;
