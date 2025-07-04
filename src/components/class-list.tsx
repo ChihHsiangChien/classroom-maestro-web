@@ -407,7 +407,7 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
                 </CardHeader>
                 <CardContent className="flex-grow" />
                 <CardFooter className="flex justify-end">
-                  <Button onClick={() => onStartActivity(c)}>
+                  <Button onClick={() => onStartActivity(c)} disabled={c.students.length === 0}>
                     <PlayCircle className="mr-2 h-4 w-4" />
                     {t('dashboard.start_activity')}
                   </Button>

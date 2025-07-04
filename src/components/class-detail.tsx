@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -29,7 +30,7 @@ export function ClassDetail({ classroom, onBack }: ClassDetailProps) {
           <h1 className="text-3xl font-bold">{classroom.name}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={handleStartActivity}>
+          <Button onClick={handleStartActivity} disabled={classroom.students.length === 0}>
             <PlayCircle className="mr-2 h-4 w-4" />
             {t('dashboard.start_activity')}
           </Button>
