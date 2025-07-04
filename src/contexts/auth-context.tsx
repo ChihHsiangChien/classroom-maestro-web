@@ -20,6 +20,7 @@ interface AuthContextType {
   loading: boolean;
   isFirebaseConfigured: boolean;
   authError: string | null;
+  authLogs: string[];
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -30,96 +31,107 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authLogs, setAuthLogs] = useState<string[]>([]);
   const router = useRouter();
 
+  const addAuthLog = useCallback((message: string) => {
+    setAuthLogs(prev => {
+        const timestamp = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        // Avoid logging the exact same message twice in a row to reduce noise
+        if (prev.length > 0 && prev[prev.length - 1].endsWith(message)) {
+            return prev;
+        }
+        return [...prev, `[${timestamp}] ${message}`];
+    });
+  }, []);
+
   useEffect(() => {
+    addAuthLog("Auth provider mounted.");
     if (!isFirebaseConfigured || !auth) {
-      setLoading(false);
-      return;
+        addAuthLog("Firebase not configured. Halting.");
+        setLoading(false);
+        return;
     }
 
-    // This variable will hold the unsubscribe function for onAuthStateChanged
-    let unsubscribe: (() => void) | undefined;
-
-    // First, process the redirect result. This is the most important step.
-    getRedirectResult(auth)
-      .then((result) => {
-        // If the user just signed in via redirect, the result object will contain the user.
-        // If the page was just reloaded, the result will be null.
-        // In either case, Firebase has now persisted the auth state.
-        
-        // It's now safe to set up the persistent auth state listener.
-        // onAuthStateChanged will now give us the correct user.
-        unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-          setUser(currentUser);
-          setAuthError(null); // Clear previous errors
-          setLoading(false); // We have our definitive answer.
-        }, (error) => {
-          console.error("Firebase Auth State Error:", error);
-          setAuthError(error.message);
-          setLoading(false);
-        });
-      })
-      .catch((error) => {
-        // Handle errors from getRedirectResult, such as unauthorized domain.
-        const caughtError = error as AuthError;
-        console.error('Google Redirect Sign-In failed:', caughtError);
-        if (caughtError.code === 'auth/unauthorized-domain') {
-          setAuthError('unauthorized-domain');
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        addAuthLog(`Auth state listener fired. Current user: ${user?.email ?? 'null'}.`);
+        if (user) {
+            // If the listener gives us a user, we are authenticated.
+            setUser(user);
+            setAuthError(null);
+            setLoading(false);
+            addAuthLog("Process complete: User is logged in.");
         } else {
-          setAuthError(caughtError.message);
+            // If there's no user, it could be because we just loaded the page
+            // and a redirect result is pending. We must check for it.
+            addAuthLog("No user in listener, checking for a pending redirect...");
+            try {
+                const result = await getRedirectResult(auth);
+                if (result) {
+                    // A user just signed in via redirect.
+                    // The onAuthStateChanged listener will fire AGAIN with the new user object.
+                    // We just log it and wait for the listener to re-run.
+                    addAuthLog(`Redirect result SUCCESSFUL for ${result.user.email}. Waiting for listener to re-fire with user object.`);
+                } else {
+                    // No user from listener AND no redirect result.
+                    // This confirms the user is truly logged out.
+                    addAuthLog("No pending redirect found. Process complete: User is logged out.");
+                    setUser(null);
+                    setLoading(false);
+                }
+            } catch (error) {
+                // An error happened during the redirect sign-in process.
+                const caughtError = error as AuthError;
+                addAuthLog(`Redirect check FAILED. Code: ${caughtError.code}`);
+                setAuthError(caughtError.code === 'auth/unauthorized-domain' ? 'unauthorized-domain' : caughtError.message);
+                setUser(null);
+                setLoading(false);
+            }
         }
-        // Even if the redirect fails, we should stop loading.
-        setLoading(false);
-      });
+    });
 
-    // The cleanup function for the useEffect hook.
     return () => {
-      if (unsubscribe) {
+        addAuthLog("Auth provider unmounting. Unsubscribing listener.");
         unsubscribe();
-      }
     };
-  }, []);
+}, [addAuthLog]);
+
 
   const signInWithGoogle = useCallback(async () => {
     if (!isFirebaseConfigured || !auth || !googleProvider) {
-      const errorMsg = 'Firebase is not configured. Cannot sign in.';
-      console.error(errorMsg);
-      setAuthError(errorMsg);
+      addAuthLog('Login failed: Firebase not configured.');
       return;
     }
     
+    addAuthLog("Initiating Google Sign-In with Redirect...");
+    setAuthError(null);
     try {
       await setPersistence(auth, browserLocalPersistence);
       await signInWithRedirect(auth, googleProvider);
-      // No state changes here. The page will redirect away.
-      // The result will be handled by getRedirectResult on the next page load.
     } catch (error) {
       const caughtError = error as AuthError;
-      console.error('Google Sign-In Redirect initiation failed:', caughtError);
+      addAuthLog(`Sign-in initiation failed: ${caughtError.message}`);
       setAuthError(caughtError.message);
     }
-  }, []);
+  }, [addAuthLog]);
 
   const signOut = useCallback(async () => {
-    if (!isFirebaseConfigured || !auth) {
-      console.error('Firebase is not configured. Cannot sign out.');
-      return;
-    }
+    if (!isFirebaseConfigured || !auth) return;
+    addAuthLog("Signing out...");
     await firebaseSignOut(auth);
-    // After signing out, onAuthStateChanged will set the user to null.
-    // The redirect logic in other components will handle routing to '/'.
+    addAuthLog("Sign out successful.");
     router.push('/');
-  }, [router]);
+  }, [addAuthLog, router]);
 
   const value = useMemo(() => ({ 
     user, 
     loading, 
     isFirebaseConfigured, 
     authError, 
+    authLogs,
     signInWithGoogle, 
     signOut 
-  }), [user, loading, isFirebaseConfigured, authError, signInWithGoogle, signOut]);
+  }), [user, loading, isFirebaseConfigured, authError, authLogs, signInWithGoogle, signOut]);
 
   return (
     <AuthContext.Provider value={value}>

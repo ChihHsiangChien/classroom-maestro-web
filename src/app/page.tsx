@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { School, LogIn, Terminal, AlertTriangle } from 'lucide-react';
+import { School, LogIn, Terminal, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
@@ -12,66 +12,96 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function Home() {
   const { t } = useI18n();
-  const { user, loading, signInWithGoogle, isFirebaseConfigured, authError } = useAuth();
+  const { user, loading, signInWithGoogle, isFirebaseConfigured, authError, authLogs } = useAuth();
   const router = useRouter();
 
-  // If a user is logged in, redirect them to the dashboard.
   useEffect(() => {
+    // Redirect if logged in and not loading
     if (!loading && user) {
       router.push('/dashboard');
     }
   }, [user, loading, router]);
 
-
   const handleLogin = async () => {
     await signInWithGoogle();
   };
-
-  // While loading auth state, show a loading indicator.
-  if (loading) {
-    return (
-      <div className="flex min-h-screen w-full flex-col items-center justify-center">
-        <School className="h-12 w-12 animate-pulse text-primary" />
-        <p className="mt-4 text-muted-foreground">{t('common.loading')}</p>
-      </div>
-    );
-  }
   
-  const isAuthDomainError = authError === 'unauthorized-domain';
   const getHostname = () => typeof window !== 'undefined' ? window.location.hostname : '';
 
-  // Handle various error states after loading is complete.
-  if (authError) {
+  // Render loading/debug view
+  if (loading) {
      return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
-        <Alert variant="destructive" className="max-w-xl bg-background">
-          <AlertTriangle className="h-4 w-4" />
-          {isAuthDomainError ? (
-            <>
-              <AlertTitle>{t('firebase.auth_domain_error_title')}</AlertTitle>
-              <AlertDescription>
-                 <div className="mt-2 space-y-3">
-                  <p>{t('firebase.auth_domain_error_description_p1')}</p>
-                  <p className="font-semibold">{t('firebase.auth_domain_error_description_p2')}</p>
-                  <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">{getHostname()}</code>
-                  <p>{t('firebase.auth_domain_error_instructions')}</p>
-                  <Button asChild variant="link" className="p-0 h-auto text-destructive font-semibold">
-                    <a href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/settings`} target="_blank" rel="noopener noreferrer">
-                        {t('firebase.auth_domain_error_button')}
-                      </a>
-                  </Button>
-                 </div>
-              </AlertDescription>
-            </>
-          ) : (
-             <>
-              <AlertTitle>{t('firebase.generic_auth_error_title')}</AlertTitle>
-              <AlertDescription>
-                <p>{authError}</p>
-              </AlertDescription>
-            </>
-          )}
-        </Alert>
+        <Card className="w-full max-w-lg shadow-lg">
+          <CardHeader>
+            <div className="flex items-center gap-4">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <CardTitle>Authenticating...</CardTitle>
+            </div>
+            <CardDescription>
+              Please wait while we verify your credentials. This may take a moment.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="mt-2 space-y-2 rounded-md border bg-background p-3 font-mono text-xs">
+              <p className="font-semibold">Login Process Log:</p>
+              <div className="max-h-60 overflow-y-auto">
+                {authLogs.length > 0 ? (
+                  authLogs.map((log, index) => <p key={index}>{log}</p>)
+                ) : (
+                  <p>Initializing auth provider...</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
+  // Render error view
+  if (authError) {
+     const isAuthDomainError = authError === 'unauthorized-domain';
+     return (
+      <main className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
+        <div className="max-w-xl w-full space-y-4">
+            <Alert variant="destructive" className="bg-background">
+              <AlertTriangle className="h-4 w-4" />
+              {isAuthDomainError ? (
+                <>
+                  <AlertTitle>{t('firebase.auth_domain_error_title')}</AlertTitle>
+                  <AlertDescription>
+                     <div className="mt-2 space-y-3">
+                      <p>{t('firebase.auth_domain_error_description_p1')}</p>
+                      <p className="font-semibold">{t('firebase.auth_domain_error_description_p2')}</p>
+                      <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">{getHostname()}</code>
+                      <p>{t('firebase.auth_domain_error_instructions')}</p>
+                      <Button asChild variant="link" className="p-0 h-auto text-destructive font-semibold">
+                        <a href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/settings`} target="_blank" rel="noopener noreferrer">
+                            {t('firebase.auth_domain_error_button')}
+                          </a>
+                      </Button>
+                     </div>
+                  </AlertDescription>
+                </>
+              ) : (
+                 <>
+                  <AlertTitle>{t('firebase.generic_auth_error_title')}</AlertTitle>
+                  <AlertDescription>
+                    <p>{authError}</p>
+                  </AlertDescription>
+                </>
+              )}
+            </Alert>
+            <Card>
+                <CardHeader><CardTitle>Debug Log</CardTitle></CardHeader>
+                <CardContent className="pt-0">
+                    <div className="max-h-60 overflow-y-auto space-y-2 rounded-md border bg-background p-3 font-mono text-xs">
+                    {authLogs.map((log, index) => <p key={index}>{log}</p>)}
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
       </main>
     );
   }
@@ -91,34 +121,44 @@ export default function Home() {
     );
   }
 
-  // If not loading, and no user, show the login page.
-  return (
-    <main className="flex min-h-screen w-full flex-col items-center justify-center p-4">
-      <div className="flex flex-col items-center gap-2 mb-8 text-center">
-        <div className="p-3 rounded-full bg-primary/10 border border-primary/20">
-          <School className="h-10 w-10 text-primary" />
+  // Render login page
+  if (!user) {
+    return (
+      <main className="flex min-h-screen w-full flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-2 mb-8 text-center">
+          <div className="p-3 rounded-full bg-primary/10 border border-primary/20">
+            <School className="h-10 w-10 text-primary" />
+          </div>
+          <h1 className="text-4xl font-bold font-headline text-foreground">
+            {t('landingPage.title')}
+          </h1>
+          <p className="max-w-md text-muted-foreground">
+            {t('landingPage.description')}
+          </p>
         </div>
-        <h1 className="text-4xl font-bold font-headline text-foreground">
-          {t('landingPage.title')}
-        </h1>
-        <p className="max-w-md text-muted-foreground">
-          {t('landingPage.description')}
-        </p>
-      </div>
-      <Card className="w-full max-w-sm shadow-lg">
-        <CardHeader className="text-center">
-          <CardTitle>{t('landingPage.teacher_signin_title')}</CardTitle>
-          <CardDescription>
-            {t('landingPage.teacher_signin_description_google')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={handleLogin} className="w-full">
-            <LogIn className="mr-2 h-4 w-4" />
-            {t('landingPage.signin_with_google_button')}
-          </Button>
-        </CardContent>
-      </Card>
-    </main>
+        <Card className="w-full max-w-sm shadow-lg">
+          <CardHeader className="text-center">
+            <CardTitle>{t('landingPage.teacher_signin_title')}</CardTitle>
+            <CardDescription>
+              {t('landingPage.teacher_signin_description_google')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={handleLogin} className="w-full">
+              <LogIn className="mr-2 h-4 w-4" />
+              {t('landingPage.signin_with_google_button')}
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
+  // Fallback for when user is truthy but redirect hasn't happened yet.
+  return (
+    <div className="flex min-h-screen w-full flex-col items-center justify-center">
+      <School className="h-12 w-12 animate-pulse text-primary" />
+      <p className="mt-4 text-muted-foreground">Redirecting to dashboard...</p>
+    </div>
   );
 }
