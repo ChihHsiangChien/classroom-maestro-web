@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import QRCode from "qrcode.react";
 import {
   DndContext,
@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut, GripVertical, ChevronDown } from 'lucide-react';
+import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut, GripVertical, ChevronDown, ArrowDownUp, ArrowUp, ArrowDown } from 'lucide-react';
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom, type Classroom, type Submission, type Student } from '@/contexts/classroom-context';
 import type { QuestionData } from "./create-poll-form";
@@ -40,6 +40,7 @@ import { Timestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 
 interface ManagementPanelProps {
@@ -76,8 +77,53 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
     const { t } = useI18n();
     const { kickStudent } = useClassroom();
     const { toast } = useToast();
-    const submittedIds = new Set(props.submissions.map(s => s.studentId));
     const canDisplayQrCode = props.joinUrl && props.joinUrl.length < 2000;
+
+    // State and logic for the Student Status card
+    const [sortBy, setSortBy] = useState<'name' | 'status' | 'submission'>('name');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+    const sortedStudents = useMemo(() => {
+        if (!props.classroom.students) return [];
+
+        const studentsCopy = [...props.classroom.students];
+        const submittedIds = new Set(props.submissions.map(s => s.studentId));
+
+        studentsCopy.sort((a, b) => {
+            let compare = 0;
+            const aIsOnline = a.isOnline === true && a.lastSeen && (Timestamp.now().seconds - a.lastSeen.seconds < 45);
+            const bIsOnline = b.isOnline === true && b.lastSeen && (Timestamp.now().seconds - b.lastSeen.seconds < 45);
+            const aHasSubmitted = submittedIds.has(a.id);
+            const bHasSubmitted = submittedIds.has(b.id);
+
+            switch (sortBy) {
+                case 'status':
+                    if (aIsOnline !== bIsOnline) {
+                        compare = aIsOnline ? -1 : 1; // Online students first
+                    } else {
+                        compare = a.name.localeCompare(b.name); // Fallback to name sort
+                    }
+                    break;
+                case 'submission':
+                     if (aHasSubmitted !== bHasSubmitted) {
+                        compare = aHasSubmitted ? -1 : 1; // Submitted students first
+                    } else if (aIsOnline !== bIsOnline) {
+                        compare = aIsOnline ? -1 : 1; // Then sort by online status
+                    } else {
+                        compare = a.name.localeCompare(b.name); // Fallback to name sort
+                    }
+                    break;
+                case 'name':
+                default:
+                    compare = a.name.localeCompare(b.name);
+                    break;
+            }
+            return sortOrder === 'asc' ? compare : -compare;
+        });
+
+        return studentsCopy;
+    }, [props.classroom.students, props.submissions, sortBy, sortOrder]);
+
 
     const handleCopy = () => {
         navigator.clipboard.writeText(props.joinUrl);
@@ -130,11 +176,39 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
         },
         status: {
             header: (
-                <div className="flex-1">
-                    <CardTitle>{t('activePoll.submission_status_card_title')}</CardTitle>
-                    <CardDescription>
-                        {t('activePoll.submission_status_card_description', { submissionsCount: props.submissions.length, studentsCount: props.classroom.students?.length || 0 })}
-                    </CardDescription>
+                 <div className="flex flex-1 items-center justify-between">
+                    <div className="flex-1 pr-2">
+                        <CardTitle>{t('activePoll.submission_status_card_title')}</CardTitle>
+                        <CardDescription>
+                            {t('activePoll.submission_status_card_description', { submissionsCount: props.submissions.length, studentsCount: props.classroom.students?.length || 0 })}
+                        </CardDescription>
+                    </div>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0 -mr-2">
+                                <ArrowDownUp className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>{t('studentManagement.sort_by_label')}</DropdownMenuLabel>
+                            <DropdownMenuRadioGroup value={sortBy} onValueChange={(value) => setSortBy(value as any)}>
+                                <DropdownMenuRadioItem value="name">{t('studentManagement.sort_by_name')}</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="status">{t('studentManagement.sort_by_status')}</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="submission">{t('studentManagement.sort_by_submission')}</DropdownMenuRadioItem>
+                            </DropdownMenuRadioGroup>
+                            <DropdownMenuSeparator />
+                             <DropdownMenuRadioGroup value={sortOrder} onValueChange={(value) => setSortOrder(value as any)}>
+                                <DropdownMenuRadioItem value="asc">
+                                    <ArrowUp className="mr-2 h-3.5 w-3.5" />
+                                    {t('studentManagement.sort_order_asc')}
+                                </DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="desc">
+                                    <ArrowDown className="mr-2 h-3.5 w-3.5" />
+                                    {t('studentManagement.sort_order_desc')}
+                                </DropdownMenuRadioItem>
+                            </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             ),
             content: (
@@ -142,7 +216,8 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                     <ScrollArea className="h-72 px-6">
                         <div className="space-y-2 py-4">
                             <TooltipProvider>
-                            {props.classroom.students && props.classroom.students.map(student => {
+                            {sortedStudents.map(student => {
+                                const submittedIds = new Set(props.submissions.map(s => s.studentId));
                                 const hasSubmitted = submittedIds.has(student.id);
                                 const isConsideredOnline = student.isOnline === true && student.lastSeen && (Timestamp.now().seconds - student.lastSeen.seconds < 45);
                                 return (
@@ -169,7 +244,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                                             <p className="font-medium truncate">{student.name}</p>
                                         </div>
                                         <div className='flex items-center gap-1'>
-                                            {hasSubmitted ? (
+                                            {hasSubmitted && props.activeQuestion ? (
                                                 <div className="flex items-center gap-1 text-green-600">
                                                     <CheckCircle className="h-5 w-5" />
                                                     <span className="text-xs hidden sm:inline">{t('activePoll.submitted_status')}</span>
@@ -192,7 +267,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                                 )
                             })}
                             </TooltipProvider>
-                            {(!props.classroom.students || props.classroom.students.length === 0) && (
+                            {(!sortedStudents || sortedStudents.length === 0) && (
                                 <p className="text-center text-muted-foreground py-4">{t('studentManagement.no_students_logged_in_message')}</p>
                             )}
                         </div>
@@ -234,14 +309,15 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
     };
 
     const cardData = cardsContent[id];
+    if (!cardData) return null;
 
     return (
         <div ref={setNodeRef} style={style}>
             <Card>
                 <Collapsible open={props.open} onOpenChange={props.onOpenChange}>
-                    <CardHeader className="flex flex-row items-start justify-between pb-2">
-                        <div className="flex items-center gap-1 -ml-2">
-                            <Button variant="ghost" size="icon" {...handleProps} className="cursor-grab active:cursor-grabbing h-8 w-8">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <div className="flex min-w-0 items-center gap-1 -ml-2">
+                            <Button variant="ghost" size="icon" {...handleProps} className="cursor-grab active:cursor-grabbing h-8 w-8 flex-shrink-0">
                                 <GripVertical className="h-5 w-5 text-muted-foreground" />
                             </Button>
                             {cardData.header}
@@ -273,7 +349,14 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
       if (savedState) {
         const { order, open } = JSON.parse(savedState);
         if (Array.isArray(order) && typeof open === 'object') {
-          setCardOrder(order);
+          // Ensure all default cards are present
+          const defaultCards = ['join', 'status', 'lesson'];
+          const newOrder = defaultCards.filter(c => order.includes(c));
+          order.forEach(c => {
+            if (!newOrder.includes(c)) newOrder.push(c);
+          });
+          
+          setCardOrder(newOrder);
           setOpenStates(open);
         }
       }
@@ -325,7 +408,7 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
                 joinUrl={joinUrl}
                 activeQuestion={activeQuestion}
                 onEndQuestion={onEndQuestion}
-                open={openStates[id]}
+                open={openStates[id] === undefined ? true : openStates[id]}
                 onOpenChange={(isOpen) => handleOpenChange(id, isOpen)}
               />
             ))}
