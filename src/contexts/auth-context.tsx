@@ -73,9 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // onAuthStateChanged will handle setting the user state.
     } catch (error) {
         const caughtError = error as AuthError;
-        // Based on testing, in a sandboxed dev environment like this, 'popup-closed-by-user'
-        // often means an unauthorized domain issue. We'll treat them the same
-        // to provide a more helpful error message to the developer.
+        // The most common error in this sandboxed environment is the domain not being authorized.
+        // Both `auth/unauthorized-domain` and `auth/popup-closed-by-user` (when the popup fails to load)
+        // often point to this same root cause. We'll set a specific error state for it.
         if (caughtError.code === 'auth/unauthorized-domain' || caughtError.code === 'auth/popup-closed-by-user') {
             log(`signInWithPopup Error: Detected as Unauthorized Domain issue (original code: ${caughtError.code}).`);
             setAuthError('unauthorized-domain');
