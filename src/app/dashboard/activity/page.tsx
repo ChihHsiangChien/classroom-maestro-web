@@ -16,6 +16,7 @@ import { ActiveQuestion } from "@/components/active-poll";
 import type { QuestionData } from "@/components/create-poll-form";
 import type { Student, Submission } from "@/contexts/classroom-context";
 import { LotteryModal } from "@/components/lottery-modal";
+import { RaceModal } from "@/components/race-modal";
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom } from "@/contexts/classroom-context";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +40,7 @@ export default function ActivityPage() {
   const [pickedStudentIds, setPickedStudentIds] = useState<string[]>([]);
   const [joinUrl, setJoinUrl] = useState('');
   const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [isRaceModalOpen, setIsRaceModalOpen] = useState(false);
 
   // The active question is now derived directly from the live classroom data.
   const activeQuestion = activeClassroom?.activeQuestion || null;
@@ -50,6 +52,14 @@ export default function ActivityPage() {
       router.replace('/dashboard');
     }
   }, [activeClassroom, classroomLoading, router]);
+  
+  useEffect(() => {
+    // If a race is active (pending or finished), open the modal.
+    if (race) {
+        setIsRaceModalOpen(true);
+    }
+  }, [race]);
+
 
   useEffect(() => {
     if (typeof window !== 'undefined' && activeClassroom) {
@@ -127,6 +137,7 @@ export default function ActivityPage() {
   const handleResetRace = () => {
      if (activeClassroom) {
       resetRace(activeClassroom.id);
+      setIsRaceModalOpen(false);
     }
   };
 
@@ -187,7 +198,7 @@ export default function ActivityPage() {
             <Button variant="outline" onClick={handleStartRace} disabled={activityInProgress}>
               {t('studentManagement.snatch_button')}
             </Button>
-            <Button variant="outline" onClick={handlePickStudent} disabled={!activeClassroom.students || activeClassroom.students.length === 0}>
+            <Button variant="outline" onClick={handlePickStudent} disabled={activityInProgress || !activeClassroom.students || activeClassroom.students.length === 0}>
               {t('studentManagement.lottery_button')}
             </Button>
           </div>
@@ -202,7 +213,6 @@ export default function ActivityPage() {
                       joinUrl={joinUrl}
                       activeQuestion={activeQuestion}
                       onEndQuestion={handleEndQuestion}
-                      onResetRace={handleResetRace}
                   />
               </aside>
             )}
@@ -241,6 +251,12 @@ export default function ActivityPage() {
           activeQuestion={activeQuestion}
           excludePicked={excludePicked}
           onExcludePickedChange={handleExcludeChange}
+      />
+      <RaceModal
+          race={race}
+          isOpen={isRaceModalOpen}
+          onOpenChange={setIsRaceModalOpen}
+          onReset={handleResetRace}
       />
     </>
   );
