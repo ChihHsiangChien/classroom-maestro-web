@@ -43,6 +43,8 @@ export default function ActivityPage() {
   const [lotteryStudent, setLotteryStudent] = useState<(Student & { submission?: Submission }) | null>(null);
   const [pickedStudentIds, setPickedStudentIds] = useState<string[]>([]);
   const [lotteryPoolSource, setLotteryPoolSource] = useState<'all' | 'online'>('all');
+  const [isUniquePick, setIsUniquePick] = useState(true);
+
 
   const activeQuestion = activeClassroom?.activeQuestion || null;
   const race = activeClassroom?.race || null;
@@ -96,8 +98,11 @@ export default function ActivityPage() {
         : activeClassroom.students.filter(student => 
             student.isOnline === true && student.lastSeen && (Timestamp.now().seconds - student.lastSeen.seconds < 45)
           );
+          
+    const availableStudents = isUniquePick
+        ? studentPool.filter(s => !pickedStudentIds.includes(s.id))
+        : studentPool;
 
-    const availableStudents = studentPool.filter(s => !pickedStudentIds.includes(s.id));
     if (availableStudents.length === 0) {
         toast({
             variant: "destructive",
@@ -109,7 +114,10 @@ export default function ActivityPage() {
     const randomIndex = Math.floor(Math.random() * availableStudents.length);
     const student = availableStudents[randomIndex];
 
-    setPickedStudentIds(prev => [...prev, student.id]);
+    if (isUniquePick) {
+      setPickedStudentIds(prev => [...prev, student.id]);
+    }
+    
     const submission = submissions.find(s => s.studentId.toString() === student.id);
     setLotteryStudent({ ...student, submission });
   };
@@ -206,7 +214,7 @@ export default function ActivityPage() {
                 "w-full space-y-6 transition-all duration-300",
                 isPanelOpen ? "lg:w-2/3" : "lg:w-full"
             )}>
-              {!activeQuestion ? (
+              {!activeQuestion && !race ? (
                 <Card className="shadow-md">
                   <CardHeader>
                     <CardTitle>{t('teacherDashboard.create_question_card_title')}</CardTitle>
@@ -218,14 +226,14 @@ export default function ActivityPage() {
                     <CreateQuestionForm onQuestionCreate={handleQuestionCreate} />
                   </CardContent>
                 </Card>
-              ) : (
+              ) : activeQuestion ? (
                 <ActiveQuestion 
                   question={activeQuestion} 
                   onEndQuestion={handleEndQuestion}
                   students={activeClassroom.students}
                   submissions={submissions}
                 />
-              )}
+              ) : null}
             </main>
         </div>
       </div>
@@ -238,6 +246,8 @@ export default function ActivityPage() {
           activeQuestion={activeQuestion}
           poolSource={lotteryPoolSource}
           onPoolSourceChange={setLotteryPoolSource}
+          isUniquePick={isUniquePick}
+          onIsUniquePickChange={setIsUniquePick}
           onPickStudent={handlePickStudent}
           onReset={handleResetLottery}
       />

@@ -32,6 +32,8 @@ interface LotteryModalProps {
   activeQuestion: QuestionData | null;
   poolSource: 'all' | 'online';
   onPoolSourceChange: (source: 'all' | 'online') => void;
+  isUniquePick: boolean;
+  onIsUniquePickChange: (isUnique: boolean) => void;
   onPickStudent: () => void;
   onReset: () => void;
 }
@@ -79,6 +81,8 @@ export function LotteryModal({
   activeQuestion,
   poolSource,
   onPoolSourceChange,
+  isUniquePick,
+  onIsUniquePickChange,
   onPickStudent,
   onReset
 }: LotteryModalProps) {
@@ -97,9 +101,12 @@ export function LotteryModal({
   }, [classroom.students, poolSource]);
   
   const unpickedStudents = useMemo(() => {
-      const pickedSet = new Set(pickedStudentIds);
-      return studentPool.filter(s => !pickedSet.has(s.id));
-  }, [studentPool, pickedStudentIds]);
+    if (!isUniquePick) {
+      return studentPool;
+    }
+    const pickedSet = new Set(pickedStudentIds);
+    return studentPool.filter(s => !pickedSet.has(s.id));
+  }, [studentPool, pickedStudentIds, isUniquePick]);
 
   const pickedStudentsFromPool = useMemo(() => {
       const pickedSet = new Set(pickedStudentIds);
@@ -119,8 +126,8 @@ export function LotteryModal({
 
         const animationPool = [...unpickedStudents.map(s => s.name), pickedStudent.name];
 
-        // No need to animate if there's only one option left
-        if (animationPool.length < 2) {
+        // No need to animate if there's only one option left and we're in unique pick mode
+        if (isUniquePick && animationPool.length < 2) {
             setDisplayName(pickedStudent.name);
             setIsAnimating(false);
             prevPickedStudentId.current = pickedStudent.id;
@@ -158,7 +165,7 @@ export function LotteryModal({
         setIsAnimating(false);
         prevPickedStudentId.current = null;
     }
-  }, [pickedStudent, unpickedStudents]);
+  }, [pickedStudent, unpickedStudents, isUniquePick]);
 
   if (!isOpen) {
     return null;
@@ -174,8 +181,66 @@ export function LotteryModal({
           <DialogTitle className="text-center text-2xl">{t('studentManagement.lottery_button')}</DialogTitle>
         </DialogHeader>
         
-        <div className="grid md:grid-cols-2 gap-6 overflow-y-auto pr-2">
-            {/* Left Column: Picked Student & Controls */}
+        <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 overflow-y-auto pr-2">
+            {/* Left Column: Lists & Controls */}
+            <div className="space-y-4 flex flex-col min-h-[300px]">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="unique-pick" checked={isUniquePick} onCheckedChange={(checked) => onIsUniquePickChange(!!checked)} />
+                        <Label htmlFor="unique-pick" className="text-sm font-medium leading-none">
+                          {t('lotteryModal.unique_pick_label')}
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="pool-source" checked={poolSource === 'online'} onCheckedChange={(checked) => onPoolSourceChange(checked ? 'online' : 'all')} />
+                        <Label htmlFor="pool-source" className="text-sm font-medium leading-none">
+                          {t('lotteryModal.pick_from_online_label')}
+                        </Label>
+                      </div>
+                    </div>
+                     <Button variant="outline" size="sm" onClick={onReset} disabled={isAnimating}>
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        {t('lotteryModal.reset_button')}
+                    </Button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 overflow-hidden">
+                    <Card className="flex flex-col">
+                        <CardHeader className="p-3">
+                           <CardTitle className="text-base flex items-center gap-2"><ListTodo className="h-5 w-5" /> {t('lotteryModal.unpicked_list_title')}</CardTitle>
+                           <CardDescription>{unpickedStudents.length} students</CardDescription>
+                        </CardHeader>
+                        <Separator />
+                        <CardContent className="p-1 flex-1 overflow-hidden">
+                            <ScrollArea className="h-full">
+                                <div className="p-2 space-y-1">
+                                    {unpickedStudents.length > 0 ? unpickedStudents.map(s => (
+                                        <p key={s.id} className="text-sm px-2 py-1 rounded-md bg-muted/50">{s.name}</p>
+                                    )) : <p className="text-center text-xs text-muted-foreground p-4">{t('lotteryModal.lottery_no_students_in_pool')}</p>}
+                                </div>
+                            </ScrollArea>
+                        </CardContent>
+                    </Card>
+                     <Card className="flex flex-col">
+                        <CardHeader className="p-3">
+                           <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-5 w-5" /> {t('lotteryModal.picked_list_title')}</CardTitle>
+                           <CardDescription>{pickedStudentsFromPool.length} students</CardDescription>
+                        </CardHeader>
+                        <Separator />
+                        <CardContent className="p-1 flex-1 overflow-hidden">
+                            <ScrollArea className="h-full">
+                                <div className="p-2 space-y-1">
+                                    {pickedStudentsFromPool.length > 0 ? pickedStudentsFromPool.map(s => (
+                                        <p key={s.id} className="text-sm px-2 py-1 rounded-md opacity-70">{s.name}</p>
+                                    )) : <p className="text-center text-xs text-muted-foreground p-4">{t('lotteryModal.no_one_picked_yet')}</p>}
+                                </div>
+                            </ScrollArea>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            {/* Right Column: Picked Student & Result */}
             <div className="space-y-4 flex flex-col">
                 <Card>
                     <CardHeader className="pb-2">
@@ -225,55 +290,6 @@ export function LotteryModal({
                 )}
             </div>
 
-            {/* Right Column: Lists */}
-            <div className="space-y-4 flex flex-col min-h-[300px]">
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="pool-source" checked={poolSource === 'online'} onCheckedChange={(checked) => onPoolSourceChange(checked ? 'online' : 'all')} />
-                      <Label htmlFor="pool-source" className="text-sm font-medium">
-                        {t('lotteryModal.pick_from_online_label')}
-                      </Label>
-                    </div>
-                     <Button variant="outline" size="sm" onClick={onReset} disabled={isAnimating}>
-                        <RotateCcw className="mr-2 h-4 w-4" />
-                        {t('lotteryModal.reset_button')}
-                    </Button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 overflow-hidden">
-                    <Card className="flex flex-col">
-                        <CardHeader className="p-3">
-                           <CardTitle className="text-base flex items-center gap-2"><ListTodo className="h-5 w-5" /> {t('lotteryModal.unpicked_list_title')}</CardTitle>
-                           <CardDescription>{unpickedStudents.length} students</CardDescription>
-                        </CardHeader>
-                        <Separator />
-                        <CardContent className="p-1 flex-1 overflow-hidden">
-                            <ScrollArea className="h-full">
-                                <div className="p-2 space-y-1">
-                                    {unpickedStudents.length > 0 ? unpickedStudents.map(s => (
-                                        <p key={s.id} className="text-sm px-2 py-1 rounded-md bg-muted/50">{s.name}</p>
-                                    )) : <p className="text-center text-xs text-muted-foreground p-4">{t('lotteryModal.lottery_no_students_in_pool')}</p>}
-                                </div>
-                            </ScrollArea>
-                        </CardContent>
-                    </Card>
-                     <Card className="flex flex-col">
-                        <CardHeader className="p-3">
-                           <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-5 w-5" /> {t('lotteryModal.picked_list_title')}</CardTitle>
-                           <CardDescription>{pickedStudentsFromPool.length} students</CardDescription>
-                        </CardHeader>
-                        <Separator />
-                        <CardContent className="p-1 flex-1 overflow-hidden">
-                            <ScrollArea className="h-full">
-                                <div className="p-2 space-y-1">
-                                    {pickedStudentsFromPool.length > 0 ? pickedStudentsFromPool.map(s => (
-                                        <p key={s.id} className="text-sm px-2 py-1 rounded-md opacity-70">{s.name}</p>
-                                    )) : <p className="text-center text-xs text-muted-foreground p-4">{t('lotteryModal.no_one_picked_yet')}</p>}
-                                </div>
-                            </ScrollArea>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
         </div>
 
         <DialogFooter className="pt-4 sm:justify-between sm:flex-row-reverse">
