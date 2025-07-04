@@ -232,9 +232,10 @@ export const dictionaries = {
       picked_list_title: '已抽中名單',
       no_one_picked_yet: '尚未抽出任何人。',
       lottery_no_students_in_pool: '此條件下沒有可抽取的學生。',
-      lottery_reset_toast: '抽獎名單已重置。',
-      lottery_reset_title: '抽獎重置',
-      lottery_reset_description: '所有學生都已經被抽過了。新一輪抽獎現在開始。'
+      lottery_reset_toast: '抽人名單已重置。',
+      lottery_reset_title: '抽人重置',
+      lottery_reset_description: '所有學生都已經被抽過了。新一輪抽人現在開始。',
+      picking_in_progress: '抽人中...'
     },
     studentManagement: {
       title: '教室管理',
@@ -531,7 +532,8 @@ export const dictionaries = {
       lottery_no_students_in_pool: 'No students available in this pool.',
       lottery_reset_toast: 'Lottery lists have been reset.',
       lottery_reset_title: 'Lottery Reset',
-      lottery_reset_description: 'All students have been picked. A new round will begin.'
+      lottery_reset_description: 'All students have been picked. A new round will begin.',
+      picking_in_progress: 'Picking...',
     },
     studentManagement: {
       title: 'Classroom Management',

@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import {
   Dialog,
@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { User, FileText, Users, RotateCcw, ListChecks, ListTodo } from 'lucide-react';
+import { User, FileText, Users, RotateCcw, ListChecks, ListTodo, Loader2 } from 'lucide-react';
 import type { Student, Submission, Classroom } from '@/contexts/classroom-context';
 import type { QuestionData } from './create-poll-form';
 import { useI18n } from '@/lib/i18n/provider';
@@ -84,6 +84,10 @@ export function LotteryModal({
 }: LotteryModalProps) {
   const { t } = useI18n();
 
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const prevPickedStudentId = useRef<string | null>(null);
+
   const studentPool = useMemo(() => {
     return poolSource === 'all'
         ? classroom.students
@@ -107,6 +111,55 @@ export function LotteryModal({
   }, [pickedStudentIds, classroom.students, studentPool]);
 
 
+  useEffect(() => {
+    // Check if a new student has been picked
+    if (pickedStudent && pickedStudent.id !== prevPickedStudentId.current) {
+        setIsAnimating(true);
+        setDisplayName(null); // Clear previous name immediately
+
+        const animationPool = [...unpickedStudents.map(s => s.name), pickedStudent.name];
+
+        // No need to animate if there's only one option left
+        if (animationPool.length < 2) {
+            setDisplayName(pickedStudent.name);
+            setIsAnimating(false);
+            prevPickedStudentId.current = pickedStudent.id;
+            return;
+        }
+
+        let delay = 50; // Start fast
+        let step = 0;
+        const totalSteps = 15; // Number of name flashes
+
+        const runAnimationStep = () => {
+            const randomIndex = Math.floor(Math.random() * animationPool.length);
+            setDisplayName(animationPool[randomIndex]);
+            
+            step++;
+
+            if (step > totalSteps) {
+                // Last step: show the actual winner
+                setDisplayName(pickedStudent.name);
+                setIsAnimating(false);
+            } else {
+                // Increase delay to slow down
+                delay *= 1.2;
+                setTimeout(runAnimationStep, delay);
+            }
+        };
+        
+        // Start the animation
+        setTimeout(runAnimationStep, delay);
+        prevPickedStudentId.current = pickedStudent.id;
+
+    } else if (!pickedStudent) {
+        // Reset animation state if the picked student is cleared (e.g., by onReset)
+        setDisplayName(null);
+        setIsAnimating(false);
+        prevPickedStudentId.current = null;
+    }
+  }, [pickedStudent, unpickedStudents]);
+
   if (!isOpen) {
     return null;
   }
@@ -129,22 +182,26 @@ export function LotteryModal({
                         <CardTitle>{t('lotteryModal.title')}</CardTitle>
                     </CardHeader>
                     <CardContent className="h-48 flex items-center justify-center">
-                        {pickedStudent ? (
+                       {isAnimating ? (
+                            <div className="text-center">
+                                <p className="text-4xl font-bold text-foreground transition-opacity duration-150 h-[48px]">{displayName}</p>
+                            </div>
+                        ) : pickedStudent && displayName ? (
                             <div className="flex flex-col items-center gap-4 text-center animate-in fade-in-50 zoom-in-95">
                                 <div className="p-4 bg-primary/10 rounded-full">
                                     <User className="h-10 w-10 text-primary" />
                                 </div>
-                                <p className="text-4xl font-bold text-foreground">{pickedStudent.name}</p>
+                                <p className="text-4xl font-bold text-foreground">{displayName}</p>
                             </div>
                         ) : (
-                             <div className="text-center text-muted-foreground">
+                            <div className="text-center text-muted-foreground">
                                 <p>{t('lotteryModal.no_one_picked_yet')}</p>
                             </div>
                         )}
                     </CardContent>
                 </Card>
 
-                {hasSubmission && (
+                {pickedStudent && !isAnimating && hasSubmission && (
                     <Card className="flex-1">
                         <CardHeader>
                             <CardTitle className="text-base">{t('lotteryModal.submission_title')}</CardTitle>
@@ -154,7 +211,7 @@ export function LotteryModal({
                         </CardContent>
                     </Card>
                 )}
-                 {pickedStudent && !hasSubmission && activeQuestion && (
+                 {pickedStudent && !isAnimating && !hasSubmission && activeQuestion && (
                     <Card className="flex-1">
                       <CardHeader>
                           <CardTitle className="text-base">{t('lotteryModal.submission_title')}</CardTitle>
@@ -177,7 +234,7 @@ export function LotteryModal({
                         {t('lotteryModal.pick_from_online_label')}
                       </Label>
                     </div>
-                     <Button variant="outline" size="sm" onClick={onReset}>
+                     <Button variant="outline" size="sm" onClick={onReset} disabled={isAnimating}>
                         <RotateCcw className="mr-2 h-4 w-4" />
                         {t('lotteryModal.reset_button')}
                     </Button>
@@ -220,9 +277,13 @@ export function LotteryModal({
         </div>
 
         <DialogFooter className="pt-4 sm:justify-between sm:flex-row-reverse">
-          <Button onClick={onPickStudent} disabled={unpickedStudents.length === 0}>
-            <Users className="mr-2 h-4 w-4" />
-            {pickButtonText}
+          <Button onClick={onPickStudent} disabled={unpickedStudents.length === 0 || isAnimating}>
+            {isAnimating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+                <Users className="mr-2 h-4 w-4" />
+            )}
+            {isAnimating ? t('lotteryModal.picking_in_progress') : pickButtonText}
           </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.close')}</Button>
         </DialogFooter>
