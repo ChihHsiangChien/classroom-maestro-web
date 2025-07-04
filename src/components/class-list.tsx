@@ -285,79 +285,74 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
                     </CardDescription>
                   </div>
                   
-                  <AlertDialog>
-                    <Dialog>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="flex-shrink-0">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>{t('dashboard.actions_menu_tooltip')}</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onSelect={() => openEditDialog(c)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            <span>{t('dashboard.edit_class')}</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => onSelectClass(c)}>
-                            <Users className="mr-2 h-4 w-4" />
-                            <span>{t('dashboard.edit_students_list')}</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => openDownloadDialog(c)} disabled={actionStates[c.id]?.isLoading}>
-                            {actionStates[c.id]?.isLoading ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Download className="mr-2 h-4 w-4" />
-                            )}
-                            <span>{t('dashboard.download_history_button')}</span>
-                          </DropdownMenuItem>
-                          
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="flex-shrink-0">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>{t('dashboard.actions_menu_tooltip')}</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => openEditDialog(c)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        <span>{t('dashboard.edit_class')}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => onSelectClass(c)}>
+                        <Users className="mr-2 h-4 w-4" />
+                        <span>{t('dashboard.edit_students_list')}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => openDownloadDialog(c)} disabled={actionStates[c.id]?.isLoading}>
+                        {actionStates[c.id]?.isLoading ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="mr-2 h-4 w-4" />
+                        )}
+                        <span>{t('dashboard.download_history_button')}</span>
+                      </DropdownMenuItem>
+                      
+                      <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                <Eraser className="mr-2 h-4 w-4" />
-                                <span>{t('dashboard.delete_history_button')}</span>
-                            </DropdownMenuItem>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                  <Eraser className="mr-2 h-4 w-4" />
+                                  <span>{t('dashboard.delete_history_button')}</span>
+                              </DropdownMenuItem>
                           </AlertDialogTrigger>
-                          
-                          <DropdownMenuSeparator />
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t('dashboard.delete_history_confirm_title')}</AlertDialogTitle>
+                              <AlertDialogDescription>{t('dashboard.delete_history_confirm_description', {name: c.name})}</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteHistory(c.id)}>{t('common.delete')}</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                      </AlertDialog>
+                      
+                      <DropdownMenuSeparator />
 
+                      <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 <span>{t('dashboard.delete_class')}</span>
                             </DropdownMenuItem>
                           </AlertDialogTrigger>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t('dashboard.delete_class_confirm_title')}</AlertDialogTitle>
+                              <AlertDialogDescription>{t('dashboard.delete_class_confirm_description', {name: c.name})}</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteClass(c.id)}>{t('common.delete')}</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                      </AlertDialog>
 
-                      {/* This is the content for the "Delete History" dialog */}
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>{t('dashboard.delete_history_confirm_title')}</AlertDialogTitle>
-                          <AlertDialogDescription>{t('dashboard.delete_history_confirm_description', {name: c.name})}</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteHistory(c.id)}>{t('common.delete')}</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-
-                    </Dialog>
-                    
-                    {/* This is the content for the "Delete Class" dialog */}
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>{t('dashboard.delete_class_confirm_title')}</AlertDialogTitle>
-                          <AlertDialogDescription>{t('dashboard.delete_class_confirm_description', {name: c.name})}</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteClass(c.id)}>{t('common.delete')}</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-
-                  </AlertDialog>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
                 </CardHeader>
                 <CardContent className="flex-grow" />
@@ -440,5 +435,3 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
     </>
   );
 }
-
-    
