@@ -43,24 +43,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // This is a flag to ensure we don't set loading to false until the redirect check is complete.
+    let redirectResultProcessed = false;
+
     // This listener is the single source of truth for the user's auth state.
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       log(`onAuthStateChanged listener fired. User: ${user?.email ?? 'Not Logged In'}`);
       setUser(user);
-      setLoading(false); // Only set loading to false AFTER we have a definitive user state.
-      log("Auth state confirmed. Loading is now false.");
-    });
-
-    // Check for redirect result to handle errors, but don't rely on it for user state.
-    // The onAuthStateChanged listener above will handle the user object correctly.
-    getRedirectResult(auth).catch((error: AuthError) => {
-      log(`Error from getRedirectResult: ${error.code}`);
-      if (error.code === 'auth/unauthorized-domain') {
-        setAuthError('unauthorized-domain');
-      } else {
-        setAuthError(error.message);
+      
+      // Only set loading to false if we've already checked for a redirect result.
+      // This prevents the initial "no user" state from prematurely ending the loading state
+      // when a redirect is in progress.
+      if (redirectResultProcessed) {
+        log("Auth state confirmed (post-redirect check). Loading is now false.");
+        setLoading(false);
       }
     });
+
+    // Check for redirect result to handle login, but rely on onAuthStateChanged for state.
+    getRedirectResult(auth)
+      .catch((error: AuthError) => {
+        log(`Error from getRedirectResult: ${error.code}`);
+        if (error.code === 'auth/unauthorized-domain') {
+          setAuthError('unauthorized-domain');
+        } else {
+          setAuthError(error.message);
+        }
+      })
+      .finally(() => {
+        // No matter the outcome, we now know the redirect has been processed.
+        log("Redirect result processing finished.");
+        redirectResultProcessed = true;
+        
+        // If there's no user at this point (and onAuthStateChanged hasn't fired with one),
+        // it means no one was logged in and no successful redirect occurred.
+        // It's now safe to stop loading. If onAuthStateChanged already fired, this does nothing.
+        // If it hasn't fired yet, it will handle setting loading to false when it does.
+        if (!auth.currentUser) {
+            log("No current user after redirect check. Stopping loading.");
+            setLoading(false);
+        }
+      });
 
     return () => {
       log("AuthProvider unmounting. Cleaning up listener.");
@@ -72,11 +95,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     if (!isFirebaseConfigured || !auth || !googleProvider) {
       log('Login failed: Firebase not configured.');
+      setAuthError("Firebase is not configured. Please check your .env file.");
       return;
     }
     
     log("Initiating Google Sign-In with Redirect...");
-    setLoading(true); // Show loading state immediately on click
     setAuthError(null);
     try {
       await setPersistence(auth, browserLocalPersistence);
