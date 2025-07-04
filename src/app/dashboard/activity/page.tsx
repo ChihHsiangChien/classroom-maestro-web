@@ -40,7 +40,6 @@ export default function ActivityPage() {
   const [pickedStudentIds, setPickedStudentIds] = useState<string[]>([]);
   const [joinUrl, setJoinUrl] = useState('');
   const [isPanelOpen, setIsPanelOpen] = useState(true);
-  const [isRaceModalOpen, setIsRaceModalOpen] = useState(false);
 
   // The active question is now derived directly from the live classroom data.
   const activeQuestion = activeClassroom?.activeQuestion || null;
@@ -52,13 +51,6 @@ export default function ActivityPage() {
       router.replace('/dashboard');
     }
   }, [activeClassroom, classroomLoading, router]);
-  
-  useEffect(() => {
-    // If a race is active (pending or finished), open the modal.
-    if (race) {
-        setIsRaceModalOpen(true);
-    }
-  }, [race]);
 
 
   useEffect(() => {
@@ -137,7 +129,6 @@ export default function ActivityPage() {
   const handleResetRace = () => {
      if (activeClassroom) {
       resetRace(activeClassroom.id);
-      setIsRaceModalOpen(false);
     }
   };
 
@@ -254,8 +245,12 @@ export default function ActivityPage() {
       />
       <RaceModal
           race={race}
-          isOpen={isRaceModalOpen}
-          onOpenChange={setIsRaceModalOpen}
+          isOpen={!!race}
+          onOpenChange={(open) => {
+              if (!open) {
+                  handleResetRace();
+              }
+          }}
           onReset={handleResetRace}
       />
     </>
