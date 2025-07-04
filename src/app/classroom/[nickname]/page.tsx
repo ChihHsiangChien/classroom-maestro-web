@@ -11,6 +11,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/comp
 import { Loader2, PartyPopper, LogOut } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { StudentRace } from '@/components/student-race';
 
 
 function ClassroomPageContent() {
@@ -18,7 +19,7 @@ function ClassroomPageContent() {
     const params = useParams();
     const searchParams = useSearchParams();
     const router = useRouter();
-    const { listenForClassroom, listenForStudentPresence, addSubmission, updateStudentPresence, acknowledgeKick } = useClassroom();
+    const { listenForClassroom, listenForStudentPresence, addSubmission, updateStudentPresence, acknowledgeKick, claimRace } = useClassroom();
 
     const classroomId = params.nickname as string;
     const studentId = searchParams.get('studentId');
@@ -29,6 +30,7 @@ function ClassroomPageContent() {
     const [submittedQuestionId, setSubmittedQuestionId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [kicked, setKicked] = useState(false);
+    const [activeRace, setActiveRace] = useState<any | null>(null);
 
     // This effect handles student presence (online status)
     useEffect(() => {
@@ -69,6 +71,7 @@ function ClassroomPageContent() {
             };
             
             setIsLocked(classroom.isLocked || false);
+            setActiveRace(classroom.race || null);
 
             const currentQuestion = classroom.activeQuestion;
             if (currentQuestion && activeQuestion?.id !== currentQuestion.id) {
@@ -111,6 +114,11 @@ function ClassroomPageContent() {
         setSubmittedQuestionId(activeQuestion.id);
     };
 
+    const handleClaimRace = async (): Promise<boolean> => {
+        if (!classroomId || !studentId || !activeRace) return false;
+        return claimRace(classroomId, activeRace.id, studentId, studentName);
+    };
+
     const handleLogout = () => {
         if (isLocked) return;
         if (classroomId) {
@@ -129,6 +137,10 @@ function ClassroomPageContent() {
                 <p className="text-xl">{t('common.loading')}</p>
             </div>
         );
+    }
+
+    if (activeRace) {
+        return <StudentRace race={activeRace} studentId={studentId} onClaim={handleClaimRace} />;
     }
 
     if (activeQuestion && submittedQuestionId !== activeQuestion.id) {

@@ -30,7 +30,7 @@ export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
   // Get the real-time active classroom directly from the context. This is the single source of truth.
-  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading } = useClassroom();
+  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace } = useClassroom();
   const { toast } = useToast();
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -42,6 +42,7 @@ export default function ActivityPage() {
 
   // The active question is now derived directly from the live classroom data.
   const activeQuestion = activeClassroom?.activeQuestion || null;
+  const race = activeClassroom?.race || null;
 
   // If loading is finished and there's no active classroom, redirect back to the dashboard.
   useEffect(() => {
@@ -117,6 +118,18 @@ export default function ActivityPage() {
     setLotteryStudent({ ...student, submission });
   };
 
+  const handleStartRace = () => {
+    if (activeClassroom) {
+      startRace(activeClassroom.id);
+    }
+  };
+
+  const handleResetRace = () => {
+     if (activeClassroom) {
+      resetRace(activeClassroom.id);
+    }
+  };
+
   const handleCloseLottery = (open: boolean) => {
     if (!open) {
       setLotteryStudent(null);
@@ -147,6 +160,8 @@ export default function ActivityPage() {
         </div>
       );
   }
+  
+  const activityInProgress = !!activeQuestion || !!race;
 
   return (
     <>
@@ -169,6 +184,9 @@ export default function ActivityPage() {
               <Eye className="mr-2 h-4 w-4" />
               Simulate Student View
             </Button>
+            <Button variant="outline" onClick={handleStartRace} disabled={activityInProgress}>
+              {t('studentManagement.snatch_button')}
+            </Button>
             <Button variant="outline" onClick={handlePickStudent} disabled={!activeClassroom.students || activeClassroom.students.length === 0}>
               {t('studentManagement.lottery_button')}
             </Button>
@@ -184,6 +202,7 @@ export default function ActivityPage() {
                       joinUrl={joinUrl}
                       activeQuestion={activeQuestion}
                       onEndQuestion={handleEndQuestion}
+                      onResetRace={handleResetRace}
                   />
               </aside>
             )}

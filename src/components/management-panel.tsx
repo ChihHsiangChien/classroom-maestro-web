@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut, GripVertical, ChevronDown, ArrowDownUp, ArrowUp, ArrowDown } from 'lucide-react';
+import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut, GripVertical, ChevronDown, ArrowDownUp, ArrowUp, ArrowDown, Trophy } from 'lucide-react';
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom, type Classroom, type Submission, type Student } from '@/contexts/classroom-context';
 import type { QuestionData } from "./create-poll-form";
@@ -51,6 +51,7 @@ interface ManagementPanelProps {
   joinUrl: string;
   activeQuestion: QuestionData | null;
   onEndQuestion: () => void;
+  onResetRace: () => void;
 }
 
 const LOCAL_STORAGE_KEY = 'management-panel-layout';
@@ -158,6 +159,51 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
     };
 
     const translatedQuestionType = props.activeQuestion ? getTranslatedQuestionType(props.activeQuestion.type, t) : null;
+    const race = props.classroom.race;
+    
+    const renderActivityStatus = () => {
+        if (props.activeQuestion) {
+            return {
+                title: translatedQuestionType ? t('teacherDashboard.question_type_active', { questionType: translatedQuestionType }) : t('teacherDashboard.question_active'),
+                description: t('teacherDashboard.responses_count', { submissionsCount: props.submissions.length, studentsCount: props.classroom.students?.length || 0 }),
+                footer: (
+                    <Button variant="destructive" className="w-full" onClick={props.onEndQuestion}>
+                        {t('teacherDashboard.end_question_button')}
+                    </Button>
+                )
+            };
+        }
+        if (race) {
+            if (race.status === 'finished') {
+                return {
+                    title: t('studentManagement.snatch_winner_is', { name: race.winnerName || 'N/A' }),
+                    description: t('studentManagement.snatch_active'),
+                    footer: (
+                         <Button variant="outline" className="w-full" onClick={props.onResetRace}>
+                            {t('studentManagement.snatch_reset_button')}
+                        </Button>
+                    )
+                };
+            }
+            return {
+                title: t('studentManagement.snatch_active'),
+                description: t('studentManagement.snatch_countdown'),
+                footer: (
+                    <Button variant="destructive" className="w-full" onClick={props.onResetRace}>
+                        {t('common.cancel')}
+                    </Button>
+                )
+            };
+        }
+        return {
+            title: t('teacherDashboard.idle'),
+            description: t('teacherDashboard.start_a_question_prompt'),
+            footer: null
+        };
+    };
+
+    const activityStatus = renderActivityStatus();
+
 
     const cardsContent: { [key: string]: {header: React.ReactNode, content: React.ReactNode, footer?: React.ReactNode} } = {
         join: {
@@ -319,32 +365,21 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                         {t('teacherDashboard.lesson_status_card_title')}
                     </CardTitle>
                     <CardDescription className="flex items-center gap-2 mt-1">
-                        <Clapperboard className="h-4 w-4" />
-                        <span className="font-bold">
-                          {props.activeQuestion 
-                            ? (translatedQuestionType
-                                ? t('teacherDashboard.question_type_active', { questionType: translatedQuestionType })
-                                : t('teacherDashboard.question_active')
-                              )
-                            : t('teacherDashboard.idle')}
-                        </span>
+                        {race?.status === 'finished' ? <Trophy className="h-4 w-4 text-amber-500" /> : <Clapperboard className="h-4 w-4" />}
+                        <span className="font-bold">{activityStatus.title}</span>
                     </CardDescription>
                 </div>
             ),
             content: (
                  <CardContent>
                     <p className="text-xs text-muted-foreground">
-                        {props.activeQuestion
-                        ? t('teacherDashboard.responses_count', { submissionsCount: props.submissions.length, studentsCount: props.classroom.students?.length || 0 })
-                        : t('teacherDashboard.start_a_question_prompt')}
+                        {activityStatus.description}
                     </p>
                 </CardContent>
             ),
-            footer: props.activeQuestion && (
+            footer: activityStatus.footer && (
                 <CardFooter>
-                    <Button variant="destructive" className="w-full" onClick={props.onEndQuestion}>
-                        {t('teacherDashboard.end_question_button')}
-                    </Button>
+                    {activityStatus.footer}
                 </CardFooter>
             )
         }
@@ -380,7 +415,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
     )
 }
 
-export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestion, onEndQuestion }: ManagementPanelProps) {
+export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestion, onEndQuestion, onResetRace }: ManagementPanelProps) {
   const [cardOrder, setCardOrder] = useState(['join', 'status', 'lesson']);
   const [openStates, setOpenStates] = useState<{ [key: string]: boolean }>({ join: true, status: true, lesson: true });
 
@@ -394,8 +429,8 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
           // Ensure all default cards are present
           const defaultCards = ['join', 'status', 'lesson'];
           const newOrder = defaultCards.filter(c => order.includes(c));
-          order.forEach(c => {
-            if (!newOrder.includes(c)) newOrder.push(c);
+          order.forEach((c: string) => {
+            if (!newOrder.includes(c) && defaultCards.includes(c)) newOrder.push(c);
           });
           
           setCardOrder(newOrder);
@@ -450,6 +485,7 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
                 joinUrl={joinUrl}
                 activeQuestion={activeQuestion}
                 onEndQuestion={onEndQuestion}
+                onResetRace={onResetRace}
                 open={openStates[id] === undefined ? true : openStates[id]}
                 onOpenChange={(isOpen) => handleOpenChange(id, isOpen)}
               />

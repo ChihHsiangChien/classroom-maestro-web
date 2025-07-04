@@ -18,7 +18,7 @@ import {
   serverTimestamp,
   Timestamp,
   getDocs,
-  getDoc
+  runTransaction
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/provider';
@@ -45,6 +45,14 @@ export interface Submission {
   timestamp: Timestamp;
 }
 
+export interface RaceData {
+  id: string;
+  startTime: Timestamp;
+  status: 'pending' | 'finished';
+  winnerName?: string | null;
+  winnerId?: string | null;
+}
+
 export interface Classroom {
   id:string;
   name: string;
@@ -52,6 +60,7 @@ export interface Classroom {
   ownerId: string;
   activeQuestion?: any | null;
   isLocked?: boolean;
+  race?: RaceData | null;
 }
 
 interface ClassroomContextType {
@@ -78,6 +87,9 @@ interface ClassroomContextType {
   toggleClassroomLock: (classroomId: string, isLocked: boolean) => Promise<void>;
   fetchAllSubmissions: (classroomId: string) => Promise<Submission[]>;
   deleteActivityHistory: (classroomId: string) => Promise<void>;
+  startRace: (classroomId: string) => Promise<void>;
+  claimRace: (classroomId: string, raceId: string, studentId: string, studentName: string) => Promise<boolean>;
+  resetRace: (classroomId: string) => Promise<void>;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
@@ -325,8 +337,6 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     if (!db) return () => {};
     const classroomDocRef = doc(db, 'classrooms', classroomId);
     
-    // For ALL users (teachers and students), use the efficient onSnapshot listener.
-    // This relies on having the correct Firestore security rules.
     const unsubscribe = onSnapshot(classroomDocRef, (docSnapshot) => {
       if (docSnapshot.exists()) {
         callback({ id: docSnapshot.id, ...docSnapshot.data() } as Classroom);
@@ -354,10 +364,8 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     if (!db || !classroomId || !studentId) return;
     try {
         const presenceRef = doc(db, 'classrooms', classroomId, 'presence', studentId);
-        // This is a simple write, no need to read the whole classroom doc first
         await setDoc(presenceRef, { isOnline, lastSeen: Timestamp.now() }, { merge: true });
     } catch (error) {
-        // Log silently to avoid spamming user with toasts for background tasks
         console.error("Failed to update presence:", error);
     }
   }, []);
@@ -377,7 +385,6 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     if (!db || !classroomId || !studentId) return;
     try {
         const presenceRef = doc(db, 'classrooms', classroomId, 'presence', studentId);
-        // This is a simple write, no need to read the whole classroom doc first
         await setDoc(presenceRef, { forceLogout: false }, { merge: true });
     } catch (error) {
         console.error("Failed to acknowledge kick:", error);
@@ -429,6 +436,66 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     }
   }, [t, toast]);
 
+    const startRace = useCallback(async (classroomId: string) => {
+        if (!db) return;
+        try {
+            const raceId = `race_${Date.now()}`;
+            const raceData: Omit<RaceData, 'startTime'> = {
+                id: raceId,
+                status: 'pending',
+                winnerName: null,
+                winnerId: null,
+            };
+            await updateDoc(doc(db, 'classrooms', classroomId), {
+                race: { ...raceData, startTime: serverTimestamp() }
+            });
+        } catch (error) {
+            handleFirestoreErrorRef.current?.(error, 'start-race');
+        }
+    }, []);
+
+    const claimRace = useCallback(async (classroomId: string, raceId: string, studentId: string, studentName: string): Promise<boolean> => {
+        if (!db) return false;
+        try {
+            await runTransaction(db, async (transaction) => {
+                const classroomRef = doc(db, 'classrooms', classroomId);
+                const classroomSnap = await transaction.get(classroomRef);
+                if (!classroomSnap.exists()) {
+                    throw new Error("Classroom does not exist.");
+                }
+                const classroomData = classroomSnap.data() as Classroom;
+                const race = classroomData.race;
+
+                if (race && race.id === raceId && race.status === 'pending') {
+                    transaction.update(classroomRef, {
+                        'race.winnerName': studentName,
+                        'race.winnerId': studentId,
+                        'race.status': 'finished'
+                    });
+                } else {
+                    // Race is already won or doesn't exist. This is not an error, just means they were too slow.
+                    // We throw to abort the transaction and signal that the user did not win.
+                    throw new Error("Race already finished or invalid.");
+                }
+            });
+            return true; // Transaction succeeded, user won.
+        } catch (error) {
+            console.log("Failed to claim race (or was too slow):", (error as Error).message);
+            return false; // Transaction failed, user did not win.
+        }
+    }, []);
+
+    const resetRace = useCallback(async (classroomId: string) => {
+        if (!db) return;
+        try {
+            await updateDoc(doc(db, 'classrooms', classroomId), {
+                race: null
+            });
+        } catch (error) {
+            handleFirestoreErrorRef.current?.(error, 'reset-race');
+        }
+    }, []);
+
 
   const value = useMemo(() => ({
     classrooms,
@@ -453,7 +520,10 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     acknowledgeKick,
     toggleClassroomLock,
     fetchAllSubmissions,
-    deleteActivityHistory
+    deleteActivityHistory,
+    startRace,
+    claimRace,
+    resetRace,
   }), [
     classrooms,
     activeClassroom,
@@ -477,6 +547,9 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     toggleClassroomLock,
     fetchAllSubmissions,
     deleteActivityHistory,
+    startRace,
+    claimRace,
+    resetRace,
   ]);
 
   return (
