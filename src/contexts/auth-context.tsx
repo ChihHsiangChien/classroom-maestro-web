@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await setPersistence(auth, browserLocalPersistence);
       // signInWithRedirect will unmount the current page, so no state changes are needed here.
-      signInWithRedirect(auth, googleProvider);
+      await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       const caughtError = error as AuthError;
       console.error('Google Sign-In Redirect initiation failed:', caughtError);

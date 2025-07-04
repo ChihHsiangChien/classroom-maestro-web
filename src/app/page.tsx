@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { School, LogIn, Terminal, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,14 @@ export default function Home() {
   const { t } = useI18n();
   const { user, loading, signInWithGoogle, isFirebaseConfigured, authError } = useAuth();
   const router = useRouter();
+  const [hostname, setHostname] = useState('');
+
+  // Get hostname only on the client side for the error message
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setHostname(window.location.hostname);
+    }
+  }, []);
 
   // If a user is logged in, redirect them to the dashboard.
   useEffect(() => {
@@ -52,8 +60,8 @@ export default function Home() {
                  <div className="mt-2 space-y-3">
                   <p>{t('firebase.auth_domain_error_description_p1')}</p>
                   <p className="font-semibold">{t('firebase.auth_domain_error_description_p2')}</p>
-                  {typeof window !== 'undefined' ? (
-                    <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">{window.location.hostname}</code>
+                  {hostname ? (
+                    <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">{hostname}</code>
                   ) : (
                     <div className="h-7 w-full animate-pulse rounded bg-muted" />
                   )}
