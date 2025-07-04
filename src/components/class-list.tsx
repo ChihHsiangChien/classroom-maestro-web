@@ -172,8 +172,23 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
         const imageSubmissions = submissions.filter(s => isDataUrl(s.answer as string));
         const textSubmissions = submissions.filter(s => !isDataUrl(s.answer as string));
 
+        // Handle CSV pivoting and encoding
         if (textSubmissions.length > 0) {
-            const headers = ['questionId', 'studentName', 'timestamp', 'answer'];
+            const studentAnswers: Map<string, Map<string, string>> = new Map();
+            const allQuestionIds = new Set<string>();
+
+            textSubmissions.forEach(sub => {
+                if (!studentAnswers.has(sub.studentName)) {
+                    studentAnswers.set(sub.studentName, new Map());
+                }
+                const answerText = Array.isArray(sub.answer) ? sub.answer.join('; ') : String(sub.answer);
+                studentAnswers.get(sub.studentName)!.set(sub.questionId, answerText);
+                allQuestionIds.add(sub.questionId);
+            });
+
+            const sortedQuestionIds = Array.from(allQuestionIds).sort();
+            const headers = ['studentName', ...sortedQuestionIds];
+            
             const escapeCsv = (val: any): string => {
                 if (val === undefined || val === null) return '';
                 let str = String(val);
@@ -182,28 +197,30 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
                 }
                 return str;
             };
-
-            const csvRows = textSubmissions.map(s => {
-                const answer = Array.isArray(s.answer) ? s.answer.join(';') : s.answer;
-                const row = [
-                    s.questionId,
-                    s.studentName,
-                    s.timestamp instanceof Timestamp ? s.timestamp.toDate().toISOString() : String(s.timestamp),
-                    answer
-                ];
+            
+            const studentNames = Array.from(studentAnswers.keys()).sort();
+            const csvRows = studentNames.map(name => {
+                const row = [name];
+                const answers = studentAnswers.get(name)!;
+                sortedQuestionIds.forEach(qId => {
+                    row.push(answers.get(qId) || '');
+                });
                 return row.map(escapeCsv).join(',');
             });
 
-            const csvData = [headers.join(','), ...csvRows].join('\n');
+            // Prepend BOM for Excel compatibility with UTF-8
+            const csvData = '\uFEFF' + [headers.join(','), ...csvRows].join('\n');
             zip.file('submissions.csv', csvData);
         }
 
+        // Handle image submissions with sanitized filenames
         if (imageSubmissions.length > 0) {
             const imagesFolder = zip.folder('images');
             imageSubmissions.forEach((s) => {
                 const answer = s.answer as string;
                 const base64Data = answer.substring(answer.indexOf(',') + 1);
-                const safeStudentName = s.studentName.replace(/[^a-z0-9]/gi, '_');
+                // Sanitize student name for filename
+                const safeStudentName = s.studentName.replace(/[^a-zA-Z0-9_.-]/g, '_');
                 const filename = `${s.questionId}_${safeStudentName}_${s.studentId.substring(0,4)}.png`;
                 imagesFolder!.file(filename, base64Data, { base64: true });
             });
