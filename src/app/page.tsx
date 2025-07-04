@@ -1,7 +1,6 @@
 
 'use client';
 
-import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { School, LogIn, Terminal, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,15 +14,7 @@ export default function Home() {
   const { user, loading, signInWithGoogle, isFirebaseConfigured, authError } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!loading && user) {
-      router.push('/dashboard');
-    }
-  }, [user, loading, router]);
-
   const handleLogin = async () => {
-    // signInWithGoogle now triggers a redirect, so the page will reload.
-    // The loading state is handled within the AuthProvider.
     await signInWithGoogle();
   };
   
@@ -36,7 +27,30 @@ export default function Home() {
     );
   }
 
-  // Display a generic error if something went wrong during redirect
+  if (authError === 'unauthorized-domain') {
+    return (
+      <main className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
+        <Alert variant="destructive" className="max-w-xl bg-background">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>{t('firebase.auth_domain_error_title')}</AlertTitle>
+          <AlertDescription>
+             <div className="mt-2 space-y-3">
+              <p>{t('firebase.auth_domain_error_description_p1')}</p>
+              <p className="font-semibold">{t('firebase.auth_domain_error_description_p2')}</p>
+              <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">{typeof window !== 'undefined' ? window.location.hostname : ''}</code>
+              <p>{t('firebase.auth_domain_error_instructions')}</p>
+              <Button asChild variant="link" className="p-0 h-auto text-destructive font-semibold">
+                <a href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/settings`} target="_blank" rel="noopener noreferrer">
+                    {t('firebase.auth_domain_error_button')}
+                  </a>
+              </Button>
+             </div>
+          </AlertDescription>
+        </Alert>
+      </main>
+    )
+  }
+
   if (authError) {
      return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
@@ -100,8 +114,6 @@ export default function Home() {
     );
   }
   
-  // This state is not expected to be reached due to the useEffect redirect,
-  // but it serves as a fallback.
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center">
       <School className="h-12 w-12 animate-pulse text-primary" />

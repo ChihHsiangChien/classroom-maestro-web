@@ -41,8 +41,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // This combined approach ensures we handle both the redirect result
-    // and the normal auth state persistence.
     getRedirectResult(auth)
       .then((result) => {
         if (result) {
@@ -53,11 +51,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch((error: AuthError) => {
         log(`getRedirectResult ERROR: ${error.code} - ${error.message}`);
-        setAuthError(error.message);
+        setAuthError(error.code === 'auth/unauthorized-domain' ? 'unauthorized-domain' : error.message);
       })
       .finally(() => {
-        // onAuthStateChanged is the single source of truth for the user's state.
-        // It will fire after getRedirectResult resolves a user.
         const unsubscribe = onAuthStateChanged(auth, (user) => {
           if (user) {
             log(`onAuthStateChanged: User is logged in: ${user.email}`);
@@ -66,13 +62,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             log("onAuthStateChanged: User is logged out.");
             setUser(null);
           }
-          // Only stop loading after we have a definitive auth state.
           log("Auth state confirmed. Loading is now false.");
           setLoading(false);
         });
         
-        // Cleanup subscription on component unmount
-        return () => unsubscribe();
+        return () => {
+          log("Cleaning up auth listener.");
+          unsubscribe();
+        }
       });
   }, []);
 
@@ -90,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       const e = error as AuthError;
       log(`signInWithRedirect ERROR: ${e.code} - ${e.message}`);
-      setAuthError(e.message);
+      setAuthError(e.code === 'auth/unauthorized-domain' ? 'unauthorized-domain' : e.message);
       setLoading(false);
     }
   }, []);
@@ -102,6 +99,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     log("Sign out successful. onAuthStateChanged will set user to null.");
     router.push('/');
   }, [router]);
+  
+  useEffect(() => {
+    if (loading || authError) return;
+
+    if (user) {
+        log("User is logged in, redirecting to /dashboard");
+        router.push('/dashboard');
+    }
+  }, [user, loading, authError, router]);
+
 
   const value = useMemo(() => ({
     user,
