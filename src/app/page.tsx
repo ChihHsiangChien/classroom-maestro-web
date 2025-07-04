@@ -14,6 +14,14 @@ export default function Home() {
   const { t } = useI18n();
   const { user, loading, isSigningIn, signInWithGoogle, isFirebaseConfigured, authError } = useAuth();
   const router = useRouter();
+  const [hostname, setHostname] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setHostname(window.location.hostname);
+    }
+  }, []);
+
 
   useEffect(() => {
     if (!loading && user) {
@@ -25,8 +33,6 @@ export default function Home() {
     await signInWithGoogle();
   };
   
-  const getHostname = () => typeof window !== 'undefined' ? window.location.hostname : '';
-
   if (loading) {
      return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
@@ -50,7 +56,11 @@ export default function Home() {
                      <div className="mt-2 space-y-3">
                       <p>{t('firebase.auth_domain_error_description_p1')}</p>
                       <p className="font-semibold">{t('firebase.auth_domain_error_description_p2')}</p>
-                      <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">{getHostname()}</code>
+                      {hostname ? (
+                        <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">{hostname}</code>
+                      ) : (
+                        <div className="h-7 w-full animate-pulse rounded bg-muted" />
+                      )}
                       <p>{t('firebase.auth_domain_error_instructions')}</p>
                       <Button asChild variant="link" className="p-0 h-auto text-destructive font-semibold">
                         <a href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/settings`} target="_blank" rel="noopener noreferrer">
