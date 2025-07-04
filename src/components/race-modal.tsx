@@ -42,8 +42,8 @@ export function RaceModal({ race, isOpen, onOpenChange, onReset }: RaceModalProp
       );
       break;
     case 'finished':
+      title = t('studentManagement.snatch_finished_title');
       if (race.winnerName) {
-        title = t('studentManagement.snatch_winner_is', { name: race.winnerName });
         content = (
           <div className="flex flex-col items-center gap-4 py-6 text-amber-500">
             <Trophy className="h-16 w-16" />
@@ -51,11 +51,10 @@ export function RaceModal({ race, isOpen, onOpenChange, onReset }: RaceModalProp
           </div>
         );
       } else {
-        title = t('studentManagement.snatch_button') + ' Finished';
         content = (
           <div className="flex flex-col items-center gap-4 py-6 text-destructive">
             <Frown className="h-16 w-16" />
-            <p className="text-2xl font-bold">No winner was declared.</p>
+            <p className="text-2xl font-bold">{t('studentManagement.snatch_no_winner')}</p>
           </div>
         );
       }
