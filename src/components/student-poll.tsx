@@ -206,7 +206,7 @@ export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionF
     <Card className="w-full max-w-2xl animate-in fade-in shadow-lg">
       <CardHeader>
         <CardTitle className="text-2xl">{question.question}</CardTitle>
-        {(question.type === 'drawing' || question.type === 'image-annotation') && <CardDescription>Use the editor below to create your response.</CardDescription>}
+        {(question.type === 'drawing' || question.type === 'image-annotation') && <CardDescription>{t('studentPoll.drawing_description')}</CardDescription>}
       </CardHeader>
       <CardContent>{renderForm()}</CardContent>
     </Card>

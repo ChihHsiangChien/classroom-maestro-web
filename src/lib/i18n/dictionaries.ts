@@ -280,6 +280,7 @@ export const dictionaries = {
       unknown_question_type: '未知的問題類型。',
       toast_submitted_title: '回答已提交！',
       toast_submitted_description: '感謝您的參與。',
+      drawing_description: '請使用下方的編輯器來完成您的作答。',
     },
   },
   en: {
@@ -558,6 +559,7 @@ export const dictionaries = {
       unknown_question_type: 'Unknown question type.',
       toast_submitted_title: 'Response Submitted!',
       toast_submitted_description: 'Thank you for participating.',
+      drawing_description: 'Use the editor below to create your response.',
     },
   },
 };
