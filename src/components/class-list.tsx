@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import JSZip from 'jszip';
 import { Timestamp } from 'firebase/firestore';
+import { format } from 'date-fns';
 import {
   Card,
   CardContent,
@@ -164,6 +165,16 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
         return;
     }
 
+    const formatTimestamp = (timestamp: Timestamp | null): string => {
+        if (!timestamp) return '';
+        try {
+            return format(timestamp.toDate(), 'yyyy-MM-dd_HHmm');
+        } catch (e) {
+            console.error("Error formatting timestamp:", e);
+            return '';
+        }
+    };
+
     try {
         const zip = new JSZip();
         
@@ -175,7 +186,7 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
         // Handle CSV pivoting and encoding
         if (textSubmissions.length > 0) {
             const studentAnswers: Map<string, Map<string, string>> = new Map();
-            const questionIdToText: Map<string, string> = new Map();
+            const questionIdToInfo: Map<string, { text: string; timestamp: Timestamp | null }> = new Map();
 
             textSubmissions.forEach(sub => {
                 if (!studentAnswers.has(sub.studentName)) {
@@ -184,12 +195,15 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
                 const answerText = Array.isArray(sub.answer) ? sub.answer.join('; ') : String(sub.answer);
                 studentAnswers.get(sub.studentName)!.set(sub.questionId, answerText);
                 
-                if (!questionIdToText.has(sub.questionId) && sub.questionText) {
-                    questionIdToText.set(sub.questionId, sub.questionText);
+                if (!questionIdToInfo.has(sub.questionId)) {
+                    questionIdToInfo.set(sub.questionId, {
+                      text: sub.questionText || sub.questionId,
+                      timestamp: sub.timestamp || null
+                    });
                 }
             });
 
-            const sortedQuestionIds = Array.from(questionIdToText.keys()).sort();
+            const sortedQuestionIds = Array.from(questionIdToInfo.keys()).sort();
             
             const escapeCsv = (val: any): string => {
                 if (val === undefined || val === null) return '';
@@ -200,7 +214,13 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
                 return str;
             };
             
-            const headers = ['studentName', ...sortedQuestionIds.map(id => questionIdToText.get(id) || id)];
+            const headers = ['studentName', ...sortedQuestionIds.map(id => {
+                const info = questionIdToInfo.get(id);
+                if (!info) return id;
+                const timestampSuffix = formatTimestamp(info.timestamp);
+                const headerText = info.text || id;
+                return timestampSuffix ? `${headerText}_${timestampSuffix}` : headerText;
+            })];
             
             const studentNames = Array.from(studentAnswers.keys()).sort();
             const csvRows = studentNames.map(name => {
@@ -232,8 +252,14 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
                 Object.values(submissionsByQuestion).forEach((subs) => {
                     const firstSub = subs[0];
                     const questionText = firstSub.questionText || firstSub.questionId;
-                    const safeFolderName = questionText.replace(/[\\/:"*?<>|]/g, '_').substring(0, 100);
-                    const questionFolder = imagesRootFolder.folder(safeFolderName);
+                    const timestampSuffix = formatTimestamp(firstSub.timestamp);
+                    
+                    let folderName = questionText.replace(/[\\/:"*?<>|]/g, '_').substring(0, 80);
+                    if (timestampSuffix) {
+                        folderName = `${folderName}_${timestampSuffix}`;
+                    }
+                    
+                    const questionFolder = imagesRootFolder.folder(folderName);
                     const nameCounts = new Map<string, number>();
 
                     if (questionFolder) {
