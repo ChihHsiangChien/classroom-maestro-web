@@ -54,6 +54,10 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
   const [isResponsesOpen, setIsResponsesOpen] = useState(true);
   const isTrueFalse = question.type === 'true-false';
   
+  const [sortBy, setSortBy] = useState<'name' | 'time' | 'option'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [optionSortKey, setOptionSortKey] = useState<string | null>(null);
+  
   const results = useMemo(() => {
     const voteCounts = new Map<string, number>();
     question.options.forEach((option, index) => {
@@ -97,6 +101,59 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
     return answerMap;
   }, [submissions]);
 
+  const studentSubmissions = useMemo(() => {
+    const submissionMap = new Map<string, Submission>();
+    submissions.forEach(sub => submissionMap.set(sub.studentId, sub));
+    return submissionMap;
+  }, [submissions]);
+
+  const handleOptionSort = (optionValue: string) => {
+    if (sortBy === 'option' && optionSortKey === optionValue) {
+      setSortOrder(current => current === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy('option');
+      setOptionSortKey(optionValue);
+      setSortOrder('asc');
+    }
+  };
+
+  const sortedStudents = useMemo(() => {
+    return [...students].sort((a, b) => {
+      let compare = 0;
+      switch (sortBy) {
+        case 'name':
+          compare = a.name.localeCompare(b.name);
+          break;
+        case 'time':
+          const subA = studentSubmissions.get(a.id);
+          const subB = studentSubmissions.get(b.id);
+          if (subA && subB && subA.timestamp && subB.timestamp) {
+            compare = subA.timestamp.toMillis() - subB.timestamp.toMillis();
+          } else if (subA) {
+            compare = -1;
+          } else if (subB) {
+            compare = 1;
+          }
+          break;
+        case 'option':
+          if (optionSortKey) {
+            const aHasAnswer = studentAnswers.get(a.id);
+            const bHasAnswer = studentAnswers.get(b.id);
+            const aSelected = aHasAnswer && (Array.isArray(aHasAnswer) ? aHasAnswer.includes(optionSortKey) : aHasAnswer === optionSortKey);
+            const bSelected = bHasAnswer && (Array.isArray(bHasAnswer) ? bHasAnswer.includes(optionSortKey) : bHasAnswer === optionSortKey);
+            if (aSelected !== bSelected) {
+              compare = aSelected ? -1 : 1;
+            } else {
+              compare = a.name.localeCompare(b.name);
+            }
+          }
+          break;
+      }
+      return sortOrder === 'asc' ? compare : -compare;
+    });
+  }, [students, sortBy, sortOrder, studentSubmissions, studentAnswers, optionSortKey]);
+
+
   const totalSubmissions = submissions.length;
 
   return (
@@ -129,12 +186,33 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
             <h3 className="flex items-center text-lg font-semibold">
               <Users className="mr-2 h-5 w-5" /> {t('activePoll.student_responses_title')}
             </h3>
-            <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm">
-                    <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                    <span className="sr-only">Toggle Responses</span>
-                </Button>
-            </CollapsibleTrigger>
+            <div className="flex items-center gap-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <ArrowDownUp className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>{t('activePoll.sort_by_label')}</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup value={sortBy} onValueChange={(v) => { if(v === 'name' || v === 'time') setSortBy(v)}}>
+                    <DropdownMenuRadioItem value="name">{t('activePoll.sort_by_student_name')}</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="time">{t('activePoll.sort_by_submission_time')}</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuRadioGroup value={sortOrder} onValueChange={(v) => setSortOrder(v as any)}>
+                    <DropdownMenuRadioItem value="asc"><ArrowUp className="mr-2 h-3.5 w-3.5" />{t('activePoll.sort_order_asc')}</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="desc"><ArrowDown className="mr-2 h-3.5 w-3.5" />{t('activePoll.sort_order_desc')}</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                      <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                      <span className="sr-only">Toggle Responses</span>
+                  </Button>
+              </CollapsibleTrigger>
+            </div>
           </div>
           <CollapsibleContent>
             <div className="mt-2 rounded-md border">
@@ -145,15 +223,29 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
                       <TableHead className="w-[150px]">{t('activePoll.student_table_header')}</TableHead>
                       {question.options.map((option, index) => {
                          const letter = String.fromCharCode(65 + index);
+                         const optionIdentifier = option.value || letter;
                          const headerText = isTrueFalse ? option.value : letter;
+                         const isSortActive = sortBy === 'option' && optionSortKey === optionIdentifier;
                          return (
-                            <TableHead key={`${letter}-${index}`} className="text-center">{headerText}</TableHead>
+                            <TableHead key={`${letter}-${index}`} className="text-center p-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOptionSort(optionIdentifier)}
+                                className="w-full justify-center"
+                              >
+                                {headerText}
+                                {isSortActive && (
+                                  sortOrder === 'asc' ? <ArrowUp className="ml-2 h-3 w-3" /> : <ArrowDown className="ml-2 h-3 w-3" />
+                                )}
+                              </Button>
+                            </TableHead>
                          )
                       })}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {students.map(student => {
+                    {sortedStudents.map(student => {
                       const answer = studentAnswers.get(student.id);
                       return (
                         <TableRow key={student.id} data-answered={!!answer} className="data-[answered=true]:bg-green-500/10">
@@ -191,9 +283,25 @@ function TextResponseResults({ submissions }: ResultsProps) {
     const [isAnalyzing, startTransition] = useTransition();
     const [analysis, setAnalysis] = useState<AnalyzeShortAnswersOutput | null>(null);
     const { toast } = useToast();
+    const [sortBy, setSortBy] = useState<'time' | 'name'>('time');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+    const sortedSubmissions = useMemo(() => {
+        return [...submissions].sort((a, b) => {
+            let comparison = 0;
+            if (sortBy === 'time') {
+                if (a.timestamp && b.timestamp) {
+                    comparison = a.timestamp.toMillis() - b.timestamp.toMillis();
+                }
+            } else { // 'name'
+                comparison = a.studentName.localeCompare(b.studentName);
+            }
+            return sortOrder === 'asc' ? comparison : -comparison;
+        });
+    }, [submissions, sortBy, sortOrder]);
 
     const handleAnalyze = () => {
-        const answers = submissions.map(sub => sub.answer as string).filter(a => a.trim() !== "");
+        const answers = sortedSubmissions.map(sub => sub.answer as string).filter(a => a.trim() !== "");
         if (answers.length < 2) {
              toast({
                 variant: "destructive",
@@ -234,17 +342,38 @@ function TextResponseResults({ submissions }: ResultsProps) {
                     <h3 className="flex items-center text-lg font-semibold">
                         <FileText className="mr-2 h-5 w-5" /> {t('activePoll.student_responses_title')}
                     </h3>
-                    <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                            <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                            <span className="sr-only">Toggle Responses</span>
-                        </Button>
-                    </CollapsibleTrigger>
+                    <div className="flex items-center gap-1">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <ArrowDownUp className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>{t('activePoll.sort_by_label')}</DropdownMenuLabel>
+                                <DropdownMenuRadioGroup value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                                    <DropdownMenuRadioItem value="name">{t('activePoll.sort_by_student_name')}</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="time">{t('activePoll.sort_by_submission_time')}</DropdownMenuRadioItem>
+                                </DropdownMenuRadioGroup>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuRadioGroup value={sortOrder} onValueChange={(v) => setSortOrder(v as any)}>
+                                    <DropdownMenuRadioItem value="asc"><ArrowUp className="mr-2 h-3.5 w-3.5" />{t('activePoll.sort_order_asc')}</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="desc"><ArrowDown className="mr-2 h-3.5 w-3.5" />{t('activePoll.sort_order_desc')}</DropdownMenuRadioItem>
+                                </DropdownMenuRadioGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                                <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                                <span className="sr-only">Toggle Responses</span>
+                            </Button>
+                        </CollapsibleTrigger>
+                    </div>
                 </div>
                 <CollapsibleContent>
                     <ScrollArea className="h-72 w-full rounded-md border p-4">
                         <div className="space-y-4">
-                            {submissions.map((sub) => (
+                            {sortedSubmissions.map((sub) => (
                                 <div key={sub.id} className="p-3 bg-muted/50 rounded-md">
                                     <p className="font-semibold text-sm">{sub.studentName}</p>
                                     <p className="text-foreground">{sub.answer as string}</p>
