@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from 'react';
@@ -26,6 +25,7 @@ import {
   Edit,
   Upload,
   GripVertical,
+  X,
 } from 'lucide-react';
 import {
   Card,
@@ -75,9 +75,10 @@ export type { Submission } from '@/contexts/classroom-context';
 
 interface StudentManagementProps {
   classroom: Classroom;
+  onBack: () => void;
 }
 
-export function StudentManagement({ classroom }: StudentManagementProps) {
+export function StudentManagement({ classroom, onBack }: StudentManagementProps) {
   const { t } = useI18n();
   const { addStudent, updateStudent, deleteStudent, importStudents, reorderStudents } = useClassroom();
   const [newStudentName, setNewStudentName] = useState('');
@@ -162,7 +163,7 @@ export function StudentManagement({ classroom }: StudentManagementProps) {
                 {t('studentManagement.roster_student_count', { count: classroom.students.length })}
               </CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
                     <Upload className="mr-2 h-4 w-4" />
                     {t('dashboard.import_students')}
@@ -170,6 +171,9 @@ export function StudentManagement({ classroom }: StudentManagementProps) {
                 <Button onClick={() => setAddDialogOpen(true)}>
                     <UserPlus className="mr-2 h-4 w-4" />
                     {t('studentManagement.add_student_button')}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={onBack} aria-label="Close">
+                  <X className="h-5 w-5" />
                 </Button>
             </div>
         </CardHeader>

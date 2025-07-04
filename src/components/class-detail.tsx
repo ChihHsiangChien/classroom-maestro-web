@@ -1,11 +1,10 @@
-
 'use client';
 
 import { useRouter } from 'next/navigation';
 import { useClassroom, type Classroom } from '@/contexts/classroom-context';
 import { StudentManagement } from '@/components/student-management';
 import { Button } from '@/components/ui/button';
-import { PlayCircle, X } from 'lucide-react';
+import { PlayCircle } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 
 interface ClassDetailProps {
@@ -34,13 +33,10 @@ export function ClassDetail({ classroom, onBack }: ClassDetailProps) {
             <PlayCircle className="mr-2 h-4 w-4" />
             {t('dashboard.start_activity')}
           </Button>
-          <Button variant="ghost" size="icon" onClick={onBack} aria-label="Close">
-            <X className="h-6 w-6" />
-          </Button>
         </div>
       </div>
 
-      <StudentManagement classroom={classroom} />
+      <StudentManagement classroom={classroom} onBack={onBack} />
     </div>
   );
 }
