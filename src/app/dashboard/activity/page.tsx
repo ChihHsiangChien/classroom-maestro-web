@@ -20,9 +20,10 @@ import { RaceModal } from "@/components/race-modal";
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom } from "@/contexts/classroom-context";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, PanelLeftClose, PanelLeftOpen, Eye, Loader2 } from "lucide-react";
+import { ArrowLeft, PanelLeftClose, PanelLeftOpen, Eye, Loader2, UserCheck } from "lucide-react";
 import { ManagementPanel } from "@/components/management-panel";
 import { cn } from "@/lib/utils";
+import { Timestamp } from "firebase/firestore";
 
 // Add a unique ID to the QuestionData type
 type QuestionDataWithId = QuestionData & { id: string };
@@ -30,28 +31,27 @@ type QuestionDataWithId = QuestionData & { id: string };
 export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
-  // Get the real-time active classroom directly from the context. This is the single source of truth.
   const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace } = useClassroom();
   const { toast } = useToast();
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [lotteryStudent, setLotteryStudent] = useState<(Student & { submission?: Submission }) | null>(null);
-  const [excludePicked, setExcludePicked] = useState(true);
-  const [pickedStudentIds, setPickedStudentIds] = useState<string[]>([]);
   const [joinUrl, setJoinUrl] = useState('');
   const [isPanelOpen, setIsPanelOpen] = useState(true);
 
-  // The active question is now derived directly from the live classroom data.
+  // --- Lottery State ---
+  const [isLotteryModalOpen, setIsLotteryModalOpen] = useState(false);
+  const [lotteryStudent, setLotteryStudent] = useState<(Student & { submission?: Submission }) | null>(null);
+  const [pickedStudentIds, setPickedStudentIds] = useState<string[]>([]);
+  const [lotteryPoolSource, setLotteryPoolSource] = useState<'all' | 'online'>('all');
+
   const activeQuestion = activeClassroom?.activeQuestion || null;
   const race = activeClassroom?.race || null;
 
-  // If loading is finished and there's no active classroom, redirect back to the dashboard.
   useEffect(() => {
     if (!classroomLoading && !activeClassroom) {
       router.replace('/dashboard');
     }
   }, [activeClassroom, classroomLoading, router]);
-
 
   useEffect(() => {
     if (typeof window !== 'undefined' && activeClassroom) {
@@ -59,9 +59,7 @@ export default function ActivityPage() {
     }
   }, [activeClassroom]);
 
-  // Listen for submissions in real-time when a question is active
   useEffect(() => {
-    // When the active question ends (becomes null), clear the submissions.
     if (!activeQuestion) {
       setSubmissions([]);
       return;
@@ -79,7 +77,6 @@ export default function ActivityPage() {
     if (activeClassroom) {
       await setActiveQuestionInDB(activeClassroom.id, null);
     }
-    setPickedStudentIds([]);
   };
   
   const handleQuestionCreate = async (question: QuestionData) => {
@@ -87,39 +84,49 @@ export default function ActivityPage() {
     const newQuestion: QuestionDataWithId = { ...question, id: `q_${Date.now()}` };
     await setActiveQuestionInDB(activeClassroom.id, newQuestion);
     setSubmissions([]);
-    setPickedStudentIds([]);
   };
-  
+
   const handlePickStudent = () => {
     if (!activeClassroom || !activeClassroom.students || activeClassroom.students.length === 0) {
       return;
     }
-    
-    let availableStudents = activeClassroom.students;
-    if (excludePicked) {
-        availableStudents = activeClassroom.students.filter(s => !pickedStudentIds.includes(s.id));
-    }
 
+    const studentPool = lotteryPoolSource === 'all'
+        ? activeClassroom.students
+        : activeClassroom.students.filter(student => 
+            student.isOnline === true && student.lastSeen && (Timestamp.now().seconds - student.lastSeen.seconds < 45)
+          );
+
+    const availableStudents = studentPool.filter(s => !pickedStudentIds.includes(s.id));
     if (availableStudents.length === 0) {
         toast({
-            title: t('lotteryModal.lottery_reset_title'),
-            description: t('lotteryModal.lottery_reset_description'),
+            variant: "destructive",
+            title: t('lotteryModal.lottery_no_students_in_pool'),
         });
-        setPickedStudentIds([]);
-        availableStudents = activeClassroom.students;
+        return;
     }
 
     const randomIndex = Math.floor(Math.random() * availableStudents.length);
     const student = availableStudents[randomIndex];
 
-    if (excludePicked) {
-        setPickedStudentIds(prev => [...prev, student.id]);
-    }
-
+    setPickedStudentIds(prev => [...prev, student.id]);
     const submission = submissions.find(s => s.studentId.toString() === student.id);
     setLotteryStudent({ ...student, submission });
   };
 
+  const handleResetLottery = () => {
+    setPickedStudentIds([]);
+    setLotteryStudent(null);
+    toast({ title: t('lotteryModal.lottery_reset_toast') });
+  };
+
+  const handleCloseLottery = (open: boolean) => {
+    setIsLotteryModalOpen(open);
+    if (!open) {
+      setLotteryStudent(null);
+    }
+  };
+  
   const handleStartRace = () => {
     if (activeClassroom) {
       startRace(activeClassroom.id);
@@ -129,20 +136,6 @@ export default function ActivityPage() {
   const handleResetRace = () => {
      if (activeClassroom) {
       resetRace(activeClassroom.id);
-    }
-  };
-
-  const handleCloseLottery = (open: boolean) => {
-    if (!open) {
-      setLotteryStudent(null);
-    }
-  };
-
-  const handleExcludeChange = (checked: boolean | 'indeterminate') => {
-    const isChecked = !!checked;
-    setExcludePicked(isChecked);
-    if (!isChecked) {
-        setPickedStudentIds([]);
     }
   };
 
@@ -189,7 +182,8 @@ export default function ActivityPage() {
             <Button variant="outline" onClick={handleStartRace} disabled={activityInProgress}>
               {t('studentManagement.snatch_button')}
             </Button>
-            <Button variant="outline" onClick={handlePickStudent} disabled={activityInProgress || !activeClassroom.students || activeClassroom.students.length === 0}>
+            <Button variant="outline" onClick={() => setIsLotteryModalOpen(true)} disabled={activityInProgress || !activeClassroom.students || activeClassroom.students.length === 0}>
+               <UserCheck className="mr-2 h-4 w-4" />
               {t('studentManagement.lottery_button')}
             </Button>
           </div>
@@ -236,12 +230,16 @@ export default function ActivityPage() {
         </div>
       </div>
        <LotteryModal 
-          studentData={lotteryStudent} 
+          isOpen={isLotteryModalOpen}
           onOpenChange={handleCloseLottery}
-          onPickAgain={handlePickStudent} 
+          classroom={activeClassroom}
+          pickedStudent={lotteryStudent}
+          pickedStudentIds={pickedStudentIds}
           activeQuestion={activeQuestion}
-          excludePicked={excludePicked}
-          onExcludePickedChange={handleExcludeChange}
+          poolSource={lotteryPoolSource}
+          onPoolSourceChange={setLotteryPoolSource}
+          onPickStudent={handlePickStudent}
+          onReset={handleResetLottery}
       />
       <RaceModal
           race={race}

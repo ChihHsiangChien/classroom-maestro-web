@@ -1,6 +1,7 @@
 
 'use client';
 
+import React, { useMemo } from 'react';
 import Image from 'next/image';
 import {
   Dialog,
@@ -10,21 +11,29 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, FileText } from 'lucide-react';
-import type { Student, Submission } from '@/components/student-management';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { User, FileText, Users, RotateCcw, ListChecks, ListTodo } from 'lucide-react';
+import type { Student, Submission, Classroom } from '@/contexts/classroom-context';
 import type { QuestionData } from './create-poll-form';
 import { useI18n } from '@/lib/i18n/provider';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
+import { ScrollArea } from './ui/scroll-area';
+import { Separator } from './ui/separator';
+import { Timestamp } from 'firebase/firestore';
+
 
 interface LotteryModalProps {
-  studentData: (Student & { submission?: Submission }) | null;
+  isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onPickAgain: () => void;
+  classroom: Classroom;
+  pickedStudent: (Student & { submission?: Submission }) | null;
+  pickedStudentIds: string[];
   activeQuestion: QuestionData | null;
-  excludePicked: boolean;
-  onExcludePickedChange: (checked: boolean | 'indeterminate') => void;
+  poolSource: 'all' | 'online';
+  onPoolSourceChange: (source: 'all' | 'online') => void;
+  onPickStudent: () => void;
+  onReset: () => void;
 }
 
 function AnswerDisplay({ submission, question }: { submission: Submission; question: QuestionData }) {
@@ -32,7 +41,7 @@ function AnswerDisplay({ submission, question }: { submission: Submission; quest
     return (
       <div className="flex items-start gap-3">
         <FileText className="h-5 w-5 mt-1 text-muted-foreground" />
-        <p className="p-3 bg-muted/50 rounded-md text-foreground flex-1">
+        <p className="p-3 bg-muted/50 rounded-md text-foreground flex-1 break-words">
           {submission.answer as string}
         </p>
       </div>
@@ -54,59 +63,167 @@ function AnswerDisplay({ submission, question }: { submission: Submission; quest
   return (
     <div className="flex items-start gap-3">
         <FileText className="h-5 w-5 mt-1 text-muted-foreground" />
-        <p className="p-3 bg-muted/50 rounded-md text-foreground flex-1">
+        <p className="p-3 bg-muted/50 rounded-md text-foreground flex-1 break-words">
             {answerText}
         </p>
     </div>
   );
 }
 
-
-export function LotteryModal({ studentData, onOpenChange, onPickAgain, activeQuestion, excludePicked, onExcludePickedChange }: LotteryModalProps) {
+export function LotteryModal({ 
+  isOpen, 
+  onOpenChange, 
+  classroom,
+  pickedStudent,
+  pickedStudentIds,
+  activeQuestion,
+  poolSource,
+  onPoolSourceChange,
+  onPickStudent,
+  onReset
+}: LotteryModalProps) {
   const { t } = useI18n();
 
-  if (!studentData) {
+  const studentPool = useMemo(() => {
+    return poolSource === 'all'
+        ? classroom.students
+        : classroom.students.filter(student => 
+            student.isOnline === true && student.lastSeen && (Timestamp.now().seconds - student.lastSeen.seconds < 45)
+          );
+  }, [classroom.students, poolSource]);
+  
+  const unpickedStudents = useMemo(() => {
+      const pickedSet = new Set(pickedStudentIds);
+      return studentPool.filter(s => !pickedSet.has(s.id));
+  }, [studentPool, pickedStudentIds]);
+
+  const pickedStudentsFromPool = useMemo(() => {
+      const pickedSet = new Set(pickedStudentIds);
+      const studentMap = new Map(classroom.students.map(s => [s.id, s]));
+      return pickedStudentIds
+        .map(id => studentMap.get(id))
+        .filter((s): s is Student => !!s && studentPool.some(poolStudent => poolStudent.id === s.id))
+        .reverse(); // Show most recently picked first
+  }, [pickedStudentIds, classroom.students, studentPool]);
+
+
+  if (!isOpen) {
     return null;
   }
-  const hasSubmission = activeQuestion && studentData.submission;
+  
+  const hasSubmission = activeQuestion && pickedStudent?.submission;
+  const pickButtonText = pickedStudentIds.length > 0 ? t('lotteryModal.pick_again_button') : t('lotteryModal.start_picking_button');
 
   return (
-    <Dialog open={!!studentData} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl grid-rows-[auto,1fr,auto] max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="text-center text-2xl">{t('lotteryModal.title')}</DialogTitle>
+          <DialogTitle className="text-center text-2xl">{t('studentManagement.lottery_button')}</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col items-center gap-4 py-6">
-            <div className="p-4 bg-primary/10 rounded-full">
-                <User className="h-12 w-12 text-primary" />
-            </div>
-            <p className="text-4xl font-bold text-foreground">{studentData.name}</p>
-        </div>
         
-        {hasSubmission ? (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-base">{t('lotteryModal.submission_title')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <AnswerDisplay submission={studentData.submission!} question={activeQuestion!} />
-                </CardContent>
-            </Card>
-        ) : activeQuestion ? (
-            <div className="text-center text-muted-foreground p-4 bg-muted/50 rounded-md">
-                {t('lotteryModal.not_submitted_message')}
+        <div className="grid md:grid-cols-2 gap-6 overflow-y-auto pr-2">
+            {/* Left Column: Picked Student & Controls */}
+            <div className="space-y-4 flex flex-col">
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle>{t('lotteryModal.title')}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="h-48 flex items-center justify-center">
+                        {pickedStudent ? (
+                            <div className="flex flex-col items-center gap-4 text-center animate-in fade-in-50 zoom-in-95">
+                                <div className="p-4 bg-primary/10 rounded-full">
+                                    <User className="h-10 w-10 text-primary" />
+                                </div>
+                                <p className="text-4xl font-bold text-foreground">{pickedStudent.name}</p>
+                            </div>
+                        ) : (
+                             <div className="text-center text-muted-foreground">
+                                <p>{t('lotteryModal.no_one_picked_yet')}</p>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {hasSubmission && (
+                    <Card className="flex-1">
+                        <CardHeader>
+                            <CardTitle className="text-base">{t('lotteryModal.submission_title')}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <AnswerDisplay submission={pickedStudent.submission!} question={activeQuestion!} />
+                        </CardContent>
+                    </Card>
+                )}
+                 {pickedStudent && !hasSubmission && activeQuestion && (
+                    <Card className="flex-1">
+                      <CardHeader>
+                          <CardTitle className="text-base">{t('lotteryModal.submission_title')}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-center text-muted-foreground p-4 bg-muted/50 rounded-md">
+                            {t('lotteryModal.not_submitted_message')}
+                        </div>
+                      </CardContent>
+                    </Card>
+                )}
             </div>
-        ) : null}
-        
-        <div className="flex items-center space-x-2 justify-center pt-4">
-          <Checkbox id="exclude-picked" checked={excludePicked} onCheckedChange={onExcludePickedChange} />
-          <Label htmlFor="exclude-picked" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-            {t('lotteryModal.exclude_picked_label')}
-          </Label>
+
+            {/* Right Column: Lists */}
+            <div className="space-y-4 flex flex-col min-h-[300px]">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="pool-source" checked={poolSource === 'online'} onCheckedChange={(checked) => onPoolSourceChange(checked ? 'online' : 'all')} />
+                      <Label htmlFor="pool-source" className="text-sm font-medium">
+                        {t('lotteryModal.pick_from_online_label')}
+                      </Label>
+                    </div>
+                     <Button variant="outline" size="sm" onClick={onReset}>
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        {t('lotteryModal.reset_button')}
+                    </Button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 overflow-hidden">
+                    <Card className="flex flex-col">
+                        <CardHeader className="p-3">
+                           <CardTitle className="text-base flex items-center gap-2"><ListTodo className="h-5 w-5" /> {t('lotteryModal.unpicked_list_title')}</CardTitle>
+                           <CardDescription>{unpickedStudents.length} students</CardDescription>
+                        </CardHeader>
+                        <Separator />
+                        <CardContent className="p-1 flex-1 overflow-hidden">
+                            <ScrollArea className="h-full">
+                                <div className="p-2 space-y-1">
+                                    {unpickedStudents.length > 0 ? unpickedStudents.map(s => (
+                                        <p key={s.id} className="text-sm px-2 py-1 rounded-md bg-muted/50">{s.name}</p>
+                                    )) : <p className="text-center text-xs text-muted-foreground p-4">{t('lotteryModal.lottery_no_students_in_pool')}</p>}
+                                </div>
+                            </ScrollArea>
+                        </CardContent>
+                    </Card>
+                     <Card className="flex flex-col">
+                        <CardHeader className="p-3">
+                           <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-5 w-5" /> {t('lotteryModal.picked_list_title')}</CardTitle>
+                           <CardDescription>{pickedStudentsFromPool.length} students</CardDescription>
+                        </CardHeader>
+                        <Separator />
+                        <CardContent className="p-1 flex-1 overflow-hidden">
+                            <ScrollArea className="h-full">
+                                <div className="p-2 space-y-1">
+                                    {pickedStudentsFromPool.length > 0 ? pickedStudentsFromPool.map(s => (
+                                        <p key={s.id} className="text-sm px-2 py-1 rounded-md opacity-70">{s.name}</p>
+                                    )) : <p className="text-center text-xs text-muted-foreground p-4">{t('lotteryModal.no_one_picked_yet')}</p>}
+                                </div>
+                            </ScrollArea>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div>
 
-        <DialogFooter className="sm:justify-between sm:flex-row-reverse mt-2">
-          <Button onClick={onPickAgain}>{t('lotteryModal.pick_again_button')}</Button>
+        <DialogFooter className="pt-4 sm:justify-between sm:flex-row-reverse">
+          <Button onClick={onPickStudent} disabled={unpickedStudents.length === 0}>
+            <Users className="mr-2 h-4 w-4" />
+            {pickButtonText}
+          </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.close')}</Button>
         </DialogFooter>
       </DialogContent>
