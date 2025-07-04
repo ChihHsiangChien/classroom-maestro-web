@@ -140,7 +140,7 @@ function ClassroomPageContent() {
     }
 
     if (activeRace) {
-        return <StudentRace race={activeRace} studentId={studentId} onClaim={handleClaimRace} />;
+        return <StudentRace key={activeRace.id} race={activeRace} studentId={studentId} onClaim={handleClaimRace} />;
     }
 
     if (activeQuestion && submittedQuestionId !== activeQuestion.id) {

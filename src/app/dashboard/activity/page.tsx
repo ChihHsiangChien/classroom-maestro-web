@@ -147,12 +147,6 @@ export default function ActivityPage() {
     }
   };
 
-  const handleRestartRace = () => {
-    if (activeClassroom) {
-      startRace(activeClassroom.id);
-    }
-  };
-
   const openStudentSimulation = () => {
     if (joinUrl) {
       window.open(joinUrl, '_blank');
@@ -265,7 +259,7 @@ export default function ActivityPage() {
                   handleEndRace();
               }
           }}
-          onReset={handleRestartRace}
+          onReset={handleStartRace}
       />
     </>
   );
