@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function Home() {
   const { t } = useI18n();
-  const { user, loading, signInWithGoogle, isFirebaseConfigured, authError, authLogs } = useAuth();
+  const { user, loading, signInWithGoogle, isFirebaseConfigured, authError } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -28,34 +28,13 @@ export default function Home() {
   
   const getHostname = () => typeof window !== 'undefined' ? window.location.hostname : '';
 
-  // Render loading/debug view
+  // Render a simple loading view. This will be active during initial auth check and during redirect.
   if (loading) {
      return (
-      <main className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
-        <Card className="w-full max-w-lg shadow-lg">
-          <CardHeader>
-            <div className="flex items-center gap-4">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <CardTitle>Authenticating...</CardTitle>
-            </div>
-            <CardDescription>
-              Please wait while we verify your credentials. This may take a moment.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="mt-2 space-y-2 rounded-md border bg-background p-3 font-mono text-xs">
-              <p className="font-semibold">Login Process Log:</p>
-              <div className="max-h-60 overflow-y-auto">
-                {authLogs.length > 0 ? (
-                  authLogs.map((log, index) => <p key={index}>{log}</p>)
-                ) : (
-                  <p>Initializing auth provider...</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </main>
+      <div className="flex min-h-screen w-full flex-col items-center justify-center">
+        <School className="h-12 w-12 animate-pulse text-primary" />
+        <p className="mt-4 text-muted-foreground">{t('common.loading')}</p>
+      </div>
     );
   }
 
@@ -93,14 +72,6 @@ export default function Home() {
                 </>
               )}
             </Alert>
-            <Card>
-                <CardHeader><CardTitle>Debug Log</CardTitle></CardHeader>
-                <CardContent className="pt-0">
-                    <div className="max-h-60 overflow-y-auto space-y-2 rounded-md border bg-background p-3 font-mono text-xs">
-                    {authLogs.map((log, index) => <p key={index}>{log}</p>)}
-                    </div>
-                </CardContent>
-            </Card>
         </div>
       </main>
     );
@@ -121,7 +92,8 @@ export default function Home() {
     );
   }
 
-  // Render login page
+  // Render login page only if not loading and no user
+  // This logic is safe because of the `if (loading)` check above.
   if (!user) {
     return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center p-4">
@@ -153,8 +125,8 @@ export default function Home() {
       </main>
     );
   }
-
-  // Fallback for when user is truthy but redirect hasn't happened yet.
+  
+  // This should theoretically not be reached if the useEffect redirect works, but it's a safe fallback.
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center">
       <School className="h-12 w-12 animate-pulse text-primary" />
