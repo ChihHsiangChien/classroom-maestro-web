@@ -23,6 +23,7 @@ export default function Home() {
   }, []);
 
   // If a user is logged in, redirect them to the dashboard.
+  // This hook runs after the component renders.
   useEffect(() => {
     if (!loading && user) {
       router.push('/dashboard');
@@ -34,9 +35,9 @@ export default function Home() {
     await signInWithGoogle();
   };
 
-  // Show a loading screen during the initial auth check OR while we are waiting for the redirect.
-  // This prevents the login form from flashing after a successful login, which causes a race condition.
-  if (loading || user) {
+  // This loading state is for the *initial* check to see if a user is already logged in.
+  // It's important to prevent the login form from flashing for already authenticated users.
+  if (loading) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
         <School className="h-12 w-12 animate-pulse text-primary" />
@@ -47,6 +48,7 @@ export default function Home() {
   
   const isAuthDomainError = authError === 'unauthorized-domain';
 
+  // Handle various error states after the initial loading is complete.
   if (authError) {
      return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
@@ -101,6 +103,9 @@ export default function Home() {
     );
   }
 
+  // If not loading, and no user, and no errors, show the login page.
+  // The redirection for logged-in users is handled by the useEffect hook.
+  // We do NOT show a loading spinner here based on the `user` object to avoid the race condition.
   return (
     <main className="flex min-h-screen w-full flex-col items-center justify-center p-4">
       <div className="flex flex-col items-center gap-2 mb-8 text-center">
