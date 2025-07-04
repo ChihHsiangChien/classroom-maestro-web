@@ -2,48 +2,42 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if the requester is the authenticated owner of the classroom.
-    function isOwner(classroomId) {
-      return request.auth != null && get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid;
-    }
-
-    // Rules for the main 'classrooms' collection documents.
     match /classrooms/{classroomId} {
-      // The owner (teacher) has full read/write access to their own classrooms.
-      allow read, write: if isOwner(classroomId);
+      // 1. TEACHER PERMISSIONS
+      // Teachers have full read/write access to their own classroom documents.
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.ownerId;
 
-      // Any client (including unauthenticated students) can fetch the data for a single classroom.
-      // This is necessary for the student "join" page to work.
+      // 2. STUDENT (UNAUTHENTICATED) PERMISSIONS
+
+      // Allow students to GET classroom data (name, student list, etc.) to join.
+      // This does NOT allow them to LIST all classrooms.
       allow get: if true;
 
-      // This rule specifically allows a student to "claim" a race by updating the classroom document.
-      // It is highly constrained to prevent abuse.
+      // Allow students to UPDATE the race field to claim victory.
+      // This is secured by checking the state transition.
       allow update: if
-          // The request must only attempt to modify the 'race' field. Nothing else.
+          request.auth == null &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race']) &&
-          // The current race status in the database must be 'pending'.
           resource.data.race.status == 'pending' &&
-          // The incoming update must set the status to 'finished'.
-          request.resource.data.race.status == 'finished' &&
-          // The ID of the race being claimed must match the one in the database.
-          request.resource.data.race.id == resource.data.race.id &&
-          // The update must include the winner's details.
-          request.resource.data.race.winnerId != null &&
-          request.resource.data.race.winnerName != null;
-    }
-    
-    // Rules for subcollections within a classroom, like 'submissions' and 'presence'.
-    match /classrooms/{classroomId}/{subcollection}/{documentId} {
-      // The owner (teacher) has full access to manage all subcollection documents.
-      allow read, write: if isOwner(classroomId);
-      
-      // Students (unauthenticated clients) can create new answer submissions.
-      allow create: if subcollection == 'submissions';
-      
-      // Students (unauthenticated clients) can create and update their presence document
-      // to indicate if they are online or offline.
-      allow write: if subcollection == 'presence';
+          request.resource.data.race.status == 'finished';
+
+      // --- SUBCOLLECTION RULES ---
+
+      match /presence/{studentId} {
+        // Teacher (owner) can read/write presence data.
+        allow read, write: if get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid;
+
+        // Allow students to read the presence list and update presence status.
+        allow read, write: if request.auth == null;
+      }
+
+      match /submissions/{submissionId} {
+        // Teacher (owner) can read/write submissions.
+        allow read, write: if get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid;
+        
+        // Allow students to CREATE submissions. They cannot read or modify any.
+        allow create: if request.auth == null;
+      }
     }
   }
 }
