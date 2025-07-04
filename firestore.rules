@@ -1,72 +1,82 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the user is the owner of a classroom.
-    // This is used in multiple rules below for consistency.
-    function isOwner(classroomId) {
-      return get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid;
+    // Helper function to check for ownership
+    function isOwner(doc) {
+      return request.auth.uid == doc.data.ownerId;
     }
 
+    // Classroom Collection
     match /classrooms/{classroomId} {
-      // --- READ RULES ---
+      // READ:
+      // - Anyone can GET a specific classroom document (e.g., a student joining via a link).
+      // - An authenticated user can LIST only the classrooms they own.
+      // This rule works because for a 'list' operation, Firestore security rules verify
+      // that the query's constraints (e.g., where("ownerId", "==", request.auth.uid))
+      // are sufficient to guarantee that every possible result document would pass the rule.
+      allow read: if request.method == 'get'
+                  || (request.method == 'list' && isOwner(resource));
 
-      // LIST: A teacher can list ONLY the classrooms they own.
-      // This rule requires the client query to include: where("ownerId", "==", request.auth.uid)
-      allow list: if request.auth != null && request.query.where.ownerId == request.auth.uid;
-      
-      // GET: Anyone can get a specific classroom document if they have the ID.
-      // This is required for students to join a class.
-      allow get: if true;
+      // CREATE:
+      // An authenticated user can create a classroom if they set themselves as the owner.
+      allow create: if request.auth.uid != null
+                    && request.resource.data.ownerId == request.auth.uid;
 
-      // --- WRITE RULES ---
+      // UPDATE:
+      // The owner can update their classroom.
+      // A student (unauthenticated) can update a classroom document ONLY to claim a race.
+      allow update: if isOwner(resource)
+                    || (
+                         request.auth == null &&
+                         resource.data.race.status == 'pending' &&
+                         request.resource.data.race.status == 'finished' &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race'])
+                       );
 
-      // CREATE: An authenticated user can create a classroom if they set themselves as the owner.
-      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      // DELETE:
+      // Only the owner can delete their classroom.
+      allow delete: if isOwner(resource);
 
-      // UPDATE: The owner can update anything, OR a student can claim a pending race.
-      allow update: if 
-          // Case 1: Teacher (owner) is updating their own classroom.
-          (request.auth != null && isOwner(classroomId)) ||
-          // Case 2: Student (unauthenticated) is claiming a pending race.
-          (request.auth == null && 
-           resource.data.race.status == 'pending' &&
-           request.resource.data.race.status == 'finished' &&
-           // Security check: ensure student is ONLY modifying the 'race' field.
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race']));
 
-      // DELETE: Only the owner can delete their classroom.
-      allow delete: if request.auth != null && isOwner(classroomId);
+      // ----- Subcollections -----
 
-      // --- SUBCOLLECTIONS ---
+      // Presence Subcollection
       match /presence/{studentId} {
-        // Anyone can read presence data to see who is online.
-        allow read: if true;
-        // Unauthenticated students can update presence. A simplification for this app's auth model.
-        allow write: if request.auth == null;
+        // Anyone can read presence data (to see who is online).
+        // Anyone can write to a presence document (students updating their own status).
+        allow read, write: if true;
       }
-      
+
+      // Submissions Subcollection
       match /submissions/{submissionId} {
-        // Only the classroom owner can read submissions.
-        allow read: if isOwner(classroomId);
-        // Unauthenticated students can create submissions.
-        allow create: if request.auth == null;
+        // Anyone can create a new submission (a student answering a question).
+        allow create: if true;
+        // Nobody can read or modify existing submissions from the client.
+        allow read, update, delete: if false;
       }
-    }
-    
-    // User profile and admin status collections
-    match /users/{userId} {
-      // Anyone can read user profiles (e.g., display names).
-      allow read: if true;
-      // A user can only write to their own profile document.
-      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    match /admins/{userId} {
-      // Anyone can check for the existence of an admin document.
-      allow read: if true;
+    // Admins Collection
+    match /admins/{adminId} {
+      // An admin can get their own document to verify their status.
+      allow get: if request.auth.uid != null && request.auth.uid == adminId;
+      // Nobody can list all admins or write to this collection from the client.
+      allow list, write: if false;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+        // An authenticated user can create their own user document upon first sign-in.
+        allow create: if request.auth.uid == userId;
+        // Any authenticated user can get another user's profile.
+        allow get: if request.auth.uid != null;
+        // A user can update their own profile. An admin can also update any user's profile.
+        allow update: if request.auth.uid == userId
+                      || exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+        // Nobody can list all users or delete user documents from the client.
+        allow list, delete: if false;
     }
   }
 }
