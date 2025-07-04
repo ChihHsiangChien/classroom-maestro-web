@@ -41,6 +41,8 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { Switch } from './ui/switch';
+import { Label } from './ui/label';
 
 
 interface ManagementPanelProps {
@@ -93,7 +95,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
     const handleProps = { ...attributes, ...listeners };
 
     const { t } = useI18n();
-    const { kickStudent } = useClassroom();
+    const { kickStudent, toggleClassroomLock } = useClassroom();
     const { toast } = useToast();
     const canDisplayQrCode = props.joinUrl && props.joinUrl.length < 2000;
 
@@ -193,6 +195,21 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                     </div>
                 </CardContent>
             ),
+            footer: (
+                <CardFooter className="p-4 border-t">
+                    <div className="flex items-center justify-between w-full">
+                        <div className="space-y-0.5 pr-4">
+                            <Label htmlFor="lock-switch" className="font-semibold">{t('studentManagement.lock_classroom_label')}</Label>
+                            <p className="text-xs text-muted-foreground">{t('studentManagement.lock_classroom_description')}</p>
+                        </div>
+                        <Switch
+                            id="lock-switch"
+                            checked={props.classroom.isLocked || false}
+                            onCheckedChange={(checked) => toggleClassroomLock(props.classroom.id, checked)}
+                        />
+                    </div>
+                </CardFooter>
+            )
         },
         status: {
             header: (

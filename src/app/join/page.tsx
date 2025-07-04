@@ -3,7 +3,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { School, User, AlertTriangle } from 'lucide-react';
+import { School, User, AlertTriangle, Lock } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -48,8 +48,9 @@ function JoinPageContent() {
                       name: classroomData.name,
                       students: classroomData.students || [],
                       ownerId: classroomData.ownerId,
+                      isLocked: classroomData.isLocked || false,
                   };
-                  setClassroom(fetchedClassroom);
+                  setClassroom(fetchedClassroom as Classroom);
               } else {
                   setError(t('joinPage.class_not_found_error'));
               }
@@ -113,6 +114,27 @@ function JoinPageContent() {
          </CardContent>
        </Card>
     )
+  }
+
+  if (classroom.isLocked) {
+      return (
+        <Card className="w-full max-w-md shadow-lg text-center">
+          <CardHeader>
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                <Lock className="h-6 w-6 text-destructive" />
+              </div>
+              <CardTitle>{t('joinPage.classroom_locked_title')}</CardTitle>
+              <CardDescription>{classroom.name}</CardDescription>
+          </CardHeader>
+          <CardContent>
+              <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>{t('joinPage.classroom_locked_title')}</AlertTitle>
+                  <AlertDescription>{t('joinPage.classroom_locked_description')}</AlertDescription>
+              </Alert>
+          </CardContent>
+        </Card>
+      );
   }
   
   if (classroom.students.length === 0) {

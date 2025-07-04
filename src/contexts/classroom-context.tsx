@@ -48,6 +48,7 @@ export interface Classroom {
   students: Student[];
   ownerId: string;
   activeQuestion?: any | null;
+  isLocked?: boolean;
 }
 
 interface ClassroomContextType {
@@ -71,6 +72,7 @@ interface ClassroomContextType {
   kickStudent: (classroomId: string, studentId: string) => Promise<void>;
   updateStudentPresence: (classroomId: string, studentId: string, isOnline: boolean) => Promise<void>;
   acknowledgeKick: (classroomId: string, studentId: string) => Promise<void>;
+  toggleClassroomLock: (classroomId: string, isLocked: boolean) => Promise<void>;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
@@ -154,9 +156,12 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     if (internalActiveClassroom?.id) {
         const updatedClassroom = classrooms.find(c => c.id === internalActiveClassroom.id);
         if (updatedClassroom) {
-            setInternalActiveClassroom(updatedClassroom);
+            // Preserve the merged students list from the memoized activeClassroom
+            const currentStudents = activeClassroom?.students || updatedClassroom.students;
+            setInternalActiveClassroom({ ...updatedClassroom, students: currentStudents });
         }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classrooms, internalActiveClassroom?.id]);
 
   // Effect to listen for real-time presence data for the active classroom
@@ -195,7 +200,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const addClassroom = useCallback(async (name: string) => {
     if (!user || !db) return;
     try {
-      await addDoc(collection(db, "classrooms"), { name, ownerId: user.uid, students: [] });
+      await addDoc(collection(db, "classrooms"), { name, ownerId: user.uid, students: [], isLocked: false });
     } catch (error) {
       handleFirestoreErrorRef.current?.(error, 'add-classroom');
     }
@@ -303,19 +308,20 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
 
   const listenForClassroom = useCallback((classroomId: string, callback: (classroom: Classroom | null) => void) => {
     if (!db) return () => {};
-    const classroomRef = doc(db, 'classrooms', classroomId);
+    const classroomDocRef = doc(db, 'classrooms', classroomId);
     
-    // Use a real-time listener for everyone. This relies on the security rules being correct.
-    const unsubscribe = onSnapshot(classroomRef, (doc) => {
-        if (doc.exists()) {
-            callback({ id: doc.id, ...doc.data() } as Classroom);
-        } else {
-            callback(null);
-        }
+    // For ALL users (teachers and students), use the efficient onSnapshot listener.
+    // This relies on having the correct Firestore security rules.
+    const unsubscribe = onSnapshot(classroomDocRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        callback({ id: docSnapshot.id, ...docSnapshot.data() } as Classroom);
+      } else {
+        callback(null);
+      }
     }, (error) => {
-        handleFirestoreErrorRef.current?.(error, 'listen-for-classroom');
+      handleFirestoreErrorRef.current?.(error, 'listen-for-classroom');
     });
-    
+
     return unsubscribe;
   }, []);
 
@@ -333,6 +339,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     if (!db || !classroomId || !studentId) return;
     try {
         const presenceRef = doc(db, 'classrooms', classroomId, 'presence', studentId);
+        // This is a simple write, no need to read the whole classroom doc first
         await setDoc(presenceRef, { isOnline, lastSeen: Timestamp.now() }, { merge: true });
     } catch (error) {
         // Log silently to avoid spamming user with toasts for background tasks
@@ -355,9 +362,19 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     if (!db || !classroomId || !studentId) return;
     try {
         const presenceRef = doc(db, 'classrooms', classroomId, 'presence', studentId);
+        // This is a simple write, no need to read the whole classroom doc first
         await setDoc(presenceRef, { forceLogout: false }, { merge: true });
     } catch (error) {
         console.error("Failed to acknowledge kick:", error);
+    }
+  }, []);
+  
+  const toggleClassroomLock = useCallback(async (classroomId: string, isLocked: boolean) => {
+    if (!db) return;
+    try {
+      await updateDoc(doc(db, 'classrooms', classroomId), { isLocked });
+    } catch (error) {
+      handleFirestoreErrorRef.current?.(error, 'toggle-classroom-lock');
     }
   }, []);
 
@@ -381,7 +398,8 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     listenForStudentPresence,
     kickStudent,
     updateStudentPresence,
-    acknowledgeKick
+    acknowledgeKick,
+    toggleClassroomLock
   }), [
     classrooms,
     activeClassroom,
@@ -401,7 +419,8 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     listenForStudentPresence,
     kickStudent,
     updateStudentPresence,
-    acknowledgeKick
+    acknowledgeKick,
+    toggleClassroomLock
   ]);
 
   return (

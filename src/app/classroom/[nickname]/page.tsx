@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Loader2, PartyPopper, LogOut } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 function ClassroomPageContent() {
@@ -24,6 +25,7 @@ function ClassroomPageContent() {
     const studentName = searchParams.get('name') ? decodeURIComponent(searchParams.get('name')!) : 'Student';
 
     const [activeQuestion, setActiveQuestion] = useState<(QuestionData & { id: string }) | null>(null);
+    const [isLocked, setIsLocked] = useState(false);
     const [submittedQuestionId, setSubmittedQuestionId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [kicked, setKicked] = useState(false);
@@ -32,41 +34,30 @@ function ClassroomPageContent() {
     useEffect(() => {
         if (!classroomId || !studentId) return;
 
-        const setPresence = (isOnline: boolean) => updateStudentPresence(classroomId, studentId, isOnline);
-
-        // Initial presence update and heartbeat
-        setPresence(true);
+        // Set initial online status and start a heartbeat to keep it active
+        updateStudentPresence(classroomId, studentId, true);
         const heartbeatInterval = setInterval(() => {
             if (document.visibilityState === 'visible') {
-                setPresence(true);
+                updateStudentPresence(classroomId, studentId, true);
             }
         }, 30000); // every 30 seconds
 
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                setPresence(true);
-            } else {
-                setPresence(false);
-            }
-        };
-        
+        // When the user leaves, set their status to offline
         const handleBeforeUnload = () => {
-            setPresence(false);
+             updateStudentPresence(classroomId, studentId, false);
         };
-
-        window.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('beforeunload', handleBeforeUnload);
 
         return () => {
             clearInterval(heartbeatInterval);
-            window.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
-            setPresence(false);
+            // Final offline update on component unmount
+            updateStudentPresence(classroomId, studentId, false);
         };
     }, [classroomId, studentId, updateStudentPresence]);
 
 
-    // Listen for classroom-level changes (like the active question)
+    // Listen for classroom-level changes (like the active question or lock state)
     useEffect(() => {
         if (!classroomId) return;
 
@@ -76,6 +67,8 @@ function ClassroomPageContent() {
                 setLoading(false);
                 return;
             };
+            
+            setIsLocked(classroom.isLocked || false);
 
             const currentQuestion = classroom.activeQuestion;
             if (currentQuestion && activeQuestion?.id !== currentQuestion.id) {
@@ -119,6 +112,7 @@ function ClassroomPageContent() {
     };
 
     const handleLogout = () => {
+        if (isLocked) return;
         if (classroomId) {
             // Set presence to offline before logging out
             if (studentId) {
@@ -159,14 +153,29 @@ function ClassroomPageContent() {
                 <CardDescription>{messageCardDescription}</CardDescription>
             </CardHeader>
             <CardFooter className="p-6 pt-2">
-                <Button
-                    variant="outline"
-                    onClick={handleLogout}
-                    className="w-full"
-                 >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    {t('dashboard.sign_out')}
-                </Button>
+                 <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="w-full">
+                                <Button
+                                    variant="outline"
+                                    onClick={handleLogout}
+                                    className="w-full"
+                                    disabled={isLocked}
+                                    style={isLocked ? { pointerEvents: 'none' } : {}}
+                                >
+                                    <LogOut className="mr-2 h-4 w-4" />
+                                    {t('dashboard.sign_out')}
+                                </Button>
+                            </div>
+                        </TooltipTrigger>
+                        {isLocked && (
+                            <TooltipContent>
+                                <p>{t('classroomPage.logout_disabled_tooltip')}</p>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                </TooltipProvider>
             </CardFooter>
         </Card>
     );

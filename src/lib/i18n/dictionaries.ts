@@ -93,6 +93,8 @@ export const dictionaries = {
       no_students_error: '這個教室目前沒有學生。請聯繫您的老師。',
       class_not_found_error: '找不到此教室。請檢查連結或聯繫您的老師。',
       generic_fetch_error: '讀取教室資料時發生錯誤。請再試一次。',
+      classroom_locked_title: '教室已鎖定',
+      classroom_locked_description: '老師已鎖定此活動，目前無法加入。',
     },
     classroomPage: {
       submission_received_title: '收到提交！',
@@ -100,6 +102,7 @@ export const dictionaries = {
       answer_another_question_button: '回答另一個問題',
       welcome_title: '歡迎, {studentName}！',
       welcome_description: '課程即將開始。請等待老師開始活動。',
+      logout_disabled_tooltip: '老師已鎖定教室，因此無法登出。',
     },
     teacherDashboard: {
       title: '活動中心',
@@ -240,6 +243,8 @@ export const dictionaries = {
       sort_by_submission: '提交狀態',
       sort_order_asc: '升冪',
       sort_order_desc: '降冪',
+      lock_classroom_label: '鎖定教室',
+      lock_classroom_description: '防止學生加入或離開此活動。',
     },
     studentPoll: {
       choose_your_answer: '選擇您的答案:',
@@ -342,6 +347,8 @@ export const dictionaries = {
       no_students_error: 'This classroom has no students. Please contact your teacher.',
       class_not_found_error: 'Classroom not found. Please check the link or contact your teacher.',
       generic_fetch_error: 'An error occurred while fetching classroom data. Please try again.',
+      classroom_locked_title: 'Classroom Locked',
+      classroom_locked_description: "The teacher has locked this session. No new students can join at this time.",
     },
     classroomPage: {
       submission_received_title: 'Submission Received!',
@@ -349,6 +356,7 @@ export const dictionaries = {
       answer_another_question_button: 'Answer Another Question',
       welcome_title: 'Welcome, {studentName}!',
       welcome_description: 'The lesson will begin shortly. Please wait for the teacher to start an activity.',
+      logout_disabled_tooltip: 'Logout is disabled because the teacher has locked the classroom.',
     },
     teacherDashboard: {
       title: 'Activity Center',
@@ -489,6 +497,8 @@ export const dictionaries = {
       sort_by_submission: 'Submission Status',
       sort_order_asc: 'Ascending',
       sort_order_desc: 'Descending',
+      lock_classroom_label: 'Lock Classroom',
+      lock_classroom_description: 'Prevents students from joining or leaving the session.',
     },
     studentPoll: {
       choose_your_answer: 'Choose your answer:',
