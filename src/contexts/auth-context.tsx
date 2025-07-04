@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
@@ -99,6 +98,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Let the useEffect handle the redirection to the dashboard.
     } catch (error) {
       const caughtError = error as AuthError;
+      // This is expected user behavior, not an actual error to be shown to the user.
+      if (caughtError.code === 'auth/popup-closed-by-user') {
+        console.log("Sign-in popup closed by user.");
+        // We exit early. The 'finally' block will still run to set loading to false.
+        return;
+      }
+
+      // For all other errors, log them and set the error state.
       console.error('Google Sign-In failed:', caughtError);
       if (caughtError.code === 'auth/unauthorized-domain' || caughtError.code === 'auth/configuration-not-found') {
         setAuthError('unauthorized-domain');
