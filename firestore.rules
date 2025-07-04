@@ -3,77 +3,63 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to check for admin status
+    // Helper function to check for admin status by looking for a document
+    // with the user's UID in the 'admins' collection.
     function isAdmin() {
-      // Checks if a document for the current user exists in the 'admins' collection.
       return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // Rules for the 'users' collection
+    // Rules for the 'users' collection, which stores teacher/admin info.
     match /users/{userId} {
-      // Admins can read the full list of users for the admin panel.
-      allow list: if isAdmin();
+      // Admins can read the full list of users.
+      // Authenticated users can read their own user document.
+      allow read: if isAdmin() || request.auth.uid == userId;
       
-      // A user can get, create, or update their OWN document. Admins can do this for any user.
-      allow get, write: if request.auth.uid == userId || isAdmin();
-      
-      // Only admins can delete user documents (part of the data deletion process).
-      allow delete: if isAdmin();
+      // An authenticated user can create or update their own user document.
+      allow write: if request.auth.uid == userId;
+    }
+
+    // Rules for the 'admins' collection.
+    match /admins/{adminId} {
+      // Only existing admins can read/write the admins collection.
+      // This prevents users from making themselves admins.
+      allow read, write: if isAdmin();
     }
     
-    // Rules for the 'admins' collection
-    match /admins/{userId} {
-      // Any authenticated user can attempt to read their own admin doc to check for admin status.
-      allow get: if request.auth.uid != null;
-      
-      // Only admins can see the full list of other admins.
-      allow list: if isAdmin();
-      
-      // Writing/deleting admins should only be done from the Firebase Console.
-      allow write, delete: if false;
-    }
-
-    // Rules for 'classrooms' collection and its subcollections
+    // Rules for the 'classrooms' collection.
     match /classrooms/{classroomId} {
+      // READ: 
+      // - 'get' (single doc): Anyone can get a classroom's data. This is needed for students to join.
+      // - 'list' (multiple docs): Only the owner or an admin can list classrooms. This protects teacher dashboards.
+      allow get: if true;
+      allow list: if resource.data.ownerId == request.auth.uid || isAdmin();
       
-      // This rule handles all read operations (get and list) for classrooms.
-      // It correctly differentiates between students joining and teachers listing their classes.
-      allow read: if 
-        // Rule for GET: Allow any request. This is crucial for unauthenticated students 
-        // who need to fetch classroom details when they join via a link.
-        (request.method == 'get') ||
-        // Rule for LIST: Allow if the user is an admin...
-        isAdmin() || 
-        // ...or if the user is authenticated and is the owner of the documents.
-        // Firestore is smart enough to match the `where("ownerId", "==", uid)` clause 
-        // in the client query against this `resource.data.ownerId == request.auth.uid` condition.
-        (request.auth != null && resource.data.ownerId == request.auth.uid);
-
-      // Allow classroom owners or admins to update and delete.
-      allow update, delete: if (request.auth != null && resource.data.ownerId == request.auth.uid) || isAdmin();
-      
-      // Allow any authenticated user to create a classroom, as long as they set themselves as the owner.
-      // This uses request.resource.data because the document doesn't exist yet before creation.
+      // WRITE:
+      // - create: An authenticated user can create a classroom, and they must set themselves as the owner.
+      // - update/delete: Only the owner or an admin can update/delete their classroom.
       allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-
-      // Rules for 'submissions' subcollection
-      match /submissions/{submissionId} {
-        // Allow classroom owners or admins to read submissions.
-        // Students should not be able to read each other's submissions.
-        allow read: if (request.auth != null && get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid) || isAdmin();
-        
-        // Allow any authenticated user to create a submission.
-        allow create: if request.auth != null;
-        
-        // Disallow updates and deletes on submissions from the client to preserve history.
-        allow update, delete: if false;
-      }
+      allow update, delete: if resource.data.ownerId == request.auth.uid || isAdmin();
       
-      // Rules for 'presence' subcollection
+      // Rules for subcollections within a classroom.
+      
+      // 'presence' subcollection (student online status)
       match /presence/{studentId} {
-        // Allow anyone to read presence data (for student list status).
-        // Allow anyone to update presence data (for students to mark themselves online/offline).
+        // Anyone can read and write to the presence collection.
+        // This is needed for unauthenticated students to see who is online
+        // and to update their own online status when joining or leaving.
         allow read, write: if true;
+      }
+
+      // 'submissions' subcollection (student answers)
+      match /submissions/{submissionId} {
+        // READ: Only the classroom owner or an admin can read submissions.
+        allow read: if get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid || isAdmin();
+
+        // CREATE: Anyone can create a submission. This is necessary because students are not authenticated users.
+        allow create: if true;
+        
+        // UPDATE/DELETE: Only the classroom owner or an admin can modify or delete submissions (e.g., for clearing history).
+        allow update, delete: if get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid || isAdmin();
       }
     }
   }
