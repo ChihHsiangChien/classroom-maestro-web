@@ -21,7 +21,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Classroom, Student, PresenceData } from '@/contexts/classroom-context';
 import { useI18n } from '@/lib/i18n/provider';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 
 
@@ -35,54 +35,66 @@ function JoinPageContent() {
 
   useEffect(() => {
     const classId = searchParams.get('classId');
+    let unsubscribe = () => {};
 
     if (classId && db) {
-      const fetchClassroom = async () => {
-          try {
-              const classroomRef = doc(db, 'classrooms', classId);
-              const classroomSnap = await getDoc(classroomRef);
+      const setupListeners = async () => {
+        try {
+          const classroomRef = doc(db, 'classrooms', classId);
+          const classroomSnap = await getDoc(classroomRef);
 
-              if (classroomSnap.exists()) {
-                  const classroomData = classroomSnap.data();
-
-                  const presenceRef = collection(db, 'classrooms', classId, 'presence');
-                  const presenceSnap = await getDocs(presenceRef);
-                  const presenceData: { [key: string]: PresenceData } = {};
-                  presenceSnap.forEach(doc => {
-                      presenceData[doc.id] = doc.data() as PresenceData;
-                  });
-
-                  const studentsWithPresence = (classroomData.students || []).map((student: Student) => {
-                      const presence = presenceData[student.id];
-                      const isConsideredOnline = !!(presence?.isOnline === true && presence?.lastSeen && (Timestamp.now().seconds - presence.lastSeen.seconds < 45));
-                      return { ...student, isOnline: isConsideredOnline };
-                  });
-                  
-                  const fetchedClassroom = {
-                      id: classroomSnap.id,
-                      name: classroomData.name,
-                      students: studentsWithPresence,
-                      ownerId: classroomData.ownerId,
-                      isLocked: classroomData.isLocked || false,
-                  };
-                  setClassroom(fetchedClassroom as (Omit<Classroom, 'students'> & { students: (Student & { isOnline?: boolean })[] }));
-              } else {
-                  setError(t('joinPage.class_not_found_error'));
-              }
-          } catch (e: any) {
-              const errorMessage = `Failed to fetch classroom. Code: ${e.code}. Message: ${e.message}`;
-              setError(errorMessage);
-          } finally {
-              setLoading(false);
+          if (!classroomSnap.exists()) {
+            setError(t('joinPage.class_not_found_error'));
+            setLoading(false);
+            return;
           }
+          const classroomData = classroomSnap.data();
+
+          const presenceRef = collection(db, 'classrooms', classId, 'presence');
+          unsubscribe = onSnapshot(presenceRef, (presenceSnap) => {
+            const presenceData: { [key: string]: PresenceData } = {};
+            presenceSnap.forEach(doc => {
+              presenceData[doc.id] = doc.data() as PresenceData;
+            });
+
+            const studentsWithPresence = (classroomData.students || []).map((student: Student) => {
+              const presence = presenceData[student.id];
+              const isConsideredOnline = !!(presence?.isOnline === true && presence?.lastSeen && (Timestamp.now().seconds - presence.lastSeen.seconds < 45));
+              return { ...student, isOnline: isConsideredOnline };
+            });
+
+            const fetchedClassroom = {
+              id: classroomSnap.id,
+              name: classroomData.name,
+              students: studentsWithPresence,
+              ownerId: classroomData.ownerId,
+              isLocked: classroomData.isLocked || false,
+            };
+            setClassroom(fetchedClassroom as (Omit<Classroom, 'students'> & { students: (Student & { isOnline?: boolean })[] }));
+            setLoading(false);
+          }, (err) => {
+              const errorMessage = `Failed to listen for presence. Code: ${err.code}. Message: ${err.message}`;
+              setError(errorMessage);
+              setLoading(false);
+          });
+
+        } catch (e: any) {
+          const errorMessage = `Failed to fetch classroom. Code: ${e.code}. Message: ${e.message}`;
+          setError(errorMessage);
+          setLoading(false);
+        }
       };
-      fetchClassroom();
+      setupListeners();
     } else if (!classId) {
       setError(t('joinPage.no_classroom_error'));
       setLoading(false);
     } else if (!db) {
        setError("Firebase is not configured correctly.");
        setLoading(false);
+    }
+
+    return () => {
+      unsubscribe();
     }
   }, [searchParams, t]);
 
