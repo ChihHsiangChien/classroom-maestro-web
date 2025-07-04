@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { School, LogIn, Terminal, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,16 +14,8 @@ export default function Home() {
   const { t } = useI18n();
   const { user, loading, signInWithGoogle, isFirebaseConfigured, authError } = useAuth();
   const router = useRouter();
-  const [hostname, setHostname] = useState('');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setHostname(window.location.hostname);
-    }
-  }, []);
 
   // If a user is logged in, redirect them to the dashboard.
-  // This hook runs after the component renders.
   useEffect(() => {
     if (!loading && user) {
       router.push('/dashboard');
@@ -35,8 +27,7 @@ export default function Home() {
     await signInWithGoogle();
   };
 
-  // This loading state is for the *initial* check to see if a user is already logged in.
-  // It's important to prevent the login form from flashing for already authenticated users.
+  // While loading auth state, show a loading indicator.
   if (loading) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
@@ -48,7 +39,7 @@ export default function Home() {
   
   const isAuthDomainError = authError === 'unauthorized-domain';
 
-  // Handle various error states after the initial loading is complete.
+  // Handle various error states after loading is complete.
   if (authError) {
      return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
@@ -59,10 +50,10 @@ export default function Home() {
               <AlertTitle>{t('firebase.auth_domain_error_title')}</AlertTitle>
               <AlertDescription>
                  <div className="mt-2 space-y-3">
-                  <p>{t('firebase.auth_domain_error_description')}</p>
-                  <p className="font-semibold">{t('firebase.auth_domain_error_your_domain')}</p>
-                  {hostname ? (
-                    <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">{hostname}</code>
+                  <p>{t('firebase.auth_domain_error_description_p1')}</p>
+                  <p className="font-semibold">{t('firebase.auth_domain_error_description_p2')}</p>
+                  {typeof window !== 'undefined' ? (
+                    <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">{window.location.hostname}</code>
                   ) : (
                     <div className="h-7 w-full animate-pulse rounded bg-muted" />
                   )}
@@ -103,9 +94,7 @@ export default function Home() {
     );
   }
 
-  // If not loading, and no user, and no errors, show the login page.
-  // The redirection for logged-in users is handled by the useEffect hook.
-  // We do NOT show a loading spinner here based on the `user` object to avoid the race condition.
+  // If not loading, and no user, show the login page.
   return (
     <main className="flex min-h-screen w-full flex-col items-center justify-center p-4">
       <div className="flex flex-col items-center gap-2 mb-8 text-center">

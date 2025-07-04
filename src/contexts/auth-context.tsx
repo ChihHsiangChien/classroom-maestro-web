@@ -31,15 +31,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
   const router = useRouter();
 
-  // This effect runs on component mount to handle the result of a redirect login
-  // and to set up the main auth state listener.
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
       setLoading(false);
       return;
     }
-    
-    // First, check for redirect result. This is crucial for catching errors from the redirect flow.
+
+    // This flag helps coordinate the two async auth checks.
+    let isProcessingRedirect = true;
+
+    // First, process the potential redirect result.
     getRedirectResult(auth)
       .catch((error: AuthError) => {
         console.error('Google Redirect Sign-In failed:', error);
@@ -48,18 +49,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setAuthError(error.message);
         }
+      })
+      .finally(() => {
+        // The redirect check is complete.
+        isProcessingRedirect = false;
+        // If onAuthStateChanged has already run and found no user,
+        // we can now definitively say loading is finished.
+        if (auth.currentUser === null) {
+          setLoading(false);
+        }
       });
 
-    // Then, set up the onAuthStateChanged listener. This is the single source of truth
-    // for the user's sign-in state. It will fire after getRedirectResult has been processed.
+    // Set up the primary auth state listener.
     const unsubscribe = onAuthStateChanged(
       auth,
-      (user) => {
-        setUser(user);
-        if (user) {
-          setAuthError(null); 
+      (currentUser) => {
+        setUser(currentUser);
+        if (currentUser) {
+          setAuthError(null);
         }
-        setLoading(false); // Auth state is now definitive, stop loading.
+        // Only stop loading if the redirect check is also complete.
+        // This prevents a race condition.
+        if (!isProcessingRedirect) {
+          setLoading(false);
+        }
       },
       (error: AuthError) => {
         console.error('Firebase Auth State Error:', error);
@@ -67,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     );
+
     return () => unsubscribe();
   }, []);
 
@@ -79,10 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     try {
-      // Ensure persistence is set before initiating the redirect.
       await setPersistence(auth, browserLocalPersistence);
-      // We do not set loading to true or clear errors here to avoid a re-render that can interrupt the redirect.
-      // We also do not await signInWithRedirect, as it navigates away and never resolves.
       signInWithRedirect(auth, googleProvider);
     } catch (error) {
       const caughtError = error as AuthError;
