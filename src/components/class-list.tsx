@@ -234,15 +234,21 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
                     const questionText = firstSub.questionText || firstSub.questionId;
                     const safeFolderName = questionText.replace(/[\\/:"*?<>|]/g, '_').substring(0, 100);
                     const questionFolder = imagesRootFolder.folder(safeFolderName);
+                    const nameCounts = new Map<string, number>();
 
                     if (questionFolder) {
                         subs.forEach(s => {
                             const answer = s.answer as string;
                             const base64Data = answer.substring(answer.indexOf(',') + 1);
                             
-                            // Only sanitize invalid filesystem characters. Allow unicode.
                             const safeStudentName = s.studentName.replace(/[\\/:"*?<>|]/g, '_');
-                            const filename = `${safeStudentName}_${s.studentId.substring(0, 4)}.png`;
+                            
+                            // Handle potential filename collisions for students with the same name
+                            const currentCount = nameCounts.get(safeStudentName) || 0;
+                            const filename = currentCount > 0 
+                                ? `${safeStudentName}(${currentCount + 1}).png` 
+                                : `${safeStudentName}.png`;
+                            nameCounts.set(safeStudentName, currentCount + 1);
                             
                             questionFolder.file(filename, base64Data, { base64: true });
                         });
