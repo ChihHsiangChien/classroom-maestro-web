@@ -4,7 +4,14 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, AuthError } from 'firebase/auth';
-import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { 
+  onAuthStateChanged, 
+  signInWithRedirect, 
+  getRedirectResult,
+  signOut as firebaseSignOut, 
+  setPersistence, 
+  browserLocalPersistence 
+} from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured } from '@/lib/firebase';
 
 interface AuthContextType {
@@ -24,26 +31,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
   const router = useRouter();
 
+  // This effect runs on component mount to handle the result of a redirect login
+  // and to set up the main auth state listener.
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
       setLoading(false);
       return;
     }
-
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (user) => {
-        setUser(user);
-        setAuthError(null); 
-        setLoading(false);
-      },
-      (error: AuthError) => {
-        console.error('Firebase Auth State Error:', error);
-        if (error.code === 'auth/unauthorized-domain' || error.code === 'auth/configuration-not-found') {
+    
+    // First, check for redirect result. This is crucial for catching errors from the redirect flow.
+    getRedirectResult(auth)
+      .catch((error: AuthError) => {
+        console.error('Google Redirect Sign-In failed:', error);
+        if (error.code === 'auth/unauthorized-domain') {
           setAuthError('unauthorized-domain');
         } else {
           setAuthError(error.message);
         }
+      });
+
+    // Then, set up the onAuthStateChanged listener. This is the single source of truth
+    // for the user's sign-in state. It will fire after getRedirectResult has been processed.
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (user) => {
+        setUser(user);
+        if (user) {
+          setAuthError(null); 
+        }
+        setLoading(false); // Auth state is now definitive, stop loading.
+      },
+      (error: AuthError) => {
+        console.error('Firebase Auth State Error:', error);
+        setAuthError(error.message);
         setLoading(false);
       }
     );
@@ -58,23 +78,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     setAuthError(null);
+    setLoading(true); // Indicate that an async action is starting before navigating away.
     try {
       await setPersistence(auth, browserLocalPersistence);
-      await signInWithPopup(auth, googleProvider);
-      // On success, the onAuthStateChanged listener will handle the user state and loading state.
+      await signInWithRedirect(auth, googleProvider);
+      // The user will be redirected away. The result is handled by the useEffect hook on the next page load.
     } catch (error) {
       const caughtError = error as AuthError;
-      // These are not "errors" but normal user actions. We can ignore them.
-      if (caughtError.code === 'auth/popup-closed-by-user' || caughtError.code === 'auth/cancelled-popup-request') {
-        console.log("Sign-in popup closed by user.");
-      } else {
-        console.error('Google Sign-In failed:', caughtError);
-        if (caughtError.code === 'auth/unauthorized-domain' || caughtError.code === 'auth/configuration-not-found') {
-          setAuthError('unauthorized-domain');
-        } else {
-          setAuthError(caughtError.message);
-        }
-      }
+      console.error('Google Sign-In Redirect initiation failed:', caughtError);
+      setAuthError(caughtError.message);
+      setLoading(false);
     }
   }, []);
 
