@@ -50,6 +50,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const colorInputRef = useRef<HTMLInputElement>(null);
 
     // Tool state
     const [tool, setTool] = useState<EditorTool>('pen');
@@ -375,24 +376,25 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
           <ToolButton name="pen" icon={<PenLine />} title={t('drawingEditor.pen_tool')} />
           <ToolButton name="eraser" icon={<Eraser />} title={t('drawingEditor.eraser_tool')} />
 
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="icon" type="button">
-                <div
-                  className="h-4 w-4 rounded-full border"
-                  style={{ backgroundColor: brushColor }}
-                />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-2">
-              <Input
-                type="color"
-                value={brushColor}
-                onChange={(e) => setBrushColor(e.target.value)}
-                className="h-10 w-10 p-1"
-              />
-            </PopoverContent>
-          </Popover>
+          <Button
+            variant="outline"
+            size="icon"
+            type="button"
+            title={t('drawingEditor.color_picker_tool')}
+            onClick={() => colorInputRef.current?.click()}
+          >
+            <div
+              className="h-4 w-4 rounded-full border"
+              style={{ backgroundColor: brushColor }}
+            />
+          </Button>
+          <Input
+            ref={colorInputRef}
+            type="color"
+            value={brushColor}
+            onChange={(e) => setBrushColor(e.target.value)}
+            className="invisible h-0 w-0 border-0 p-0"
+          />
 
           <Popover>
             <PopoverTrigger asChild>
