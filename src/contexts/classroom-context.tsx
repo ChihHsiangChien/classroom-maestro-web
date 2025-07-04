@@ -17,6 +17,7 @@ import {
   addDoc,
   serverTimestamp,
   Timestamp,
+  getDocs,
   getDoc
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -73,6 +74,8 @@ interface ClassroomContextType {
   updateStudentPresence: (classroomId: string, studentId: string, isOnline: boolean) => Promise<void>;
   acknowledgeKick: (classroomId: string, studentId: string) => Promise<void>;
   toggleClassroomLock: (classroomId: string, isLocked: boolean) => Promise<void>;
+  fetchAllSubmissions: (classroomId: string) => Promise<Submission[]>;
+  deleteActivityHistory: (classroomId: string) => Promise<void>;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
@@ -378,6 +381,43 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const fetchAllSubmissions = useCallback(async (classroomId: string): Promise<Submission[]> => {
+    if (!db) return [];
+    try {
+      const submissionsRef = collection(db, 'classrooms', classroomId, 'submissions');
+      const q = query(submissionsRef);
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Submission));
+    } catch (error) {
+      handleFirestoreErrorRef.current?.(error, 'fetch-all-submissions');
+      return [];
+    }
+  }, []);
+
+  const deleteActivityHistory = useCallback(async (classroomId: string) => {
+    if (!db) return;
+    try {
+      const submissionsRef = collection(db, 'classrooms', classroomId, 'submissions');
+      const snapshot = await getDocs(query(submissionsRef));
+      
+      if (snapshot.empty) {
+          toast({ title: t('dashboard.toast_history_no_data_to_delete') });
+          return;
+      }
+
+      const batch = writeBatch(db);
+      snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+
+      toast({ title: t('dashboard.toast_history_deleted') });
+    } catch (error) {
+      handleFirestoreErrorRef.current?.(error, 'delete-activity-history');
+    }
+  }, [t, toast]);
+
+
   const value = useMemo(() => ({
     classrooms,
     activeClassroom,
@@ -399,7 +439,9 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     kickStudent,
     updateStudentPresence,
     acknowledgeKick,
-    toggleClassroomLock
+    toggleClassroomLock,
+    fetchAllSubmissions,
+    deleteActivityHistory
   }), [
     classrooms,
     activeClassroom,
@@ -420,7 +462,9 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     kickStudent,
     updateStudentPresence,
     acknowledgeKick,
-    toggleClassroomLock
+    toggleClassroomLock,
+    fetchAllSubmissions,
+    deleteActivityHistory,
   ]);
 
   return (
