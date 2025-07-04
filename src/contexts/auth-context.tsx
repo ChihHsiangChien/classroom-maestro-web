@@ -43,51 +43,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // This is a flag to ensure we don't set loading to false until the redirect check is complete.
-    let redirectResultProcessed = false;
-
-    // This listener is the single source of truth for the user's auth state.
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      log(`onAuthStateChanged listener fired. User: ${user?.email ?? 'Not Logged In'}`);
-      setUser(user);
-      
-      // Only set loading to false if we've already checked for a redirect result.
-      // This prevents the initial "no user" state from prematurely ending the loading state
-      // when a redirect is in progress.
-      if (redirectResultProcessed) {
-        log("Auth state confirmed (post-redirect check). Loading is now false.");
-        setLoading(false);
-      }
-    });
-
-    // Check for redirect result to handle login, but rely on onAuthStateChanged for state.
-    getRedirectResult(auth)
-      .catch((error: AuthError) => {
-        log(`Error from getRedirectResult: ${error.code}`);
-        if (error.code === 'auth/unauthorized-domain') {
+    // This async function ensures we await the redirect result before setting the definitive auth state listener.
+    const initializeAuth = async () => {
+      try {
+        // First, process the redirect result. This might sign the user in.
+        const result = await getRedirectResult(auth);
+        if (result) {
+          log(`Redirect result processed successfully. User: ${result.user.email}`);
+        } else {
+          log("No redirect result to process.");
+        }
+      } catch (error) {
+        const caughtError = error as AuthError;
+        log(`Error processing redirect result: ${caughtError.code}`);
+        if (caughtError.code === 'auth/unauthorized-domain') {
           setAuthError('unauthorized-domain');
         } else {
-          setAuthError(error.message);
+          setAuthError(caughtError.message);
         }
-      })
-      .finally(() => {
-        // No matter the outcome, we now know the redirect has been processed.
-        log("Redirect result processing finished.");
-        redirectResultProcessed = true;
+      }
+
+      // After redirect is handled, the onAuthStateChanged listener is the single source of truth.
+      // It will fire with the user from the redirect, a user from a previous session, or null.
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        log(`onAuthStateChanged listener fired. User: ${user?.email ?? 'Not Logged In'}`);
+        setUser(user);
         
-        // If there's no user at this point (and onAuthStateChanged hasn't fired with one),
-        // it means no one was logged in and no successful redirect occurred.
-        // It's now safe to stop loading. If onAuthStateChanged already fired, this does nothing.
-        // If it hasn't fired yet, it will handle setting loading to false when it does.
-        if (!auth.currentUser) {
-            log("No current user after redirect check. Stopping loading.");
-            setLoading(false);
-        }
+        // Only now, after we have a definitive user state, do we stop loading.
+        setLoading(false);
+        log("Auth state confirmed. Loading is now false.");
       });
 
+      return unsubscribe;
+    };
+
+    const unsubscribePromise = initializeAuth();
+
     return () => {
-      log("AuthProvider unmounting. Cleaning up listener.");
-      unsubscribe();
+      unsubscribePromise.then(unsubscribe => {
+        if (unsubscribe) {
+          log("AuthProvider unmounting. Cleaning up listener.");
+          unsubscribe();
+        }
+      });
     };
   }, []);
 
@@ -104,11 +102,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await setPersistence(auth, browserLocalPersistence);
       await signInWithRedirect(auth, googleProvider);
+      // After this call, the page navigates away. No more code in this function will execute on this page load.
     } catch (error) {
       const caughtError = error as AuthError;
       log(`Sign-in initiation failed: ${caughtError.code} - ${caughtError.message}`);
       setAuthError(caughtError.message);
-      setLoading(false);
+      setLoading(false); // This is needed if the redirect call itself throws an error.
     }
   }, []);
 
