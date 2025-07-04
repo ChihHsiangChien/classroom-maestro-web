@@ -37,15 +37,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // This onAuthStateChanged listener is the single source of truth.
-    // It will fire on initial page load, and again after getRedirectResult
-    // processes a successful sign-in.
+    // This listener is our single source of truth for the user object.
+    // It fires on initial load, and again after a successful redirect sign-in is processed.
+    // We wait for this to resolve before setting loading to false.
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       if (user) {
         setAuthError(null);
       }
-      // Only stop loading once we have a definitive answer.
       setLoading(false);
     }, (error) => {
       console.error("Firebase Auth State Error:", error);
@@ -53,16 +52,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    // Process the redirect result. This might trigger the onAuthStateChanged listener above.
-    // We only need to catch potential errors from the redirect itself.
+    // Separately, process the redirect result upon returning to the app.
+    // This is primarily for catching specific redirect errors.
+    // We don't need the user object from this, as onAuthStateChanged will provide it.
     getRedirectResult(auth).catch((error: AuthError) => {
         console.error('Google Redirect Sign-In failed:', error);
+        // This is a common error when the user is not in an authorized domain.
         if (error.code === 'auth/unauthorized-domain') {
           setAuthError('unauthorized-domain');
         } else {
           setAuthError(error.message);
         }
-        // The onAuthStateChanged listener above will still be responsible for setting loading to false.
+        // Even on error, we let onAuthStateChanged handle setting loading to false,
+        // as it will eventually determine the final auth state (likely null).
     });
 
     return () => unsubscribe();
