@@ -141,9 +141,15 @@ export default function ActivityPage() {
     }
   };
 
-  const handleResetRace = () => {
+  const handleEndRace = () => {
      if (activeClassroom) {
       resetRace(activeClassroom.id);
+    }
+  };
+
+  const handleRestartRace = () => {
+    if (activeClassroom) {
+      startRace(activeClassroom.id);
     }
   };
 
@@ -256,10 +262,10 @@ export default function ActivityPage() {
           isOpen={!!race}
           onOpenChange={(open) => {
               if (!open) {
-                  handleResetRace();
+                  handleEndRace();
               }
           }}
-          onReset={handleResetRace}
+          onReset={handleRestartRace}
       />
     </>
   );
