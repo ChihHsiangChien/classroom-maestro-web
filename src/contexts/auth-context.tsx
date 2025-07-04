@@ -37,37 +37,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // This listener is our single source of truth for the user object.
-    // It fires on initial load, and again after a successful redirect sign-in is processed.
-    // We wait for this to resolve before setting loading to false.
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      if (user) {
-        setAuthError(null);
-      }
-      setLoading(false);
-    }, (error) => {
-      console.error("Firebase Auth State Error:", error);
-      setAuthError(error.message);
-      setLoading(false);
-    });
-
-    // Separately, process the redirect result upon returning to the app.
-    // This is primarily for catching specific redirect errors.
-    // We don't need the user object from this, as onAuthStateChanged will provide it.
-    getRedirectResult(auth).catch((error: AuthError) => {
-        console.error('Google Redirect Sign-In failed:', error);
-        // This is a common error when the user is not in an authorized domain.
-        if (error.code === 'auth/unauthorized-domain') {
+    // This function encapsulates the entire auth state check.
+    const checkAuthStatus = async () => {
+      try {
+        // First, process any pending redirect result.
+        // This is the crucial step to "tell Firebase who I am" after returning from Google.
+        // It must complete before onAuthStateChanged can reliably give us the user.
+        await getRedirectResult(auth);
+      } catch (error) {
+        // Handle specific redirect errors here.
+        const caughtError = error as AuthError;
+        console.error('Google Redirect Sign-In failed:', caughtError);
+        if (caughtError.code === 'auth/unauthorized-domain') {
           setAuthError('unauthorized-domain');
         } else {
-          setAuthError(error.message);
+          setAuthError(caughtError.message);
         }
-        // Even on error, we let onAuthStateChanged handle setting loading to false,
-        // as it will eventually determine the final auth state (likely null).
-    });
+        // Even if the redirect fails, we continue to onAuthStateChanged,
+        // which will likely confirm the user is null, and then we stop loading.
+      }
 
-    return () => unsubscribe();
+      // After the redirect is processed, onAuthStateChanged becomes the single source of truth.
+      // It will fire with the user from the redirect, or null if there's no user.
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        if (user) {
+            setAuthError(null);
+        }
+        // Only set loading to false once we have a definitive answer.
+        setLoading(false);
+      }, (error) => {
+        console.error("Firebase Auth State Error:", error);
+        setAuthError(error.message);
+        setLoading(false);
+      });
+      
+      // The `useEffect` cleanup function will be the one returned by onAuthStateChanged.
+      return unsubscribe;
+    };
+    
+    // Run the check.
+    const unsubscribePromise = checkAuthStatus();
+
+    // The actual cleanup function for the useEffect.
+    return () => {
+        unsubscribePromise.then(unsubscribe => {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+        });
+    };
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
@@ -80,8 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     try {
       await setPersistence(auth, browserLocalPersistence);
-      // signInWithRedirect will unmount the current page, so no state changes are needed here.
       await signInWithRedirect(auth, googleProvider);
+      // No state changes here. The page will redirect away.
     } catch (error) {
       const caughtError = error as AuthError;
       console.error('Google Sign-In Redirect initiation failed:', caughtError);
@@ -95,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     await firebaseSignOut(auth);
+    // After signing out, onAuthStateChanged will set the user to null.
+    // The redirect logic in page.tsx will handle routing to '/'.
     router.push('/');
   }, [router]);
 
