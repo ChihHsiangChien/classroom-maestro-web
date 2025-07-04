@@ -1,52 +1,53 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Helper function to check if the requesting user is the owner of a document.
+    // The `doc` parameter is the document's data.
+    function isOwner(doc) {
+      return request.auth != null && request.auth.uid == doc.ownerId;
+    }
+
     match /classrooms/{classroomId} {
-      // Helper function to check if the requester is the owner of the classroom.
-      function isOwner() {
-        // resource.data refers to the document state *before* the request.
-        return request.auth != null && request.auth.uid == resource.data.ownerId;
-      }
-      
-      // Allow anyone to read the basic classroom data to join or see the activity.
-      allow get: if true;
+      // --- READ RULES ---
+      // Anyone can GET a specific classroom document. This is needed for students to join.
+      allow get;
+      // Only the authenticated owner can LIST their own classrooms.
+      allow list: if request.auth != null && request.query.where.ownerId == request.auth.uid;
 
-      // Only allow the owner to list their classrooms.
-      // This rule is checked during a query and relies on the query filtering by ownerId.
-      allow list: if request.auth != null && request.auth.uid == request.query.where.value;
+      // --- WRITE RULES ---
+      // CREATE: The requesting user must be the owner of the document they are creating.
+      allow create: if isOwner(request.resource.data);
 
-      // Only the owner can create a classroom.
-      // request.resource.data refers to the document state *after* the request.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
-      
-      // The owner can delete their classroom.
-      allow delete: if isOwner();
+      // DELETE: The requesting user must be the owner of the document they are deleting.
+      allow delete: if isOwner(resource.data);
 
-      // Update permissions are more complex.
-      allow update: if 
-        // Case 1: The owner can update anything.
-        isOwner() || 
-        // Case 2: A student can claim a race under very specific conditions.
-        (
-          // Ensure this is a race claim update by checking the status transition.
-          request.resource.data.race.status == 'finished' && resource.data.race.status == 'pending' &&
-          // Ensure they are not changing anything else on the classroom document.
+      // UPDATE: Allow updates under two distinct conditions (Teacher or Student).
+      allow update: if
+        // Condition 1 (Teacher): Allow any update if the user is the owner.
+        // This covers starting/ending questions, resetting races, locking the room, etc.
+        isOwner(resource.data)
+        ||
+        // Condition 2 (Student): Allow an unauthenticated user to ONLY claim a pending race.
+        ( request.auth == null &&
+          request.resource.data.race.status == 'finished' &&
+          resource.data.race.status == 'pending' &&
+          // This ensures no other top-level fields are being maliciously added or changed.
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race'])
         );
-        
-      // Subcollections
-      match /submissions/{submissionId} {
-        // Anyone can create a submission (students are not authenticated).
-        allow create: if true;
-        // Only the owner can read or manage submissions.
-        allow read, update, delete: if isOwner();
-      }
-      
+
+      // --- SUBCOLLECTION RULES ---
       match /presence/{studentId} {
-        // Anyone can write to the presence subcollection to mark themselves online/offline.
-        allow read, write: if true;
+        // Anyone can write to their own presence document.
+        allow read, write;
+      }
+
+      match /submissions/{submissionId} {
+        // Anyone can create (submit) a submission.
+        allow create;
+        // Only the owner of the classroom can read or delete submissions.
+        allow read, list, delete: if isOwner(get(/databases/$(database)/documents/classrooms/$(classroomId)).data);
       }
     }
   }
