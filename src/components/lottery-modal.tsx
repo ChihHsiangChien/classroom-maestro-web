@@ -251,16 +251,14 @@ export function LotteryModal({
                     <CardHeader className="pb-2">
                         <CardTitle>{t('lotteryModal.title')}</CardTitle>
                     </CardHeader>
-                    <CardContent className="h-48 flex items-center justify-center">
+                    <CardContent className="h-48 flex items-center justify-center overflow-hidden">
                        {isAnimating ? (
-                            <div className="h-[48px] overflow-hidden">
-                                <p
-                                  key={displayName}
-                                  className="text-4xl font-bold text-foreground animate-slide-down-in"
-                                >
-                                  {displayName}
-                                </p>
-                            </div>
+                            <p
+                              key={displayName}
+                              className="text-4xl font-bold text-foreground animate-slide-down-in"
+                            >
+                              {displayName}
+                            </p>
                         ) : pickedStudent && displayName ? (
                             <div className="flex flex-col items-center gap-4 text-center animate-in fade-in-50 zoom-in-95">
                                 <div className="p-4 bg-primary/10 rounded-full">
