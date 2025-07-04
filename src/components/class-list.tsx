@@ -73,7 +73,7 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
   const handleAddClass = async () => {
     if (newClassName.trim()) {
       await addClassroom(newClassName.trim());
-      toast({ title: t('dashboard.toast_class_created') });
+      toast({ title: t('dashboard.toast_class_created_title'), description: t('dashboard.toast_class_created_description') });
       setAddDialogOpen(false);
       setNewClassName('');
     }
