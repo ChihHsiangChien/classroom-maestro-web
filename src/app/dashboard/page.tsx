@@ -20,12 +20,16 @@ export default function DashboardPage() {
     router.push('/dashboard/activity');
   };
 
+  const handleCloseDetail = () => {
+    setSelectedClassId(null);
+  };
+
   const selectedClass = selectedClassId
     ? classrooms.find((c) => c.id === selectedClassId)
     : null;
   
   if (selectedClass) {
-    return <ClassDetail classroom={selectedClass} />;
+    return <ClassDetail classroom={selectedClass} onBack={handleCloseDetail} />;
   }
 
   return (
