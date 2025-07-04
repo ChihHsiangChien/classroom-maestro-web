@@ -34,8 +34,8 @@ export default function Home() {
     await signInWithGoogle();
   };
 
-  // Show a loading screen during the initial auth check or while redirecting.
-  if (loading || user) {
+  // Show a loading screen during the initial auth check.
+  if (loading) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
         <School className="h-12 w-12 animate-pulse text-primary" />
