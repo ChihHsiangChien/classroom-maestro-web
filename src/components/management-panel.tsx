@@ -53,6 +53,24 @@ interface ManagementPanelProps {
 
 const LOCAL_STORAGE_KEY = 'management-panel-layout';
 
+// Helper function to get translated question type
+function getTranslatedQuestionType(type: QuestionData['type'], t: (key: string, values?: Record<string, string | number>) => string): string | null {
+    switch (type) {
+        case 'true-false':
+            return t('createQuestionForm.tab_true_false');
+        case 'multiple-choice':
+            return t('createQuestionForm.tab_multiple_choice');
+        case 'short-answer':
+            return t('createQuestionForm.tab_short_answer');
+        case 'drawing':
+            return t('createQuestionForm.tab_drawing');
+        case 'image-annotation':
+            return t('createQuestionForm.tab_annotation');
+        default:
+            return null;
+    }
+}
+
 // A single sortable and collapsible card component
 function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & { open: boolean, onOpenChange: (isOpen: boolean) => void }) {
     const {
@@ -137,6 +155,8 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
         kickStudent(props.classroom.id, studentId);
     };
 
+    const translatedQuestionType = props.activeQuestion ? getTranslatedQuestionType(props.activeQuestion.type, t) : null;
+
     const cardsContent: { [key: string]: {header: React.ReactNode, content: React.ReactNode, footer?: React.ReactNode} } = {
         join: {
             header: (
@@ -178,9 +198,9 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
             header: (
                  <div className="flex flex-1 items-center justify-between">
                     <div className="flex-1 pr-2">
-                        <CardTitle>{t('activePoll.submission_status_card_title')}</CardTitle>
+                        <CardTitle>{t('studentManagement.student_status_card_title')}</CardTitle>
                         <CardDescription>
-                            {t('activePoll.submission_status_card_description', { submissionsCount: props.submissions.length, studentsCount: props.classroom.students?.length || 0 })}
+                            {t('studentManagement.student_status_card_description', { submissionsCount: props.submissions.length, studentsCount: props.classroom.students?.length || 0 })}
                         </CardDescription>
                     </div>
                     <DropdownMenu>
@@ -247,7 +267,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                                             {hasSubmitted && props.activeQuestion ? (
                                                 <div className="flex items-center gap-1 text-green-600">
                                                     <CheckCircle className="h-5 w-5" />
-                                                    <span className="text-xs hidden sm:inline">{t('activePoll.submitted_status')}</span>
+                                                    <span className="text-xs hidden sm:inline">{t('studentManagement.submitted_status')}</span>
                                                 </div>
                                             ) : (
                                                 props.activeQuestion && <span className="text-xs text-muted-foreground pr-2">Waiting...</span>
@@ -284,7 +304,12 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                     <CardDescription className="flex items-center gap-2 mt-1">
                         <Clapperboard className="h-4 w-4" />
                         <span className="font-bold">
-                          {props.activeQuestion ? t('teacherDashboard.question_active') : t('teacherDashboard.idle')}
+                          {props.activeQuestion 
+                            ? (translatedQuestionType
+                                ? t('teacherDashboard.question_type_active', { questionType: translatedQuestionType })
+                                : t('teacherDashboard.question_active')
+                              )
+                            : t('teacherDashboard.idle')}
                         </span>
                     </CardDescription>
                 </div>
