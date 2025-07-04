@@ -16,7 +16,8 @@ const log = (message: string) => console.log(`[AUTH] ${new Date().toLocaleTimeSt
 
 interface AuthContextType {
   user: User | null;
-  loading: boolean;
+  loading: boolean; // For initial app load
+  isSigningIn: boolean; // For the popup sign-in flow
   isFirebaseConfigured: boolean;
   authError: string | null;
   signInWithGoogle: () => Promise<void>;
@@ -28,6 +29,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -57,19 +59,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   const signInWithGoogle = useCallback(async () => {
-    if (!isFirebaseConfigured || !auth || !googleProvider) {
-      log('Login failed: Firebase not configured.');
-      setAuthError("Firebase is not configured. Please check your .env file.");
+    if (!isFirebaseConfigured || !auth || !googleProvider || isSigningIn) {
       return;
     }
     
     log("signInWithGoogle called. Initiating popup sign-in.");
-    setLoading(true);
+    setIsSigningIn(true);
     setAuthError(null);
 
     try {
       const result = await signInWithPopup(auth, googleProvider);
       log(`signInWithPopup Success! User authenticated: ${result.user.email}`);
+      // onAuthStateChanged will handle setting the user and redirecting.
     } catch (error) {
         const caughtError = error as AuthError;
         if (caughtError.code === 'auth/popup-closed-by-user') {
@@ -83,11 +84,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setAuthError(caughtError.message);
         }
     } finally {
-        if (auth.currentUser === null) {
-          setLoading(false);
-        }
+        setIsSigningIn(false);
     }
-  }, []);
+  }, [isSigningIn]);
 
   const signOut = useCallback(async () => {
     if (!isFirebaseConfigured || !auth) return;
@@ -100,11 +99,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({
     user,
     loading,
+    isSigningIn,
     isFirebaseConfigured,
     authError,
     signInWithGoogle,
     signOut
-  }), [user, loading, isFirebaseConfigured, authError, signInWithGoogle, signOut]);
+  }), [user, loading, isSigningIn, isFirebaseConfigured, authError, signInWithGoogle, signOut]);
 
   return (
     <AuthContext.Provider value={value}>

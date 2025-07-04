@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function Home() {
   const { t } = useI18n();
-  const { user, loading, signInWithGoogle, isFirebaseConfigured, authError } = useAuth();
+  const { user, loading, isSigningIn, signInWithGoogle, isFirebaseConfigured, authError } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -111,9 +111,13 @@ export default function Home() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={handleLogin} className="w-full">
-              <LogIn className="mr-2 h-4 w-4" />
-              {t('landingPage.signin_with_google_button')}
+            <Button onClick={handleLogin} className="w-full" disabled={isSigningIn}>
+              {isSigningIn ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LogIn className="mr-2 h-4 w-4" />
+              )}
+              {isSigningIn ? 'Signing in...' : t('landingPage.signin_with_google_button')}
             </Button>
           </CardContent>
         </Card>
