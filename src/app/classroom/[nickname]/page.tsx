@@ -107,7 +107,7 @@ function ClassroomPageContent() {
     const handleVoteSubmit = async (answer: string | string[]) => {
         if (!classroomId || !studentId || !activeQuestion) return;
 
-        await addSubmission(classroomId, activeQuestion.id, studentId, studentName, answer);
+        await addSubmission(classroomId, activeQuestion.id, activeQuestion.question, activeQuestion.type, studentId, studentName, answer);
         setSubmittedQuestionId(activeQuestion.id);
     };
 

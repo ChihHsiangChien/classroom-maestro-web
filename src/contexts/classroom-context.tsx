@@ -40,6 +40,8 @@ export interface Submission {
   studentName: string;
   answer: string | string[];
   questionId: string;
+  questionText: string;
+  questionType: string;
   timestamp: Timestamp;
 }
 
@@ -66,7 +68,7 @@ interface ClassroomContextType {
   importStudents: (classroomId: string, studentNames: string[]) => Promise<void>;
   reorderStudents: (classroomId: string, students: Student[]) => Promise<void>;
   setActiveQuestionInDB: (classroomId: string, question: any | null) => Promise<void>;
-  addSubmission: (classroomId: string, questionId: string, studentId: string, studentName: string, answer: string | string[]) => Promise<void>;
+  addSubmission: (classroomId: string, questionId: string, questionText: string, questionType: string, studentId: string, studentName: string, answer: string | string[]) => Promise<void>;
   listenForSubmissions: (classroomId: string, questionId: string, callback: (submissions: Submission[]) => void) => () => void;
   listenForClassroom: (classroomId: string, callback: (classroom: Classroom | null) => void) => () => void;
   listenForStudentPresence: (classroomId: string, studentId: string, callback: (presence: PresenceData | null) => void) => () => void;
@@ -82,7 +84,7 @@ const ClassroomContext = createContext<ClassroomContextType | undefined>(undefin
 
 const generateId = () => Math.random().toString(36).substring(2, 15);
 
-export function ClassroomProvider({ children }: { children: ReactNode }) {
+export function ClassroomProvider({ children }: { children: React.ReactNode }) {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [internalActiveClassroom, setInternalActiveClassroom] = useState<Classroom | null>(null);
   const [activePresenceData, setActivePresenceData] = useState<{ [key: string]: PresenceData }>({});
@@ -282,7 +284,15 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     }
   }, []);
   
-  const addSubmission = useCallback(async (classroomId: string, questionId: string, studentId: string, studentName: string, answer: string | string[]) => {
+  const addSubmission = useCallback(async (
+    classroomId: string, 
+    questionId: string, 
+    questionText: string,
+    questionType: string,
+    studentId: string, 
+    studentName: string, 
+    answer: string | string[]
+  ) => {
     if (!db) return;
     try {
       const submissionData = {
@@ -290,6 +300,8 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
         studentName,
         answer,
         questionId,
+        questionText,
+        questionType,
         timestamp: serverTimestamp()
       };
       await addDoc(collection(db, 'classrooms', classroomId, 'submissions'), submissionData);

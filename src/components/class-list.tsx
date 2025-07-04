@@ -45,7 +45,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import type { Classroom } from '@/contexts/classroom-context';
+import type { Classroom, Submission } from '@/contexts/classroom-context';
 import { useClassroom } from '@/contexts/classroom-context';
 import { useI18n } from '@/lib/i18n/provider';
 import { Plus, Edit, Trash2, Users, FileText, PlayCircle, MoreVertical, Download, Eraser, Loader2, FileJson, FileArchive } from 'lucide-react';
@@ -175,7 +175,7 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
         // Handle CSV pivoting and encoding
         if (textSubmissions.length > 0) {
             const studentAnswers: Map<string, Map<string, string>> = new Map();
-            const allQuestionIds = new Set<string>();
+            const questionIdToText: Map<string, string> = new Map();
 
             textSubmissions.forEach(sub => {
                 if (!studentAnswers.has(sub.studentName)) {
@@ -183,11 +183,13 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
                 }
                 const answerText = Array.isArray(sub.answer) ? sub.answer.join('; ') : String(sub.answer);
                 studentAnswers.get(sub.studentName)!.set(sub.questionId, answerText);
-                allQuestionIds.add(sub.questionId);
+                
+                if (!questionIdToText.has(sub.questionId) && sub.questionText) {
+                    questionIdToText.set(sub.questionId, sub.questionText);
+                }
             });
 
-            const sortedQuestionIds = Array.from(allQuestionIds).sort();
-            const headers = ['studentName', ...sortedQuestionIds];
+            const sortedQuestionIds = Array.from(questionIdToText.keys()).sort();
             
             const escapeCsv = (val: any): string => {
                 if (val === undefined || val === null) return '';
@@ -197,6 +199,8 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
                 }
                 return str;
             };
+            
+            const headers = ['studentName', ...sortedQuestionIds.map(id => questionIdToText.get(id) || id)];
             
             const studentNames = Array.from(studentAnswers.keys()).sort();
             const csvRows = studentNames.map(name => {
@@ -209,7 +213,7 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
             });
 
             // Prepend BOM for Excel compatibility with UTF-8
-            const csvData = '\uFEFF' + [headers.join(','), ...csvRows].join('\n');
+            const csvData = '\uFEFF' + [headers.map(escapeCsv).join(','), ...csvRows].join('\n');
             zip.file('submissions.csv', csvData);
         }
 
@@ -217,17 +221,31 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
         if (imageSubmissions.length > 0) {
             const imagesRootFolder = zip.folder("images");
             if (imagesRootFolder) {
-                imageSubmissions.forEach((s) => {
-                    const questionFolder = imagesRootFolder.folder(s.questionId);
+                const submissionsByQuestion: { [key: string]: Submission[] } = {};
+                imageSubmissions.forEach(sub => {
+                    if (!submissionsByQuestion[sub.questionId]) {
+                        submissionsByQuestion[sub.questionId] = [];
+                    }
+                    submissionsByQuestion[sub.questionId].push(sub);
+                });
+
+                Object.values(submissionsByQuestion).forEach((subs) => {
+                    const firstSub = subs[0];
+                    const questionText = firstSub.questionText || firstSub.questionId;
+                    const safeFolderName = questionText.replace(/[\\/:"*?<>|]/g, '_').substring(0, 100);
+                    const questionFolder = imagesRootFolder.folder(safeFolderName);
+
                     if (questionFolder) {
-                        const answer = s.answer as string;
-                        const base64Data = answer.substring(answer.indexOf(',') + 1);
-                        
-                        // Sanitize for invalid filesystem characters, but allow Unicode.
-                        const safeStudentName = s.studentName.replace(/[\\/:"*?<>|]/g, '_');
-                        const filename = `${safeStudentName}_${s.studentId.substring(0, 4)}.png`;
-                        
-                        questionFolder.file(filename, base64Data, { base64: true });
+                        subs.forEach(s => {
+                            const answer = s.answer as string;
+                            const base64Data = answer.substring(answer.indexOf(',') + 1);
+                            
+                            // Only sanitize invalid filesystem characters. Allow unicode.
+                            const safeStudentName = s.studentName.replace(/[\\/:"*?<>|]/g, '_');
+                            const filename = `${safeStudentName}_${s.studentId.substring(0, 4)}.png`;
+                            
+                            questionFolder.file(filename, base64Data, { base64: true });
+                        });
                     }
                 });
             }
