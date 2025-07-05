@@ -31,7 +31,7 @@ type QuestionDataWithId = QuestionData & { id: string };
 export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace, updateTeacherHeartbeat } = useClassroom();
+  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace } = useClassroom();
   const { toast } = useToast();
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -48,32 +48,6 @@ export default function ActivityPage() {
 
   const activeQuestion = activeClassroom?.activeQuestion || null;
   const race = activeClassroom?.race || null;
-
-  // This effect handles the teacher's presence heartbeat
-  useEffect(() => {
-    if (!activeClassroom) return;
-    
-    // Set initial heartbeat
-    updateTeacherHeartbeat(activeClassroom.id, Timestamp.now());
-    
-    const heartbeatInterval = setInterval(() => {
-        if (document.visibilityState === 'visible') {
-            updateTeacherHeartbeat(activeClassroom.id, Timestamp.now());
-        }
-    }, 20000); // every 20 seconds
-
-    const handleBeforeUnload = () => {
-        updateTeacherHeartbeat(activeClassroom.id, null);
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-        clearInterval(heartbeatInterval);
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-        // Clean up on component unmount
-        updateTeacherHeartbeat(activeClassroom.id, null);
-    };
-  }, [activeClassroom, updateTeacherHeartbeat]);
 
   useEffect(() => {
     if (!classroomLoading && !activeClassroom) {

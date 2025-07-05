@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut, GripVertical, ChevronDown, ArrowDownUp, ArrowUp, ArrowDown } from 'lucide-react';
+import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut, GripVertical, ChevronDown, ArrowDownUp, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom, type Classroom, type Submission, type Student } from '@/contexts/classroom-context';
 import type { QuestionData } from "./create-poll-form";
@@ -95,7 +95,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
     const handleProps = { ...attributes, ...listeners };
 
     const { t } = useI18n();
-    const { kickStudent, toggleClassroomLock } = useClassroom();
+    const { kickStudent, toggleClassroomLock, pingStudents } = useClassroom();
     const { toast } = useToast();
     const canDisplayQrCode = props.joinUrl && props.joinUrl.length < 2000;
 
@@ -243,32 +243,46 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                             {t('studentManagement.student_status_card_description', { submissionsCount: props.submissions.length, studentsCount: props.classroom.students?.length || 0 })}
                         </CardDescription>
                     </div>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0 -mr-2">
-                                <ArrowDownUp className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>{t('studentManagement.sort_by_label')}</DropdownMenuLabel>
-                            <DropdownMenuRadioGroup value={sortBy} onValueChange={(value) => setSortBy(value as any)}>
-                                <DropdownMenuRadioItem value="name">{t('studentManagement.sort_by_name')}</DropdownMenuRadioItem>
-                                <DropdownMenuRadioItem value="status">{t('studentManagement.sort_by_status')}</DropdownMenuRadioItem>
-                                <DropdownMenuRadioItem value="submission">{t('studentManagement.sort_by_submission')}</DropdownMenuRadioItem>
-                            </DropdownMenuRadioGroup>
-                            <DropdownMenuSeparator />
-                             <DropdownMenuRadioGroup value={sortOrder} onValueChange={(value) => setSortOrder(value as any)}>
-                                <DropdownMenuRadioItem value="asc">
-                                    <ArrowUp className="mr-2 h-3.5 w-3.5" />
-                                    {t('studentManagement.sort_order_asc')}
-                                </DropdownMenuRadioItem>
-                                <DropdownMenuRadioItem value="desc">
-                                    <ArrowDown className="mr-2 h-3.5 w-3.5" />
-                                    {t('studentManagement.sort_order_desc')}
-                                </DropdownMenuRadioItem>
-                            </DropdownMenuRadioGroup>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center">
+                      <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                                  <ArrowDownUp className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>{t('studentManagement.sort_by_label')}</DropdownMenuLabel>
+                              <DropdownMenuRadioGroup value={sortBy} onValueChange={(value) => setSortBy(value as any)}>
+                                  <DropdownMenuRadioItem value="name">{t('studentManagement.sort_by_name')}</DropdownMenuRadioItem>
+                                  <DropdownMenuRadioItem value="status">{t('studentManagement.sort_by_status')}</DropdownMenuRadioItem>
+                                  <DropdownMenuRadioItem value="submission">{t('studentManagement.sort_by_submission')}</DropdownMenuRadioItem>
+                              </DropdownMenuRadioGroup>
+                              <DropdownMenuSeparator />
+                               <DropdownMenuRadioGroup value={sortOrder} onValueChange={(value) => setSortOrder(value as any)}>
+                                  <DropdownMenuRadioItem value="asc">
+                                      <ArrowUp className="mr-2 h-3.5 w-3.5" />
+                                      {t('studentManagement.sort_order_asc')}
+                                  </DropdownMenuRadioItem>
+                                  <DropdownMenuRadioItem value="desc">
+                                      <ArrowDown className="mr-2 h-3.5 w-3.5" />
+                                      {t('studentManagement.sort_order_desc')}
+                                  </DropdownMenuRadioItem>
+                              </DropdownMenuRadioGroup>
+                          </DropdownMenuContent>
+                      </DropdownMenu>
+                      <TooltipProvider>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => pingStudents(props.classroom.id)}>
+                                      <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                                  </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                  <p>{t('studentManagement.ping_students_tooltip')}</p>
+                              </TooltipContent>
+                          </Tooltip>
+                      </TooltipProvider>
+                    </div>
                 </div>
             ),
             content: (

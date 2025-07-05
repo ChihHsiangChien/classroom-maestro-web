@@ -292,6 +292,7 @@ export const dictionaries = {
       sort_order_desc: '降冪',
       lock_classroom_label: '鎖定教室',
       lock_classroom_description: '防止學生加入或離開此活動。',
+      ping_students_tooltip: '檢查學生是否在線上且專心',
     },
     studentPoll: {
       choose_your_answer: '選擇您的答案:',
@@ -615,6 +616,7 @@ export const dictionaries = {
       sort_order_desc: 'Descending',
       lock_classroom_label: 'Lock Classroom',
       lock_classroom_description: 'Prevents students from joining or leaving the session.',
+      ping_students_tooltip: 'Ping students to check if they are online and attentive',
     },
     studentPoll: {
       choose_your_answer: 'Choose your answer:',

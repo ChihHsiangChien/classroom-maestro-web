@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Suspense, useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useClassroom, type Classroom } from '@/contexts/classroom-context';
 import type { QuestionData } from '@/components/create-poll-form';
@@ -12,7 +12,6 @@ import { Loader2, PartyPopper, LogOut } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { StudentRace } from '@/components/student-race';
-import { Timestamp } from 'firebase/firestore';
 
 
 function ClassroomPageContent() {
@@ -31,36 +30,17 @@ function ClassroomPageContent() {
     const [submittedQuestionId, setSubmittedQuestionId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [kicked, setKicked] = useState(false);
-
-    // Create a ref to hold the latest classroom data to avoid re-triggering the heartbeat effect
-    const classroomRef = useRef<Classroom | null>(null);
-    useEffect(() => {
-        classroomRef.current = classroom;
-    }, [classroom]);
-
+    const [lastRespondedPingId, setLastRespondedPingId] = useState<string | null>(null);
 
     const activeQuestion = classroom?.activeQuestion;
     const activeRace = classroom?.race;
 
-    // This effect handles student presence (online status)
+    // This effect handles student presence (online status on mount/unmount)
     useEffect(() => {
         if (!classroomId || !studentId) return;
 
-        // Set initial online status and start a heartbeat to keep it active
+        // Set initial online status
         updateStudentPresence(classroomId, studentId, true);
-        const heartbeatInterval = setInterval(() => {
-            // Use the ref inside the interval to get the latest classroom data
-            const currentClassroom = classroomRef.current;
-            if (document.visibilityState === 'visible' && currentClassroom) {
-                // Only send heartbeat if the teacher is active
-                const teacherHeartbeat = currentClassroom.lastTeacherHeartbeat;
-                const isTeacherActive = teacherHeartbeat && (Timestamp.now().seconds - teacherHeartbeat.seconds < 30);
-                
-                if (isTeacherActive) {
-                    updateStudentPresence(classroomId, studentId, true);
-                }
-            }
-        }, 15000); // every 15 seconds
 
         // When the user leaves, set their status to offline
         const handleBeforeUnload = () => {
@@ -69,12 +49,25 @@ function ClassroomPageContent() {
         window.addEventListener('beforeunload', handleBeforeUnload);
 
         return () => {
-            clearInterval(heartbeatInterval);
             window.removeEventListener('beforeunload', handleBeforeUnload);
             // Final offline update on component unmount
             updateStudentPresence(classroomId, studentId, false);
         };
     }, [classroomId, studentId, updateStudentPresence]);
+
+    // This effect handles responding to teacher pings
+    useEffect(() => {
+        if (!classroom || !classroom.pingRequest || !studentId || !classroomId) return;
+        
+        const { id: pingId } = classroom.pingRequest;
+        
+        // Respond only to new pings and if the page is visible
+        if (pingId !== lastRespondedPingId && document.visibilityState === 'visible') {
+            console.log(`Responding to ping: ${pingId}`);
+            updateStudentPresence(classroomId, studentId, true);
+            setLastRespondedPingId(pingId);
+        }
+    }, [classroom, studentId, classroomId, lastRespondedPingId, updateStudentPresence]);
 
 
     // Listen for classroom-level changes (like the active question or lock state)
