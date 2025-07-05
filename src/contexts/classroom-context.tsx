@@ -62,6 +62,7 @@ export interface Classroom {
   isLocked?: boolean;
   race?: RaceData | null;
   pingRequest?: { id: string; timestamp: Timestamp };
+  teacherLastSeen?: Timestamp;
 }
 
 interface ClassroomContextType {
@@ -93,6 +94,7 @@ interface ClassroomContextType {
   resetRace: (classroomId: string) => Promise<void>;
   deleteTeacherAndData: (ownerId: string) => Promise<void>;
   pingStudents: (classroomId: string) => Promise<void>;
+  updateTeacherHeartbeat: (classroomId: string) => Promise<void>;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
@@ -555,6 +557,15 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const updateTeacherHeartbeat = useCallback(async (classroomId: string) => {
+    if (!db) return;
+    try {
+      await updateDoc(doc(db, 'classrooms', classroomId), { teacherLastSeen: serverTimestamp() });
+    } catch (error) {
+      console.error("Failed to update teacher heartbeat:", error); // Don't bother the user with a toast for this background task.
+    }
+  }, []);
+
 
   const value = useMemo(() => ({
     classrooms,
@@ -585,6 +596,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     resetRace,
     deleteTeacherAndData,
     pingStudents,
+    updateTeacherHeartbeat,
   }), [
     classrooms,
     activeClassroom,
@@ -613,6 +625,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     resetRace,
     deleteTeacherAndData,
     pingStudents,
+    updateTeacherHeartbeat,
   ]);
 
   return (

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useClassroom, type Classroom } from '@/contexts/classroom-context';
 import type { QuestionData } from '@/components/create-poll-form';
@@ -12,6 +12,7 @@ import { Loader2, PartyPopper, LogOut } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { StudentRace } from '@/components/student-race';
+import { Timestamp } from 'firebase/firestore';
 
 
 function ClassroomPageContent() {
@@ -20,6 +21,7 @@ function ClassroomPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { listenForClassroom, listenForStudentPresence, addSubmission, updateStudentPresence, acknowledgeKick, claimRace } = useClassroom();
+    const unsubscribeRef = useRef<() => void>(() => {});
 
     const classroomId = params.nickname as string;
     const studentId = searchParams.get('studentId');
@@ -31,6 +33,7 @@ function ClassroomPageContent() {
     const [loading, setLoading] = useState(true);
     const [kicked, setKicked] = useState(false);
     const [lastRespondedPingId, setLastRespondedPingId] = useState<string | null>(null);
+    const [sessionEnded, setSessionEnded] = useState(false);
 
     const activeQuestion = classroom?.activeQuestion;
     const activeRace = classroom?.race;
@@ -79,7 +82,7 @@ function ClassroomPageContent() {
         if (!classroomId) return;
 
         setLoading(true);
-        const unsubscribe = listenForClassroom(classroomId, (classroomData) => {
+        unsubscribeRef.current = listenForClassroom(classroomId, (classroomData) => {
             if (!classroomData) {
                 setLoading(false);
                 return;
@@ -97,8 +100,38 @@ function ClassroomPageContent() {
             setLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => unsubscribeRef.current();
     }, [classroomId, listenForClassroom, classroom?.activeQuestion?.id]);
+
+    // This effect detects if the teacher has left the session.
+    useEffect(() => {
+        if (!classroom || sessionEnded) return;
+
+        const checkTeacherPresence = () => {
+            if (!classroom.teacherLastSeen) return;
+
+            const now = Timestamp.now().seconds;
+            const teacherLastSeen = classroom.teacherLastSeen.seconds;
+            const secondsSinceTeacherSeen = now - teacherLastSeen;
+            
+            // If teacher hasn't sent a heartbeat in over 60 seconds, end the session.
+            if (secondsSinceTeacherSeen > 60) {
+                setSessionEnded(true);
+                // Crucially, stop listening for further updates.
+                if (unsubscribeRef.current) {
+                    console.log("Teacher seems to have left. Disconnecting listeners.");
+                    unsubscribeRef.current();
+                }
+            }
+        };
+
+        // Check immediately and then set an interval to keep checking.
+        const intervalId = setInterval(checkTeacherPresence, 30000); // Check every 30 seconds
+
+        return () => clearInterval(intervalId);
+
+    }, [classroom, sessionEnded]);
+
 
     // Listen for student-specific changes (like being kicked)
     useEffect(() => {
@@ -151,6 +184,20 @@ function ClassroomPageContent() {
                 <Loader2 className="h-12 w-12 animate-spin" />
                 <p className="text-xl">{t('common.loading')}</p>
             </div>
+        );
+    }
+    
+    if (sessionEnded) {
+        return (
+            <Card className="w-full max-w-lg text-center animate-in fade-in-50">
+                <CardHeader>
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 mb-4">
+                        <LogOut className="h-8 w-8 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl">Session Ended</CardTitle>
+                    <CardDescription>The teacher has left the session. You can now safely close this page.</CardDescription>
+                </CardHeader>
+            </Card>
         );
     }
 

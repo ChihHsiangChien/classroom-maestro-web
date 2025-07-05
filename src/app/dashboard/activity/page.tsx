@@ -76,6 +76,22 @@ export default function ActivityPage() {
     }
   }, [activeQuestion, activeClassroom, listenForSubmissions]);
 
+  // Heartbeat effect to signal teacher presence
+  useEffect(() => {
+      if (!activeClassroom) return;
+
+      // Initial heartbeat
+      updateTeacherHeartbeat(activeClassroom.id);
+
+      const intervalId = setInterval(() => {
+          updateTeacherHeartbeat(activeClassroom.id);
+      }, 30000); // Update every 30 seconds
+
+      return () => {
+          clearInterval(intervalId);
+      };
+  }, [activeClassroom, updateTeacherHeartbeat]);
+
   const handleEndQuestion = async () => {
     if (activeClassroom) {
       await setActiveQuestionInDB(activeClassroom.id, null);
