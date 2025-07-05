@@ -348,7 +348,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                                                     <span className="text-xs hidden sm:inline">{t('studentManagement.submitted_status')}</span>
                                                 </div>
                                             ) : (
-                                                props.activeQuestion && <span className="text-xs text-muted-foreground pr-2">Waiting...</span>
+                                                props.activeQuestion && <span className="text-xs text-muted-foreground pr-2">{t('studentManagement.waiting_status')}</span>
                                             )}
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
