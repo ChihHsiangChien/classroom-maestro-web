@@ -223,12 +223,12 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
   const addClassroom = useCallback(async (name: string) => {
     if (!user || !db) return;
     try {
-      const newOrder = classrooms.length;
+      const newOrder = classroomsRef.current.length > 0 ? Math.max(...classroomsRef.current.map(c => c.order)) + 1 : 0;
       await addDoc(collection(db, "classrooms"), { name, ownerId: user.uid, students: [], isLocked: false, order: newOrder });
     } catch (error) {
       handleFirestoreErrorRef.current?.(error, 'add-classroom');
     }
-  }, [user, classrooms.length]);
+  }, [user]);
 
   const updateClassroom = useCallback(async (id: string, name: string) => {
     if (!db) return;
@@ -266,7 +266,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     const classroom = classroomsRef.current.find(c => c.id === classroomId);
     if (!classroom) return;
     const newStudent: Student = { id: generateId(), name: studentName.trim() };
-    await updateStudentList(classroomId, [newStudent, ...classroom.students]);
+    await updateStudentList(classroomId, [...classroom.students, newStudent]);
   }, [updateStudentList]);
   
   const updateStudent = useCallback(async (classroomId: string, studentId: string, newName: string) => {
@@ -308,7 +308,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     const classroom = classroomsRef.current.find(c => c.id === classroomId);
     if (!classroom) return;
     const newStudents: Student[] = studentNames.map(name => ({ id: generateId(), name }));
-    await updateStudentList(classroomId, [...newStudents, ...classroom.students]);
+    await updateStudentList(classroomId, [...classroom.students, ...newStudents]);
   }, [updateStudentList]);
 
   const setActiveQuestionInDB = useCallback(async (classroomId: string, question: any | null) => {
@@ -469,14 +469,15 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
         if (!db) return;
         try {
             const raceId = `race_${Date.now()}`;
-            const raceData: Omit<RaceData, 'startTime'> = {
+            const raceData: RaceData = {
                 id: raceId,
                 status: 'pending',
                 winnerName: null,
                 winnerId: null,
+                startTime: serverTimestamp() as Timestamp,
             };
             await updateDoc(doc(db, 'classrooms', classroomId), {
-                race: { ...raceData, startTime: serverTimestamp() }
+                race: raceData
             });
         } catch (error) {
             handleFirestoreErrorRef.current?.(error, 'start-race');
@@ -495,19 +496,26 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
                 const classroomData = classroomSnap.data() as Classroom;
                 const race = classroomData.race;
 
-                if (race && race.id === raceId && race.status === 'pending') {
-                    transaction.update(classroomRef, {
-                        'race.winnerName': studentName,
-                        'race.winnerId': studentId,
-                        'race.status': 'finished'
-                    });
-                } else {
-                    throw new Error("Race already finished or invalid.");
+                if (!race || race.id !== raceId || race.status !== 'pending') {
+                    throw new Error("Race not available to be claimed.");
                 }
+
+                // Server-side time check with a buffer to account for clock skew.
+                // This checks if the claim is made after a reasonable delay from the start time.
+                const activationTime = race.startTime.toMillis() + 2900; // 2.9 seconds buffer
+                if (Date.now() < activationTime) {
+                    throw new Error("Race claimed too early.");
+                }
+
+                transaction.update(classroomRef, {
+                    'race.winnerName': studentName,
+                    'race.winnerId': studentId,
+                    'race.status': 'finished'
+                });
             });
             return true;
         } catch (error) {
-            console.log("Failed to claim race (or was too slow):", (error as Error).message);
+            console.error("Failed to claim race:", (error as Error).message);
             return false;
         }
     }, []);
