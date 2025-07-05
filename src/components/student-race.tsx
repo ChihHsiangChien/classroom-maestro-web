@@ -28,22 +28,35 @@ export function StudentRace({ race, studentId, onClaim }: StudentRaceProps) {
 
         // If the race is pending, start the countdown timer.
         if (race.status === 'pending' && race.startTime) {
-             const activationTime = race.startTime.toMillis() + 3000;
-            const interval = setInterval(() => {
+            // This is a more robust way to handle the countdown and activation
+            
+            // Timer for updating the visual countdown display
+            const countdownInterval = setInterval(() => {
+                const activationTime = race.startTime.toMillis() + 3000;
                 const now = Date.now();
                 const diff = activationTime - now;
 
-                if (diff <= 0) {
-                    setCountdown(0);
-                    // Use functional update to ensure we're not working with a stale state.
-                    // This changes the state from 'countdown' to 'active' only once.
-                    setButtonState(current => current === 'countdown' ? 'active' : current);
-                    clearInterval(interval);
-                } else {
+                if (diff > 0) {
                     setCountdown(Math.ceil(diff / 1000));
+                } else {
+                    setCountdown(0);
+                    clearInterval(countdownInterval); // Stop this interval once countdown is 0
                 }
-            }, 100);
-            return () => clearInterval(interval);
+            }, 500);
+
+            // Single, more reliable timer to activate the button
+            const activationTimeMs = race.startTime.toMillis() + 3000;
+            const delay = Math.max(0, activationTimeMs - Date.now());
+            
+            const activationTimeout = setTimeout(() => {
+                setButtonState(current => (current === 'countdown' ? 'active' : current));
+            }, delay);
+
+            // Cleanup function
+            return () => {
+                clearInterval(countdownInterval);
+                clearTimeout(activationTimeout);
+            };
         }
     }, [race, studentId]);
     
