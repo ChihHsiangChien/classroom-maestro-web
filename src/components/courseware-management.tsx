@@ -360,13 +360,17 @@ export function CoursewareManagement() {
       </Dialog>
       
       <Dialog open={isActivityEditorOpen} onOpenChange={(open) => { if (!open) setActivityEditorOpen(false)}}>
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader><DialogTitle>{editingActivity ? t('courseware.activity_editor_title_edit') : t('courseware.activity_editor_title_add')}</DialogTitle></DialogHeader>
-              <ActivityEditor 
-                initialData={editingActivity || undefined} 
-                onSave={handleSaveActivity} 
-                onCancel={() => setActivityEditorOpen(false)} 
-              />
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
+              <DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
+                <DialogTitle>{editingActivity ? t('courseware.activity_editor_title_edit') : t('courseware.activity_editor_title_add')}</DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto p-6">
+                  <ActivityEditor 
+                    initialData={editingActivity || undefined} 
+                    onSave={handleSaveActivity} 
+                    onCancel={() => setActivityEditorOpen(false)} 
+                  />
+              </div>
           </DialogContent>
       </Dialog>
     </>
