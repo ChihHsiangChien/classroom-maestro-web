@@ -129,6 +129,9 @@ export const dictionaries = {
       snatch_too_slow: '差一點！',
       snatch_winner_was: '優勝者是 {name}',
       snatch_waiting: '正在確認結果...',
+      session_ended_title: '課程已結束',
+      session_ended_description: '老師可能已離開連線。您可以嘗試重新加入。',
+      rejoin_session_button: '重新加入課程',
     },
     teacherDashboard: {
       title: '活動中心',
@@ -490,6 +493,9 @@ export const dictionaries = {
       snatch_too_slow: 'Too slow!',
       snatch_winner_was: 'Winner is {name}',
       snatch_waiting: 'Claiming...',
+      session_ended_title: 'Session Ended',
+      session_ended_description: 'The teacher may have left the session. You can try to rejoin.',
+      rejoin_session_button: 'Rejoin Session',
     },
     teacherDashboard: {
       title: 'Activity Center',

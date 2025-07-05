@@ -8,7 +8,7 @@ import type { QuestionData } from '@/components/create-poll-form';
 import { StudentQuestionForm } from '@/components/student-poll';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, PartyPopper, LogOut } from 'lucide-react';
+import { Loader2, PartyPopper, LogOut, RefreshCw } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { StudentRace } from '@/components/student-race';
@@ -79,12 +79,19 @@ function ClassroomPageContent() {
 
     // Listen for classroom-level changes (like the active question or lock state)
     useEffect(() => {
-        if (!classroomId) return;
+        if (!classroomId || sessionEnded) {
+            if (sessionEnded && unsubscribeRef.current) {
+                unsubscribeRef.current();
+            }
+            return;
+        }
 
         setLoading(true);
         unsubscribeRef.current = listenForClassroom(classroomId, (classroomData) => {
             if (!classroomData) {
+                // If classroom is deleted or otherwise unavailable, treat as session ended.
                 setLoading(false);
+                setSessionEnded(true);
                 return;
             };
             
@@ -101,7 +108,7 @@ function ClassroomPageContent() {
         });
 
         return () => unsubscribeRef.current();
-    }, [classroomId, listenForClassroom, classroom?.activeQuestion?.id]);
+    }, [classroomId, listenForClassroom, classroom?.activeQuestion?.id, sessionEnded]);
 
     // This effect detects if the teacher has left the session.
     useEffect(() => {
@@ -177,6 +184,11 @@ function ClassroomPageContent() {
             router.push(`/join?classId=${classroomId}`);
         }
     };
+    
+    const handleRejoin = () => {
+        setLoading(true);
+        setSessionEnded(false);
+    };
 
     if (loading) {
         return (
@@ -194,9 +206,15 @@ function ClassroomPageContent() {
                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 mb-4">
                         <LogOut className="h-8 w-8 text-primary" />
                     </div>
-                    <CardTitle className="text-2xl">Session Ended</CardTitle>
-                    <CardDescription>The teacher has left the session. You can now safely close this page.</CardDescription>
+                    <CardTitle className="text-2xl">{t('classroomPage.session_ended_title')}</CardTitle>
+                    <CardDescription>{t('classroomPage.session_ended_description')}</CardDescription>
                 </CardHeader>
+                <CardFooter className="p-6 pt-2">
+                    <Button onClick={handleRejoin} className="w-full">
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        {t('classroomPage.rejoin_session_button')}
+                    </Button>
+                </CardFooter>
             </Card>
         );
     }
