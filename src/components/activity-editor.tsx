@@ -4,8 +4,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-import { PlusCircle, XCircle, Loader2, FileText, Vote, Image as ImageIcon, CheckSquare as CheckSquareIcon, PencilRuler } from "lucide-react";
-import React, from "react";
+import { PlusCircle, XCircle, Loader2, FileText, Vote, Image as ImageIcon, CheckSquare as CheckSquareIcon, PencilRuler, Wand2 } from "lucide-react";
+import React, { useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import type { DrawingEditorRef } from "./drawing-editor";
 import { useI18n } from "@/lib/i18n/provider";
 import type { QuestionData } from "./create-poll-form";
+import { generatePollAction } from "@/app/actions";
 
 const DrawingEditor = dynamic(
   () => import('./drawing-editor').then((mod) => mod.DrawingEditor),
@@ -80,6 +81,10 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
     const { toast } = useToast();
     const editorRef = React.useRef<DrawingEditorRef>(null);
 
+    // AI poll generation state
+    const [isGenerating, startTransition] = useTransition();
+    const [topic, setTopic] = useState("");
+
     const form = useForm<ActivityFormData>({
         resolver: zodResolver(activityFormSchema),
         defaultValues: {
@@ -91,8 +96,24 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         },
     });
 
-    const { fields, append, remove } = useFieldArray({ control: form.control, name: "options" });
+    const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "options" });
     const watchedType = useWatch({ control: form.control, name: "type" });
+
+    // AI poll generation handler
+    async function handleGeneratePoll() {
+        startTransition(async () => {
+            const result = await generatePollAction({ topic });
+            if (result.poll) {
+                form.setValue("question", result.poll.question, { shouldValidate: true });
+                if (result.poll.options) {
+                    replace(result.poll.options);
+                }
+                form.clearErrors();
+            } else {
+                toast({ variant: "destructive", title: t('common.error'), description: result.error });
+            }
+        });
+    }
 
     // Sync tabs with form state
     const onTabChange = (value: string) => {
@@ -177,6 +198,22 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                         </TabsContent>
 
                         <TabsContent value="multiple-choice" forceMount={true} className={watchedType !== 'multiple-choice' ? 'hidden' : 'space-y-6'}>
+                            <div className="space-y-2">
+                                <Label htmlFor="topic">{t('createQuestionForm.generate_with_ai_label')}</Label>
+                                <div className="flex items-center gap-2">
+                                    <Input id="topic" placeholder={t('createQuestionForm.generate_with_ai_placeholder')} value={topic} onChange={(e) => setTopic(e.target.value)} disabled={isGenerating} />
+                                    <Button type="button" variant="outline" size="icon" onClick={handleGeneratePoll} disabled={isGenerating || !topic} className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0">
+                                        {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                                        <span className="sr-only">Generate Poll</span>
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{t('createQuestionForm.generate_with_ai_description')}</p>
+                            </div>
+                            
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                                <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">{t('common.or_create_manually')}</span></div>
+                            </div>
                              <FormField control={form.control} name="question" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>{t('createQuestionForm.poll_question_label')}</FormLabel>
