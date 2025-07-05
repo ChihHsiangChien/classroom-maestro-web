@@ -100,7 +100,55 @@ export default function ActivityPage() {
   
   const handleQuestionCreate = async (question: QuestionData) => {
     if (!activeClassroom) return;
-    const newQuestion: QuestionDataWithId = { ...question, id: `q_${Date.now()}` };
+
+    const baseQuestion = {
+      id: `q_${Date.now()}`,
+      type: question.type,
+      question: question.question,
+    };
+
+    let newQuestion: QuestionDataWithId;
+
+    switch (question.type) {
+      case 'multiple-choice':
+        newQuestion = {
+          ...baseQuestion,
+          type: 'multiple-choice',
+          options: question.options || [],
+          allowMultipleAnswers: question.allowMultipleAnswers || false,
+        };
+        break;
+      case 'image-annotation':
+        newQuestion = {
+          ...baseQuestion,
+          type: 'image-annotation',
+          imageUrl: question.imageUrl,
+        };
+        break;
+      case 'true-false':
+         newQuestion = {
+          ...baseQuestion,
+          type: 'true-false',
+        };
+        break;
+      case 'short-answer':
+        newQuestion = {
+          ...baseQuestion,
+          type: 'short-answer',
+        };
+        break;
+      case 'drawing':
+        newQuestion = {
+          ...baseQuestion,
+          type: 'drawing',
+        };
+        break;
+      default:
+        // This should not be reached if all question types are handled
+        console.error("Unknown question type:", question);
+        return;
+    }
+    
     await setActiveQuestionInDB(activeClassroom.id, newQuestion);
     setSubmissions([]);
   };
