@@ -3,7 +3,7 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { useClassroom } from '@/contexts/classroom-context';
+import { useClassroom, type Classroom } from '@/contexts/classroom-context';
 import type { QuestionData } from '@/components/create-poll-form';
 import { StudentQuestionForm } from '@/components/student-poll';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Loader2, PartyPopper, LogOut } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { StudentRace } from '@/components/student-race';
+import { Timestamp } from 'firebase/firestore';
 
 
 function ClassroomPageContent() {
@@ -25,12 +26,14 @@ function ClassroomPageContent() {
     const studentId = searchParams.get('studentId');
     const studentName = searchParams.get('name') ? decodeURIComponent(searchParams.get('name')!) : 'Student';
 
-    const [activeQuestion, setActiveQuestion] = useState<(QuestionData & { id: string }) | null>(null);
+    const [classroom, setClassroom] = useState<Classroom | null>(null);
     const [isLocked, setIsLocked] = useState(false);
     const [submittedQuestionId, setSubmittedQuestionId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [kicked, setKicked] = useState(false);
-    const [activeRace, setActiveRace] = useState<any | null>(null);
+
+    const activeQuestion = classroom?.activeQuestion;
+    const activeRace = classroom?.race;
 
     // This effect handles student presence (online status)
     useEffect(() => {
@@ -39,8 +42,14 @@ function ClassroomPageContent() {
         // Set initial online status and start a heartbeat to keep it active
         updateStudentPresence(classroomId, studentId, true);
         const heartbeatInterval = setInterval(() => {
-            if (document.visibilityState === 'visible') {
-                updateStudentPresence(classroomId, studentId, true);
+            if (document.visibilityState === 'visible' && classroom) {
+                // Only send heartbeat if the teacher is active
+                const teacherHeartbeat = classroom.lastTeacherHeartbeat;
+                const isTeacherActive = teacherHeartbeat && (Timestamp.now().seconds - teacherHeartbeat.seconds < 30);
+                
+                if (isTeacherActive) {
+                    updateStudentPresence(classroomId, studentId, true);
+                }
             }
         }, 15000); // every 15 seconds
 
@@ -56,7 +65,7 @@ function ClassroomPageContent() {
             // Final offline update on component unmount
             updateStudentPresence(classroomId, studentId, false);
         };
-    }, [classroomId, studentId, updateStudentPresence]);
+    }, [classroomId, studentId, updateStudentPresence, classroom]);
 
 
     // Listen for classroom-level changes (like the active question or lock state)
@@ -64,29 +73,26 @@ function ClassroomPageContent() {
         if (!classroomId) return;
 
         setLoading(true);
-        const unsubscribe = listenForClassroom(classroomId, (classroom) => {
-            if (!classroom) {
+        const unsubscribe = listenForClassroom(classroomId, (classroomData) => {
+            if (!classroomData) {
                 setLoading(false);
                 return;
             };
             
-            setIsLocked(classroom.isLocked || false);
-            
-            // Add a key to the race object to force re-render on new race
-            const newRace = classroom.race ? { ...classroom.race, key: classroom.race.id } : null;
-            setActiveRace(newRace);
-
-            const currentQuestion = classroom.activeQuestion;
-            if (currentQuestion && activeQuestion?.id !== currentQuestion.id) {
+            // Manage question transitions
+            const currentQuestionId = classroomData.activeQuestion?.id;
+            const previousQuestionId = classroom?.activeQuestion?.id;
+            if (currentQuestionId && currentQuestionId !== previousQuestionId) {
                 setSubmittedQuestionId(null);
             }
-            setActiveQuestion(currentQuestion);
-
+            
+            setClassroom(classroomData);
+            setIsLocked(classroomData.isLocked || false);
             setLoading(false);
         });
 
         return () => unsubscribe();
-    }, [classroomId, listenForClassroom, activeQuestion?.id]);
+    }, [classroomId, listenForClassroom, classroom?.activeQuestion?.id]);
 
     // Listen for student-specific changes (like being kicked)
     useEffect(() => {
@@ -143,7 +149,8 @@ function ClassroomPageContent() {
     }
 
     if (activeRace) {
-        return <StudentRace key={activeRace.key} race={activeRace} studentId={studentId} onClaim={handleClaimRace} />;
+        // Use the race ID as a key to force re-render on new race
+        return <StudentRace key={activeRace.id} race={activeRace} studentId={studentId} onClaim={handleClaimRace} />;
     }
 
     if (activeQuestion && submittedQuestionId !== activeQuestion.id) {

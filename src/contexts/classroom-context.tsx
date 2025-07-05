@@ -61,6 +61,7 @@ export interface Classroom {
   activeQuestion?: any | null;
   isLocked?: boolean;
   race?: RaceData | null;
+  lastTeacherHeartbeat?: Timestamp | null;
 }
 
 interface ClassroomContextType {
@@ -91,6 +92,7 @@ interface ClassroomContextType {
   claimRace: (classroomId: string, raceId: string, studentId: string, studentName: string) => Promise<boolean>;
   resetRace: (classroomId: string) => Promise<void>;
   deleteTeacherAndData: (ownerId: string) => Promise<void>;
+  updateTeacherHeartbeat: (classroomId: string, timestamp: Timestamp | null) => Promise<void>;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
@@ -538,6 +540,18 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
             handleFirestoreErrorRef.current?.(error, 'delete-teacher-data');
         }
     }, [user, toast, t]);
+    
+    const updateTeacherHeartbeat = useCallback(async (classroomId: string, timestamp: Timestamp | null) => {
+        if (!db || !classroomId) return;
+        try {
+            await updateDoc(doc(db, 'classrooms', classroomId), {
+                lastTeacherHeartbeat: timestamp
+            });
+        } catch (error) {
+            // We don't show a toast here to avoid spamming the user on minor network issues.
+            console.error("Failed to update teacher heartbeat:", error);
+        }
+    }, []);
 
 
   const value = useMemo(() => ({
@@ -568,6 +582,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     claimRace,
     resetRace,
     deleteTeacherAndData,
+    updateTeacherHeartbeat,
   }), [
     classrooms,
     activeClassroom,
@@ -595,6 +610,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     claimRace,
     resetRace,
     deleteTeacherAndData,
+    updateTeacherHeartbeat,
   ]);
 
   return (
