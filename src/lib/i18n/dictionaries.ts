@@ -360,6 +360,9 @@ export const dictionaries = {
       send_question: '發送問題',
       loading: '正在載入教材...',
     },
+    language_switcher: {
+      title: '語言',
+    },
   },
   en: {
     common: {
@@ -716,6 +719,9 @@ export const dictionaries = {
       no_activities_in_unit: 'There are no activities in this courseware.',
       send_question: 'Send Question',
       loading: 'Loading courseware...',
+    },
+    language_switcher: {
+      title: 'Language',
     },
   },
 };
