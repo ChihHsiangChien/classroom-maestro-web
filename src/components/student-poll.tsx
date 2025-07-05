@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
 import type { QuestionData, MultipleChoiceQuestion } from "./create-poll-form";
 import { Textarea } from "./ui/textarea";
 import { Label } from '@/components/ui/label';
@@ -183,7 +182,6 @@ function CanvasSubmissionForm({
 
 // --- Main Component ---
 export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionFormProps) {
-  const { toast } = useToast();
   const { t } = useI18n();
 
   const getTranslatedQuestionType = (type: QuestionData['type']) => {
@@ -200,7 +198,6 @@ export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionF
 
   function handleSubmit(answer: string | string[]) {
     onVoteSubmit(answer);
-    toast({ title: t('studentPoll.toast_submitted_title'), description: t('studentPoll.toast_submitted_description') });
   }
 
   const renderForm = () => {
