@@ -110,36 +110,6 @@ function ClassroomPageContent() {
         return () => unsubscribeRef.current();
     }, [classroomId, listenForClassroom, classroom?.activeQuestion?.id, sessionEnded]);
 
-    // This effect detects if the teacher has left the session.
-    useEffect(() => {
-        if (!classroom || sessionEnded) return;
-
-        const checkTeacherPresence = () => {
-            if (!classroom.teacherLastSeen) return;
-
-            const now = Timestamp.now().seconds;
-            const teacherLastSeen = classroom.teacherLastSeen.seconds;
-            const secondsSinceTeacherSeen = now - teacherLastSeen;
-            
-            // If teacher hasn't sent a heartbeat in over 60 seconds, end the session.
-            if (secondsSinceTeacherSeen > 60) {
-                setSessionEnded(true);
-                // Crucially, stop listening for further updates.
-                if (unsubscribeRef.current) {
-                    console.log("Teacher seems to have left. Disconnecting listeners.");
-                    unsubscribeRef.current();
-                }
-            }
-        };
-
-        // Check immediately and then set an interval to keep checking.
-        const intervalId = setInterval(checkTeacherPresence, 30000); // Check every 30 seconds
-
-        return () => clearInterval(intervalId);
-
-    }, [classroom, sessionEnded]);
-
-
     // Listen for student-specific changes (like being kicked)
     useEffect(() => {
         if (!classroomId || !studentId) return;

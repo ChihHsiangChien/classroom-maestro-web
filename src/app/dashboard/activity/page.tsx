@@ -32,7 +32,7 @@ type QuestionDataWithId = QuestionData & { id: string };
 export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace, updateTeacherHeartbeat, pingStudents } = useClassroom();
+  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace, pingStudents } = useClassroom();
   const { toast } = useToast();
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -75,22 +75,6 @@ export default function ActivityPage() {
       return () => unsubscribe();
     }
   }, [activeQuestion, activeClassroom, listenForSubmissions]);
-
-  // Heartbeat effect to signal teacher presence
-  useEffect(() => {
-      if (!activeClassroom) return;
-
-      // Initial heartbeat
-      updateTeacherHeartbeat(activeClassroom.id);
-
-      const intervalId = setInterval(() => {
-          updateTeacherHeartbeat(activeClassroom.id);
-      }, 30000); // Update every 30 seconds
-
-      return () => {
-          clearInterval(intervalId);
-      };
-  }, [activeClassroom, updateTeacherHeartbeat]);
 
   const handleEndQuestion = async () => {
     if (activeClassroom) {
