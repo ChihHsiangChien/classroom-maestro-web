@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useClassroom, type Classroom } from '@/contexts/classroom-context';
 import type { QuestionData } from '@/components/create-poll-form';
@@ -32,6 +32,13 @@ function ClassroomPageContent() {
     const [loading, setLoading] = useState(true);
     const [kicked, setKicked] = useState(false);
 
+    // Create a ref to hold the latest classroom data to avoid re-triggering the heartbeat effect
+    const classroomRef = useRef<Classroom | null>(null);
+    useEffect(() => {
+        classroomRef.current = classroom;
+    }, [classroom]);
+
+
     const activeQuestion = classroom?.activeQuestion;
     const activeRace = classroom?.race;
 
@@ -42,9 +49,11 @@ function ClassroomPageContent() {
         // Set initial online status and start a heartbeat to keep it active
         updateStudentPresence(classroomId, studentId, true);
         const heartbeatInterval = setInterval(() => {
-            if (document.visibilityState === 'visible' && classroom) {
+            // Use the ref inside the interval to get the latest classroom data
+            const currentClassroom = classroomRef.current;
+            if (document.visibilityState === 'visible' && currentClassroom) {
                 // Only send heartbeat if the teacher is active
-                const teacherHeartbeat = classroom.lastTeacherHeartbeat;
+                const teacherHeartbeat = currentClassroom.lastTeacherHeartbeat;
                 const isTeacherActive = teacherHeartbeat && (Timestamp.now().seconds - teacherHeartbeat.seconds < 30);
                 
                 if (isTeacherActive) {
@@ -65,7 +74,7 @@ function ClassroomPageContent() {
             // Final offline update on component unmount
             updateStudentPresence(classroomId, studentId, false);
         };
-    }, [classroomId, studentId, updateStudentPresence, classroom]);
+    }, [classroomId, studentId, updateStudentPresence]);
 
 
     // Listen for classroom-level changes (like the active question or lock state)
