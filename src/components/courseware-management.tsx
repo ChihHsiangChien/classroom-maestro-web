@@ -130,9 +130,9 @@ export function CoursewareManagement() {
   const handleDragEnd = (event: DragEndEvent, courseware: Courseware) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      const oldIndex = courseware.activities.findIndex((a) => a.id === active.id);
-      const newIndex = courseware.activities.findIndex((a) => a.id === over.id);
-      const newOrder = arrayMove(courseware.activities, oldIndex, newIndex);
+      const oldIndex = (courseware.activities || []).findIndex((a) => a.id === active.id);
+      const newIndex = (courseware.activities || []).findIndex((a) => a.id === over.id);
+      const newOrder = arrayMove(courseware.activities || [], oldIndex, newIndex);
       reorderActivities(courseware.id, newOrder);
     }
   };
@@ -243,9 +243,9 @@ export function CoursewareManagement() {
                   </AccordionTrigger>
                   <AccordionContent className="pt-2 pl-4 pr-2 space-y-4">
                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, cw)}>
-                        <SortableContext items={cw.activities} strategy={verticalListSortingStrategy}>
+                        <SortableContext items={cw.activities || []} strategy={verticalListSortingStrategy}>
                           <div className="space-y-2">
-                            {cw.activities.map((activity) => (
+                            {(cw.activities || []).map((activity) => (
                               <SortableActivityItem 
                                 key={activity.id} 
                                 activity={activity}
@@ -256,7 +256,7 @@ export function CoursewareManagement() {
                           </div>
                         </SortableContext>
                       </DndContext>
-                      {cw.activities.length === 0 && <p className="ml-4 mt-2 text-sm text-muted-foreground">{t('courseware.no_activities_in_unit')}</p>}
+                      {(!cw.activities || cw.activities.length === 0) && <p className="ml-4 mt-2 text-sm text-muted-foreground">{t('courseware.no_activities_in_unit')}</p>}
 
                     <div className="pt-2">
                         <Button variant="secondary" onClick={() => handleOpenActivityEditor(cw.id)}>
