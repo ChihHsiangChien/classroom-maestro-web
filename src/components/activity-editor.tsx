@@ -153,8 +153,20 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                         <TabsTrigger value="image-annotation"><PencilRuler className="mr-2 h-4 w-4" />{t('createQuestionForm.tab_annotation')}</TabsTrigger>
                     </TabsList>
                     
-                    <div className="mt-6">
-                        <FormField control={form.control} name="question" render={({ field }) => (
+                    <TabsContent value="true-false" className="mt-6">
+                         <FormField control={form.control} name="question" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('createQuestionForm.tf_question_label')}</FormLabel>
+                                <FormControl>
+                                    <Textarea placeholder={t('createQuestionForm.tf_question_placeholder')} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </TabsContent>
+
+                    <TabsContent value="multiple-choice" className="mt-6 space-y-6">
+                         <FormField control={form.control} name="question" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>{t('createQuestionForm.poll_question_label')}</FormLabel>
                                 <FormControl>
@@ -163,9 +175,6 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                                 <FormMessage />
                             </FormItem>
                         )} />
-                    </div>
-
-                    <TabsContent value="multiple-choice" className="mt-4 space-y-6">
                         <div className="space-y-4">
                             <FormLabel>{t('createQuestionForm.answer_options_label')}</FormLabel>
                             {fields.map((field, index) => (
@@ -194,9 +203,44 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                         )} />
                     </TabsContent>
 
-                    <TabsContent value="image-annotation" className="mt-4 space-y-4">
-                        <p className="text-sm text-muted-foreground">{t('createQuestionForm.canvas_description')}</p>
-                        <DrawingEditor ref={editorRef} backgroundImageUrl={form.getValues('imageUrl')} />
+                    <TabsContent value="short-answer" className="mt-6">
+                        <FormField control={form.control} name="question" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('createQuestionForm.sa_question_label')}</FormLabel>
+                                <FormControl>
+                                    <Textarea placeholder={t('createQuestionForm.sa_question_placeholder')} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </TabsContent>
+                    
+                    <TabsContent value="drawing" className="mt-6">
+                         <FormField control={form.control} name="question" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('createQuestionForm.drawing_prompt_label')}</FormLabel>
+                                <FormControl>
+                                    <Textarea placeholder={t('createQuestionForm.drawing_prompt_placeholder')} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </TabsContent>
+
+                    <TabsContent value="image-annotation" className="mt-6 space-y-4">
+                        <FormField control={form.control} name="question" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('createQuestionForm.annotation_prompt_label')}</FormLabel>
+                                <FormControl>
+                                    <Textarea placeholder={t('createQuestionForm.annotation_prompt_placeholder')} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <div>
+                            <p className="text-sm text-muted-foreground">{t('createQuestionForm.canvas_description')}</p>
+                            <DrawingEditor ref={editorRef} backgroundImageUrl={form.getValues('imageUrl')} />
+                        </div>
                     </TabsContent>
                 </Tabs>
 
