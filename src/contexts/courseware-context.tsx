@@ -12,7 +12,9 @@ import {
   updateDoc, 
   deleteDoc,
   addDoc,
-  onSnapshot
+  onSnapshot,
+  orderBy,
+  writeBatch,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/provider';
@@ -28,6 +30,7 @@ export interface Courseware {
   name: string;
   ownerId: string;
   activities: Activity[];
+  order: number;
 }
 
 
@@ -42,6 +45,7 @@ interface CoursewareContextType {
   updateActivity: (coursewareId: string, activityId: string, activityData: QuestionData) => Promise<void>;
   deleteActivity: (coursewareId: string, activityId: string) => Promise<void>;
   reorderActivities: (coursewareId: string, activities: Activity[]) => Promise<void>;
+  reorderCoursewares: (reorderedCoursewares: Courseware[]) => Promise<void>;
 }
 
 const CoursewareContext = createContext<CoursewareContextType | undefined>(undefined);
@@ -63,7 +67,7 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
     useEffect(() => {
         if (user && db) {
             setLoading(true);
-            const q = query(collection(db, "courseware"), where("ownerId", "==", user.uid));
+            const q = query(collection(db, "courseware"), where("ownerId", "==", user.uid), orderBy("order"));
             const unsubscribe = onSnapshot(q, (querySnapshot) => {
                 const fetchedCoursewares = querySnapshot.docs.map(doc => ({
                     id: doc.id,
@@ -85,11 +89,17 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
     const addCourseware = useCallback(async (name: string) => {
         if (!user || !db) return;
         try {
-            await addDoc(collection(db, "courseware"), { name, ownerId: user.uid, activities: [] });
+            const newOrder = coursewares.length;
+            await addDoc(collection(db, "courseware"), { 
+              name, 
+              ownerId: user.uid, 
+              activities: [],
+              order: newOrder
+            });
         } catch (error) {
             handleFirestoreError(error, 'add-courseware');
         }
-    }, [user, handleFirestoreError]);
+    }, [user, handleFirestoreError, coursewares.length]);
 
     const updateCourseware = useCallback(async (coursewareId: string, name: string) => {
         if (!db) return;
@@ -120,7 +130,7 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         if (!courseware) return;
         
         const newActivity: Activity = { ...activityData, id: generateId() };
-        const updatedActivities = [...courseware.activities, newActivity];
+        const updatedActivities = [...(courseware.activities || []), newActivity];
 
         try {
             await updateDoc(doc(db, 'courseware', coursewareId), { activities: updatedActivities });
@@ -134,7 +144,7 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         const courseware = findCourseware(coursewareId);
         if (!courseware) return;
 
-        const updatedActivities = courseware.activities.map(a => a.id === activityId ? { ...activityData, id: activityId } : a);
+        const updatedActivities = (courseware.activities || []).map(a => a.id === activityId ? { ...activityData, id: activityId } : a);
         
         try {
             await updateDoc(doc(db, 'courseware', coursewareId), { activities: updatedActivities });
@@ -149,7 +159,7 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         const courseware = findCourseware(coursewareId);
         if (!courseware) return;
         
-        const updatedActivities = courseware.activities.filter(a => a.id !== activityId);
+        const updatedActivities = (courseware.activities || []).filter(a => a.id !== activityId);
         
         try {
             await updateDoc(doc(db, 'courseware', coursewareId), { activities: updatedActivities });
@@ -171,6 +181,20 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         }
     }, [findCourseware, handleFirestoreError]);
 
+    const reorderCoursewares = useCallback(async (reorderedCoursewares: Courseware[]) => {
+        if (!db) return;
+        try {
+            const batch = writeBatch(db);
+            reorderedCoursewares.forEach((courseware, index) => {
+                const coursewareRef = doc(db, 'courseware', courseware.id);
+                batch.update(coursewareRef, { order: index });
+            });
+            await batch.commit();
+        } catch (error) {
+            handleFirestoreError(error, 'reorder-coursewares');
+        }
+    }, [handleFirestoreError]);
+
     const value = useMemo(() => ({
         coursewares,
         loading,
@@ -181,6 +205,7 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         updateActivity,
         deleteActivity,
         reorderActivities,
+        reorderCoursewares,
     }), [
         coursewares,
         loading,
@@ -191,6 +216,7 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         updateActivity,
         deleteActivity,
         reorderActivities,
+        reorderCoursewares,
     ]);
 
     return (

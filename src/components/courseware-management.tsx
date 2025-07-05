@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -105,10 +106,101 @@ function SortableActivityItem({ activity, onEdit, onDelete }: { activity: Activi
   );
 }
 
+
+function SortableCoursewareItem({ 
+  courseware,
+  onEdit,
+  onDelete,
+  onAddActivity,
+  onEditActivity,
+  onDeleteActivity,
+  onReorderActivities
+}: {
+  courseware: Courseware,
+  onEdit: () => void,
+  onDelete: () => void,
+  onAddActivity: () => void,
+  onEditActivity: (activity: Activity) => void,
+  onDeleteActivity: (activityId: string) => void,
+  onReorderActivities: (event: DragEndEvent) => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: courseware.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+
+  const activitySensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <AccordionItem value={courseware.id} className="bg-card">
+          <AccordionTrigger className="hover:no-underline">
+            <div className="flex w-full items-center justify-between pr-4">
+                <div className="flex items-center gap-2">
+                    <div {...attributes} {...listeners} className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "cursor-grab active:cursor-grabbing h-8 w-8")}>
+                        <GripVertical className="h-4 w-4" />
+                    </div>
+                    <span className="text-lg font-semibold">{courseware.name}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <div role="button" className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8")} onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+                        <Edit className="h-4 w-4" />
+                    </div>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                              <div role="button" onClick={(e) => e.stopPropagation()} className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8 text-destructive hover:text-destructive")}>
+                                <Trash2 className="h-4 w-4" />
+                            </div>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure you want to delete this courseware?</AlertDialogTitle>
+                                <AlertDialogDescription>This will permanently delete "{courseware.name}" and all of its activities. This action cannot be undone.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pt-2 pl-4 pr-2 space-y-4">
+              <DndContext sensors={activitySensors} collisionDetection={closestCenter} onDragEnd={onReorderActivities}>
+                <SortableContext items={(courseware.activities || [])} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-2">
+                    {(courseware.activities || []).map((activity) => (
+                      <SortableActivityItem 
+                        key={activity.id} 
+                        activity={activity}
+                        onEdit={() => onEditActivity(activity)}
+                        onDelete={() => onDeleteActivity(activity.id)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+              {(!courseware.activities || courseware.activities.length === 0) && <p className="ml-4 mt-2 text-sm text-muted-foreground">This courseware has no activities.</p>}
+
+            <div className="pt-2">
+                <Button variant="secondary" onClick={onAddActivity}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Activity
+                </Button>
+            </div>
+          </AccordionContent>
+      </AccordionItem>
+    </div>
+  )
+}
+
+
 // Main Component
 export function CoursewareManagement() {
   const { t } = useI18n();
-  const { coursewares, addCourseware, deleteCourseware, updateCourseware, reorderActivities, addActivity, updateActivity, deleteActivity, loading } = useCourseware();
+  const { coursewares, addCourseware, deleteCourseware, updateCourseware, reorderActivities, addActivity, updateActivity, deleteActivity, loading, reorderCoursewares } = useCourseware();
   const { toast } = useToast();
 
   const [isCoursewareDialogOpen, setCoursewareDialogOpen] = useState(false);
@@ -121,18 +213,30 @@ export function CoursewareManagement() {
 
   const [isSaving, setIsSaving] = useState(false);
 
-  const sensors = useSensors(
+  const coursewareSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = (event: DragEndEvent, courseware: Courseware) => {
+  const handleActivityDragEnd = (event: DragEndEvent, courseware: Courseware) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       const oldIndex = (courseware.activities || []).findIndex((a) => a.id === active.id);
       const newIndex = (courseware.activities || []).findIndex((a) => a.id === over.id);
       const newOrder = arrayMove(courseware.activities || [], oldIndex, newIndex);
       reorderActivities(courseware.id, newOrder);
+    }
+  };
+
+  const handleCoursewareDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = coursewares.findIndex((c) => c.id === active.id);
+      const newIndex = coursewares.findIndex((c) => c.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(coursewares, oldIndex, newIndex);
+          reorderCoursewares(newOrder);
+      }
     }
   };
 
@@ -210,63 +314,24 @@ export function CoursewareManagement() {
         </CardHeader>
         <CardContent>
           {coursewares.length > 0 ? (
-            <Accordion type="single" collapsible className="w-full">
-              {coursewares.map((cw) => (
-                <AccordionItem value={cw.id} key={cw.id}>
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex w-full items-center justify-between pr-4">
-                        <span className="text-lg font-semibold">{cw.name}</span>
-                        <div className="flex items-center gap-1">
-                            <div role="button" className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8")} onClick={(e) => { e.stopPropagation(); handleOpenCoursewareDialog(cw); }}>
-                                <Edit className="h-4 w-4" />
-                            </div>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                     <div role="button" onClick={(e) => e.stopPropagation()} className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8 text-destructive hover:text-destructive")}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </div>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>{t('courseware.delete_package_confirm_title')}</AlertDialogTitle>
-                                        <AlertDialogDescription>{t('courseware.delete_package_confirm_description', { name: cw.name })}</AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteCourseware(cw.id)}>{t('common.delete')}</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pt-2 pl-4 pr-2 space-y-4">
-                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, cw)}>
-                        <SortableContext items={(cw.activities || [])} strategy={verticalListSortingStrategy}>
-                          <div className="space-y-2">
-                            {(cw.activities || []).map((activity) => (
-                              <SortableActivityItem 
-                                key={activity.id} 
-                                activity={activity}
-                                onEdit={() => handleOpenActivityEditor(cw.id, activity)}
-                                onDelete={() => deleteActivity(cw.id, activity.id)}
-                              />
-                            ))}
-                          </div>
-                        </SortableContext>
-                      </DndContext>
-                      {(!cw.activities || cw.activities.length === 0) && <p className="ml-4 mt-2 text-sm text-muted-foreground">{t('courseware.no_activities_in_unit')}</p>}
-
-                    <div className="pt-2">
-                        <Button variant="secondary" onClick={() => handleOpenActivityEditor(cw.id)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            {t('courseware.add_activity')}
-                        </Button>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+            <DndContext sensors={coursewareSensors} collisionDetection={closestCenter} onDragEnd={handleCoursewareDragEnd}>
+              <SortableContext items={coursewares} strategy={verticalListSortingStrategy}>
+                <Accordion type="single" collapsible className="w-full">
+                  {coursewares.map((cw) => (
+                    <SortableCoursewareItem
+                      key={cw.id}
+                      courseware={cw}
+                      onEdit={() => handleOpenCoursewareDialog(cw)}
+                      onDelete={() => handleDeleteCourseware(cw.id)}
+                      onAddActivity={() => handleOpenActivityEditor(cw.id)}
+                      onEditActivity={(activity) => handleOpenActivityEditor(cw.id, activity)}
+                      onDeleteActivity={(activityId) => deleteActivity(cw.id, activityId)}
+                      onReorderActivities={(event) => handleActivityDragEnd(event, cw)}
+                    />
+                  ))}
+                </Accordion>
+              </SortableContext>
+            </DndContext>
           ) : (
             <div className="text-center py-12 border-2 border-dashed rounded-lg">
                 <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
