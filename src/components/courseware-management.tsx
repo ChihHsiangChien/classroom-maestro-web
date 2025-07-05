@@ -360,7 +360,7 @@ export function CoursewareManagement() {
       </Dialog>
       
       <Dialog open={isActivityEditorOpen} onOpenChange={(open) => { if (!open) setActivityEditorOpen(false)}}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editingActivity ? t('courseware.activity_editor_title_edit') : t('courseware.activity_editor_title_add')}</DialogTitle></DialogHeader>
               <ActivityEditor 
                 initialData={editingActivity || undefined} 
