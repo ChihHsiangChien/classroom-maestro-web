@@ -6,6 +6,23 @@ import JSZip from 'jszip';
 import { Timestamp } from 'firebase/firestore';
 import { format } from 'date-fns';
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   Card,
   CardContent,
   CardDescription,
@@ -49,17 +66,145 @@ import { useToast } from '@/hooks/use-toast';
 import type { Classroom, Submission } from '@/contexts/classroom-context';
 import { useClassroom } from '@/contexts/classroom-context';
 import { useI18n } from '@/lib/i18n/provider';
-import { Plus, Edit, Trash2, Users, FileText, PlayCircle, MoreVertical, Download, Eraser, Loader2, FileJson, FileArchive } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, FileText, PlayCircle, MoreVertical, Download, Eraser, Loader2, FileJson, FileArchive, GripVertical } from 'lucide-react';
 
 interface ClassListProps {
   onSelectClass: (classroom: Classroom) => void;
   onStartActivity: (classroom: Classroom) => void;
 }
 
+function SortableClassroomCard({
+  classroom,
+  onSelectClass,
+  onStartActivity,
+  openEditDialog,
+  openDownloadDialog,
+  handleDeleteHistory,
+  handleDeleteClass,
+  actionStates,
+}: {
+  classroom: Classroom;
+  onSelectClass: (classroom: Classroom) => void;
+  onStartActivity: (classroom: Classroom) => void;
+  openEditDialog: (classroom: Classroom) => void;
+  openDownloadDialog: (classroom: Classroom) => void;
+  handleDeleteHistory: (classroomId: string) => Promise<void>;
+  handleDeleteClass: (classroomId: string) => Promise<void>;
+  actionStates: { [key: string]: { isLoading?: boolean } };
+}) {
+    const { t } = useI18n();
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: classroom.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.7 : 1,
+        zIndex: isDragging ? 1 : 'auto',
+    };
+    
+    return (
+        <div ref={setNodeRef} style={style}>
+            <Card className="flex flex-col">
+                <CardHeader className="flex flex-row items-start justify-between">
+                  <div className="flex flex-1 items-center gap-1 overflow-hidden pr-2">
+                      <Button variant="ghost" size="icon" className="cursor-grab active:cursor-grabbing h-8 w-8 flex-shrink-0" {...attributes} {...listeners}>
+                        <GripVertical className="h-5 w-5 text-muted-foreground" />
+                      </Button>
+                      <div className="flex-1 overflow-hidden">
+                          <CardTitle className="truncate">{classroom.name}</CardTitle>
+                          <CardDescription className="flex items-center gap-2 pt-1">
+                          <Users className="h-4 w-4" />
+                          <span>{t('dashboard.student_count', { count: classroom.students.length })}</span>
+                          </CardDescription>
+                      </div>
+                  </div>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="flex-shrink-0">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>{t('dashboard.actions_menu_tooltip')}</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => openEditDialog(classroom)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        <span>{t('dashboard.edit_class')}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => onSelectClass(classroom)}>
+                        <Users className="mr-2 h-4 w-4" />
+                        <span>{t('dashboard.edit_students_list')}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => openDownloadDialog(classroom)} disabled={actionStates[classroom.id]?.isLoading}>
+                        {actionStates[classroom.id]?.isLoading ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="mr-2 h-4 w-4" />
+                        )}
+                        <span>{t('dashboard.download_history_button')}</span>
+                      </DropdownMenuItem>
+                      
+                      <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                  <Eraser className="mr-2 h-4 w-4" />
+                                  <span>{t('dashboard.delete_history_button')}</span>
+                              </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t('dashboard.delete_history_confirm_title')}</AlertDialogTitle>
+                              <AlertDialogDescription>{t('dashboard.delete_history_confirm_description', {name: classroom.name})}</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteHistory(classroom.id)}>{t('common.delete')}</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                      </AlertDialog>
+                      
+                      <DropdownMenuSeparator />
+
+                      <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>{t('dashboard.delete_class')}</span>
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t('dashboard.delete_class_confirm_title')}</AlertDialogTitle>
+                              <AlertDialogDescription>{t('dashboard.delete_class_confirm_description', {name: classroom.name})}</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteClass(classroom.id)}>{t('common.delete')}</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                      </AlertDialog>
+
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                </CardHeader>
+                <CardContent className="flex-grow" />
+                <CardFooter className="flex justify-end">
+                  <Button onClick={() => onStartActivity(classroom)} disabled={classroom.students.length === 0}>
+                    <PlayCircle className="mr-2 h-4 w-4" />
+                    {t('dashboard.start_activity')}
+                  </Button>
+                </CardFooter>
+              </Card>
+        </div>
+    );
+}
+
 export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
   const { t } = useI18n();
   const { toast } = useToast();
-  const { classrooms, addClassroom, updateClassroom, deleteClassroom, fetchAllSubmissions, deleteActivityHistory } = useClassroom();
+  const { classrooms, addClassroom, updateClassroom, deleteClassroom, fetchAllSubmissions, deleteActivityHistory, reorderClassrooms } = useClassroom();
   
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
@@ -68,7 +213,25 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
   const [newClassName, setNewClassName] = useState('');
   const [currentClass, setCurrentClass] = useState<Classroom | null>(null);
   const [actionStates, setActionStates] = useState<{ [key: string]: { isLoading?: boolean } }>({});
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = classrooms.findIndex((c) => c.id === active.id);
+      const newIndex = classrooms.findIndex((c) => c.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(classrooms, oldIndex, newIndex);
+          reorderClassrooms(newOrder); // This will optimistically update and then write to DB
+      }
+    }
+  };
 
   const handleAddClass = async () => {
     if (newClassName.trim()) {
@@ -323,98 +486,25 @@ export function ClassList({ onSelectClass, onStartActivity }: ClassListProps) {
         </div>
 
         {classrooms.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {classrooms.map((c) => (
-              <Card key={c.id} className="flex flex-col">
-                <CardHeader className="flex flex-row items-start justify-between">
-                  <div className="flex-1 pr-2">
-                    <CardTitle className="truncate">{c.name}</CardTitle>
-                    <CardDescription className="flex items-center gap-2 pt-1">
-                      <Users className="h-4 w-4" />
-                      <span>{t('dashboard.student_count', { count: c.students.length })}</span>
-                    </CardDescription>
-                  </div>
-                  
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="flex-shrink-0">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>{t('dashboard.actions_menu_tooltip')}</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onSelect={() => openEditDialog(c)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        <span>{t('dashboard.edit_class')}</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => onSelectClass(c)}>
-                        <Users className="mr-2 h-4 w-4" />
-                        <span>{t('dashboard.edit_students_list')}</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => openDownloadDialog(c)} disabled={actionStates[c.id]?.isLoading}>
-                        {actionStates[c.id]?.isLoading ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Download className="mr-2 h-4 w-4" />
-                        )}
-                        <span>{t('dashboard.download_history_button')}</span>
-                      </DropdownMenuItem>
-                      
-                      <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                  <Eraser className="mr-2 h-4 w-4" />
-                                  <span>{t('dashboard.delete_history_button')}</span>
-                              </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>{t('dashboard.delete_history_confirm_title')}</AlertDialogTitle>
-                              <AlertDialogDescription>{t('dashboard.delete_history_confirm_description', {name: c.name})}</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteHistory(c.id)}>{t('common.delete')}</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                      </AlertDialog>
-                      
-                      <DropdownMenuSeparator />
-
-                      <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                <span>{t('dashboard.delete_class')}</span>
-                            </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>{t('dashboard.delete_class_confirm_title')}</AlertDialogTitle>
-                              <AlertDialogDescription>{t('dashboard.delete_class_confirm_description', {name: c.name})}</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteClass(c.id)}>{t('common.delete')}</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                      </AlertDialog>
-
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                </CardHeader>
-                <CardContent className="flex-grow" />
-                <CardFooter className="flex justify-end">
-                  <Button onClick={() => onStartActivity(c)} disabled={c.students.length === 0}>
-                    <PlayCircle className="mr-2 h-4 w-4" />
-                    {t('dashboard.start_activity')}
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={classrooms.map(c => c.id)} strategy={rectSortingStrategy}>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {classrooms.map((c) => (
+                  <SortableClassroomCard
+                    key={c.id}
+                    classroom={c}
+                    onSelectClass={onSelectClass}
+                    onStartActivity={onStartActivity}
+                    openEditDialog={openEditDialog}
+                    openDownloadDialog={openDownloadDialog}
+                    handleDeleteHistory={handleDeleteHistory}
+                    handleDeleteClass={handleDeleteClass}
+                    actionStates={actionStates}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         ) : (
           <div className="text-center py-20 border-2 border-dashed rounded-lg">
               <FileText className="mx-auto h-12 w-12 text-muted-foreground" />

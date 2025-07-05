@@ -18,7 +18,8 @@ import {
   serverTimestamp,
   Timestamp,
   getDocs,
-  runTransaction
+  runTransaction,
+  orderBy
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/provider';
@@ -58,6 +59,7 @@ export interface Classroom {
   name: string;
   students: Student[];
   ownerId: string;
+  order: number;
   activeQuestion?: any | null;
   isLocked?: boolean;
   race?: RaceData | null;
@@ -77,6 +79,7 @@ interface ClassroomContextType {
   deleteStudent: (classroomId: string, studentId: string) => Promise<void>;
   importStudents: (classroomId: string, studentNames: string[]) => Promise<void>;
   reorderStudents: (classroomId: string, students: Student[]) => Promise<void>;
+  reorderClassrooms: (reorderedClassrooms: Classroom[]) => Promise<void>;
   setActiveQuestionInDB: (classroomId: string, question: any | null) => Promise<void>;
   addSubmission: (classroomId: string, questionId: string, questionText: string, questionType: string, studentId: string, studentName: string, answer: string | string[]) => Promise<void>;
   listenForSubmissions: (classroomId: string, questionId: string, callback: (submissions: Submission[]) => void) => () => void;
@@ -151,7 +154,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (user && db) {
       setLoading(true);
-      const q = query(collection(db, "classrooms"), where("ownerId", "==", user.uid));
+      const q = query(collection(db, "classrooms"), where("ownerId", "==", user.uid), orderBy("order"));
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const fetchedClassrooms = querySnapshot.docs.map(doc => ({
           id: doc.id,
@@ -220,11 +223,12 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
   const addClassroom = useCallback(async (name: string) => {
     if (!user || !db) return;
     try {
-      await addDoc(collection(db, "classrooms"), { name, ownerId: user.uid, students: [], isLocked: false });
+      const newOrder = classrooms.length;
+      await addDoc(collection(db, "classrooms"), { name, ownerId: user.uid, students: [], isLocked: false, order: newOrder });
     } catch (error) {
       handleFirestoreErrorRef.current?.(error, 'add-classroom');
     }
-  }, [user]);
+  }, [user, classrooms.length]);
 
   const updateClassroom = useCallback(async (id: string, name: string) => {
     if (!db) return;
@@ -275,6 +279,23 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
   const reorderStudents = useCallback(async (classroomId: string, students: Student[]) => {
     await updateStudentList(classroomId, students);
   }, [updateStudentList]);
+
+  const reorderClassrooms = useCallback(async (reorderedClassrooms: Classroom[]) => {
+    if (!db) return;
+    // Optimistically update local state for instant UI feedback
+    setClassrooms(reorderedClassrooms);
+    try {
+        const batch = writeBatch(db);
+        reorderedClassrooms.forEach((classroom, index) => {
+            const classroomRef = doc(db, 'classrooms', classroom.id);
+            batch.update(classroomRef, { order: index });
+        });
+        await batch.commit();
+    } catch (error) {
+        handleFirestoreErrorRef.current?.(error, 'reorder-classrooms');
+        // If error, snapshot listener should eventually revert the state.
+    }
+  }, []);
 
   const deleteStudent = useCallback(async (classroomId: string, studentId: string) => {
     const classroom = classroomsRef.current.find(c => c.id === classroomId);
@@ -568,6 +589,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     deleteStudent,
     importStudents,
     reorderStudents,
+    reorderClassrooms,
     setActiveQuestionInDB,
     addSubmission,
     listenForSubmissions,
@@ -596,6 +618,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     deleteStudent,
     importStudents,
     reorderStudents,
+    reorderClassrooms,
     setActiveQuestionInDB,
     addSubmission,
     listenForSubmissions,
