@@ -146,6 +146,7 @@ export const dictionaries = {
       responses_count: '{submissionsCount} / {studentsCount} 個回答',
       start_a_question_prompt: '開始一個問題以開始',
       live_poll_description: '問題已啟用，請在下方查看學生回覆。',
+      simulate_student_view_button: '模擬學生視角',
     },
     createQuestionForm: {
       tab_true_false: '是非題',
@@ -512,6 +513,7 @@ export const dictionaries = {
       responses_count: '{submissionsCount} / {studentsCount} responses',
       start_a_question_prompt: 'Start a question to begin',
       live_poll_description: 'The question is live. View student responses below.',
+      simulate_student_view_button: 'Simulate Student View',
     },
     createQuestionForm: {
       tab_true_false: 'True/False',

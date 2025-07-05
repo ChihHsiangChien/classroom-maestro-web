@@ -21,7 +21,7 @@ import { CoursewarePicker } from "@/components/courseware-picker";
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom } from "@/contexts/classroom-context";
 import { useToast } from "@/hooks/use-toast";
-import { PanelLeftClose, PanelLeftOpen, Eye, Loader2, UserCheck } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Eye, Loader2, UserCheck, Rocket } from "lucide-react";
 import { ManagementPanel } from "@/components/management-panel";
 import { cn } from "@/lib/utils";
 import { Timestamp } from "firebase/firestore";
@@ -231,9 +231,10 @@ export default function ActivityPage() {
           <div className="flex items-center gap-2">
             <Button variant="secondary" onClick={openStudentSimulation}>
               <Eye className="mr-2 h-4 w-4" />
-              Simulate Student View
+              {t('teacherDashboard.simulate_student_view_button')}
             </Button>
             <Button variant="outline" onClick={handleStartRace} disabled={activityInProgress}>
+              <Rocket className="mr-2 h-4 w-4" />
               {t('studentManagement.snatch_button')}
             </Button>
             <Button variant="outline" onClick={() => setIsLotteryModalOpen(true)} disabled={activityInProgress || !activeClassroom.students || activeClassroom.students.length === 0}>
