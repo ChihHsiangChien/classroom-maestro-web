@@ -108,29 +108,36 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
 
         const studentsCopy = [...props.classroom.students];
         const submittedIds = new Set(props.submissions.map(s => s.studentId));
+        const pingRequestTimestamp = props.classroom.pingRequest?.timestamp;
 
         studentsCopy.sort((a, b) => {
             let compare = 0;
-            const aIsOnline = a.isOnline === true && a.lastSeen && (Timestamp.now().seconds - a.lastSeen.seconds < 45);
-            const bIsOnline = b.isOnline === true && b.lastSeen && (Timestamp.now().seconds - b.lastSeen.seconds < 45);
+            const aIsOnline = a.isOnline === true;
+            const bIsOnline = b.isOnline === true;
+            
+            const aIsAttentive = aIsOnline && (!pingRequestTimestamp || (a.lastSeen && a.lastSeen.toMillis() > pingRequestTimestamp.toMillis()));
+            const bIsAttentive = bIsOnline && (!pingRequestTimestamp || (b.lastSeen && b.lastSeen.toMillis() > pingRequestTimestamp.toMillis()));
+
             const aHasSubmitted = submittedIds.has(a.id);
             const bHasSubmitted = submittedIds.has(b.id);
 
             switch (sortBy) {
                 case 'status':
                     if (aIsOnline !== bIsOnline) {
-                        compare = aIsOnline ? -1 : 1; // Online students first
+                        compare = aIsOnline ? -1 : 1;
+                    } else if (aIsAttentive !== bIsAttentive) {
+                        compare = aIsAttentive ? -1 : 1;
                     } else {
-                        compare = a.name.localeCompare(b.name); // Fallback to name sort
+                        compare = a.name.localeCompare(b.name);
                     }
                     break;
                 case 'submission':
                      if (aHasSubmitted !== bHasSubmitted) {
-                        compare = aHasSubmitted ? -1 : 1; // Submitted students first
+                        compare = aHasSubmitted ? -1 : 1;
                     } else if (aIsOnline !== bIsOnline) {
-                        compare = aIsOnline ? -1 : 1; // Then sort by online status
+                        compare = aIsOnline ? -1 : 1;
                     } else {
-                        compare = a.name.localeCompare(b.name); // Fallback to name sort
+                        compare = a.name.localeCompare(b.name);
                     }
                     break;
                 case 'name':
@@ -142,7 +149,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
         });
 
         return studentsCopy;
-    }, [props.classroom.students, props.submissions, sortBy, sortOrder]);
+    }, [props.classroom.students, props.submissions, sortBy, sortOrder, props.classroom.pingRequest]);
 
 
     const handleCopy = () => {
@@ -293,14 +300,31 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                             {sortedStudents.map(student => {
                                 const submittedIds = new Set(props.submissions.map(s => s.studentId));
                                 const hasSubmitted = submittedIds.has(student.id);
-                                const isConsideredOnline = student.isOnline === true && student.lastSeen && (Timestamp.now().seconds - student.lastSeen.seconds < 45);
+
+                                const isLoggedIn = student.isOnline === true;
+                                const pingRequestTimestamp = props.classroom.pingRequest?.timestamp;
+                                const isAttentive = !pingRequestTimestamp || (student.lastSeen && pingRequestTimestamp && student.lastSeen.toMillis() > pingRequestTimestamp.toMillis());
+                                
+                                let statusColor = 'bg-slate-400'; // Grey for offline
+                                let statusTooltip = t('studentManagement.status_offline');
+                                
+                                if (isLoggedIn) {
+                                    if (isAttentive) {
+                                        statusColor = 'bg-green-500'; // Green for attentive
+                                        statusTooltip = t('studentManagement.status_attentive');
+                                    } else {
+                                        statusColor = 'bg-yellow-400'; // Yellow for inattentive
+                                        statusTooltip = t('studentManagement.status_inattentive');
+                                    }
+                                }
+
                                 return (
                                     <div
                                         key={student.id}
                                         className={cn(
                                             "flex items-center justify-between rounded-md p-2 transition-all",
                                             hasSubmitted ? "bg-green-500/10" : "bg-muted/50",
-                                            !isConsideredOnline && "opacity-50"
+                                            !isLoggedIn && "opacity-50"
                                         )}
                                     >
                                         <div className="flex items-center gap-2 overflow-hidden">
@@ -308,11 +332,11 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                                                 <TooltipTrigger>
                                                     <span className={cn(
                                                         "h-2.5 w-2.5 rounded-full block flex-shrink-0 transition-colors",
-                                                        isConsideredOnline ? 'bg-green-500' : 'bg-slate-400'
+                                                        statusColor
                                                     )} />
                                                 </TooltipTrigger>
                                                 <TooltipContent>
-                                                    <p>{isConsideredOnline ? t('studentManagement.status_online') : t('studentManagement.status_offline')}</p>
+                                                    <p>{statusTooltip}</p>
                                                 </TooltipContent>
                                             </Tooltip>
                                             <p className="font-medium truncate">{student.name}</p>

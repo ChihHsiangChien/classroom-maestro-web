@@ -49,19 +49,8 @@ function ClassroomPageContent() {
         };
         window.addEventListener('beforeunload', handleBeforeUnload);
 
-        // --- Attention Tracking ---
-        // When the tab becomes visible, update their presence to signal they are "active".
-        // This updates the `lastSeen` timestamp for the teacher.
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                updateStudentPresence(classroomId, studentId, true);
-            }
-        };
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
         // Cleanup on component unmount
         return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
             // Final "logout" update on cleanup
             updateStudentPresence(classroomId, studentId, false);
