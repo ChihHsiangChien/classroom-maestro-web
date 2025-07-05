@@ -76,16 +76,6 @@ export type PollData = MultipleChoiceQuestion;
 
 
 // --- FORMS for each question type ---
-const multipleChoiceSchema = z.object({
-  question: z.string().max(200),
-  options: z.array(z.object({ value: z.string().max(50) })).min(2).max(10),
-  allowMultipleAnswers: z.boolean().default(false),
-});
-
-const simpleQuestionSchema = z.object({
-    question: z.string(),
-});
-
 interface QuestionFormProps {
     onQuestionCreate: (data: QuestionData) => void;
 }
@@ -95,6 +85,13 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
     const [isGenerating, startTransition] = useTransition();
     const [topic, setTopic] = useState("");
     const { toast } = useToast();
+
+    const multipleChoiceSchema = z.object({
+        question: z.string().min(1, t('createQuestionForm.question_empty_error')).max(200),
+        options: z.array(z.object({ value: z.string().min(1, t('createQuestionForm.option_empty_error')).max(50) })).min(2, t('createQuestionForm.options_min_error')).max(10),
+        allowMultipleAnswers: z.boolean().default(false),
+    });
+
     const form = useForm<z.infer<typeof multipleChoiceSchema>>({
         resolver: zodResolver(multipleChoiceSchema),
         defaultValues: { question: "", options: [{ value: "" }, { value: "" }, { value: "" }, { value: "" }], allowMultipleAnswers: false },
@@ -118,7 +115,7 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
         onQuestionCreate({ type: 'multiple-choice', ...data });
     }
     
-    return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><div className="space-y-2"><Label htmlFor="topic">{t('createQuestionForm.generate_with_ai_label')}</Label><div className="flex items-center gap-2"><Input id="topic" placeholder={t('createQuestionForm.generate_with_ai_placeholder')} value={topic} onChange={(e) => setTopic(e.target.value)} disabled={isGenerating} /><Button type="button" variant="outline" size="icon" onClick={handleGeneratePoll} disabled={isGenerating || !topic} className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0">{isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}<span className="sr-only">Generate Poll</span></Button></div><p className="text-xs text-muted-foreground">{t('createQuestionForm.generate_with_ai_description')}</p></div><div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">{t('common.or_create_manually')}</span></div></div><div className="space-y-8"><FormField control={form.control} name="question" render={({ field }) => (<FormItem><FormLabel>{t('createQuestionForm.poll_question_label')}</FormLabel><FormControl><Textarea placeholder={t('createQuestionForm.poll_question_placeholder')} {...field} /></FormControl><FormMessage /></FormItem>)} /><div className="space-y-4"><FormLabel>{t('createQuestionForm.answer_options_label')}</FormLabel>{fields.map((field, index) => (<FormField key={field.id} control={form.control} name={`options.${index}.value`} render={({ field }) => (<FormItem><div className="flex items-center gap-2"><FormControl><Input placeholder={t('createQuestionForm.option_placeholder', { letter: String.fromCharCode(65 + index) })} {...field} /></FormControl>{fields.length > 2 && (<Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => remove(index)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>)}</div><FormMessage /></FormItem>)} />))}{fields.length < 10 && (<Button type="button" variant="outline" size="sm" onClick={() => append({ value: "" })}><PlusCircle className="mr-2 h-4 w-4" />{t('createQuestionForm.add_option_button')}</Button>)}</div>
+    return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><div className="space-y-2"><Label htmlFor="topic">{t('createQuestionForm.generate_with_ai_label')}</Label><div className="flex items-center gap-2"><Input id="topic" placeholder={t('createQuestionForm.generate_with_ai_placeholder')} value={topic} onChange={(e) => setTopic(e.target.value)} disabled={isGenerating} /><Button type="button" variant="outline" size="icon" onClick={handleGeneratePoll} disabled={isGenerating || !topic} className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0">{isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}<span className="sr-only">Generate Poll</span></Button></div><p className="text-xs text-muted-foreground">{t('createQuestionForm.generate_with_ai_description')}</p></div><div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">{t('common.or_create_manually')}</span></div></div><div className="space-y-8"><FormField control={form.control} name="question" render={({ field }) => (<FormItem><FormLabel>{t('createQuestionForm.poll_question_label')}</FormLabel><FormControl><Textarea placeholder={t('createQuestionForm.poll_question_placeholder')} {...field} /></FormControl><FormMessage /></FormItem>)} /><div className="space-y-4"><FormLabel>{t('createQuestionForm.answer_options_label')}</FormLabel><FormField control={form.control} name="options" render={() => ( <FormItem>{fields.map((field, index) => (<FormField key={field.id} control={form.control} name={`options.${index}.value`} render={({ field: optionField }) => (<FormItem><div className="flex items-center gap-2"><FormControl><Input placeholder={t('createQuestionForm.option_placeholder', { letter: String.fromCharCode(65 + index) })} {...optionField} /></FormControl>{fields.length > 2 && (<Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => remove(index)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>)}</div><FormMessage /></FormItem>)} />))}{fields.length < 10 && (<Button type="button" variant="outline" size="sm" onClick={() => append({ value: "" })}><PlusCircle className="mr-2 h-4 w-4" />{t('createQuestionForm.add_option_button')}</Button>)}<FormMessage/></FormItem>)} /></div>
         <FormField
               control={form.control}
               name="allowMultipleAnswers"
@@ -144,14 +141,17 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
         <Button type="submit" className="w-full md:w-auto">{t('createQuestionForm.start_question_button')}</Button></div></form></Form>);
 }
 
-function SimpleQuestionForm({ type, onQuestionCreate, schema, placeholder, label }: QuestionFormProps & { type: 'true-false' | 'short-answer' | 'drawing', schema: typeof simpleQuestionSchema, placeholder: string, label: string }) {
+function SimpleQuestionForm({ type, onQuestionCreate, placeholder, label }: QuestionFormProps & { type: 'true-false' | 'short-answer' | 'drawing', placeholder: string, label: string }) {
     const { t } = useI18n();
-    const form = useForm<z.infer<typeof schema>>({
-        resolver: zodResolver(schema),
+    const simpleQuestionSchema = z.object({
+        question: z.string().min(1, t('createQuestionForm.question_empty_error')),
+    });
+    const form = useForm<z.infer<typeof simpleQuestionSchema>>({
+        resolver: zodResolver(simpleQuestionSchema),
         defaultValues: { question: "" },
     });
 
-    function onSubmit(data: z.infer<typeof schema>) {
+    function onSubmit(data: z.infer<typeof simpleQuestionSchema>) {
         onQuestionCreate({ type, ...data });
     }
 
@@ -221,16 +221,16 @@ export function CreateQuestionForm({ onQuestionCreate }: QuestionFormProps) {
                 <TabsTrigger value="image-annotation"><PencilRuler className="mr-2 h-4 w-4" />{t('createQuestionForm.tab_annotation')}</TabsTrigger>
             </TabsList>
             <TabsContent value="true-false" className="mt-4">
-                <SimpleQuestionForm type="true-false" onQuestionCreate={onQuestionCreate} schema={simpleQuestionSchema} label={t('createQuestionForm.tf_question_label')} placeholder={t('createQuestionForm.tf_question_placeholder')} />
+                <SimpleQuestionForm type="true-false" onQuestionCreate={onQuestionCreate} label={t('createQuestionForm.tf_question_label')} placeholder={t('createQuestionForm.tf_question_placeholder')} />
             </TabsContent>
             <TabsContent value="multiple-choice" className="mt-4">
                 <MultipleChoiceForm onQuestionCreate={onQuestionCreate} />
             </TabsContent>
             <TabsContent value="short-answer" className="mt-4">
-                <SimpleQuestionForm type="short-answer" onQuestionCreate={onQuestionCreate} schema={simpleQuestionSchema} label={t('createQuestionForm.sa_question_label')} placeholder={t('createQuestionForm.sa_question_placeholder')} />
+                <SimpleQuestionForm type="short-answer" onQuestionCreate={onQuestionCreate} label={t('createQuestionForm.sa_question_label')} placeholder={t('createQuestionForm.sa_question_placeholder')} />
             </TabsContent>
             <TabsContent value="drawing" className="mt-4">
-                 <SimpleQuestionForm type="drawing" onQuestionCreate={onQuestionCreate} schema={simpleQuestionSchema} label={t('createQuestionForm.drawing_prompt_label')} placeholder={t('createQuestionForm.drawing_prompt_placeholder')} />
+                 <SimpleQuestionForm type="drawing" onQuestionCreate={onQuestionCreate} label={t('createQuestionForm.drawing_prompt_label')} placeholder={t('createQuestionForm.drawing_prompt_placeholder')} />
             </TabsContent>
             <TabsContent value="image-annotation" className="mt-4">
                  <ImageAnnotationForm onQuestionCreate={onQuestionCreate} />

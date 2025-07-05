@@ -175,6 +175,9 @@ export const dictionaries = {
       canvas_label: '畫布',
       canvas_description: '上傳、貼上或繪製您希望學生標註的圖片。',
       toast_get_image_error: '無法從編輯器獲取圖片資料。',
+      question_empty_error: '問題不可為空。',
+      option_empty_error: '選項內容不可為空。',
+      options_min_error: '選擇題至少需要 2 個選項。',
     },
     activePoll: {
       live_results_title: '即時結果',
@@ -307,8 +310,6 @@ export const dictionaries = {
       your_answer_placeholder: '在此輸入您的答案...',
       submit_answer_button: '提交答案',
       unknown_question_type: '未知的問題類型。',
-      toast_submitted_title: '回答已提交！',
-      toast_submitted_description: '感謝您的參與。',
       drawing_description: '請使用下方的編輯器來完成您的作答。',
     },
     admin: {
@@ -539,6 +540,9 @@ export const dictionaries = {
       canvas_label: 'Canvas',
       canvas_description: 'Upload, paste, or draw the image you want students to annotate.',
       toast_get_image_error: 'Could not get image data from the editor.',
+      question_empty_error: 'Question cannot be empty.',
+      option_empty_error: 'Option cannot be empty.',
+      options_min_error: 'Multiple choice questions must have at least 2 options.',
     },
     activePoll: {
       live_results_title: 'Live Results',
@@ -671,8 +675,6 @@ export const dictionaries = {
       your_answer_placeholder: 'Type your answer here...',
       submit_answer_button: 'Submit Answer',
       unknown_question_type: 'Unknown question type.',
-      toast_submitted_title: 'Response Submitted!',
-      toast_submitted_description: 'Thank you for participating.',
       drawing_description: 'Use the editor below to create your response.',
     },
     admin: {

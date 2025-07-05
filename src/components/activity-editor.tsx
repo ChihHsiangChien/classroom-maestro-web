@@ -42,33 +42,6 @@ const DrawingEditor = dynamic(
   }
 );
 
-const activityFormSchema = z.object({
-    type: z.enum(['multiple-choice', 'true-false', 'short-answer', 'drawing', 'image-annotation']),
-    question: z.string().min(1, 'Question cannot be empty.'),
-    options: z.array(z.object({ value: z.string() })).optional(),
-    allowMultipleAnswers: z.boolean().optional(),
-    imageUrl: z.string().optional(),
-}).superRefine((data, ctx) => {
-    if (data.type === 'multiple-choice') {
-        if (!data.options || data.options.length < 2) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "Multiple choice questions must have at least 2 options.",
-                path: ['options']
-            });
-        } else if (data.options.some(o => o.value.trim() === '')) {
-             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "Options cannot be empty.",
-                path: ['options']
-            });
-        }
-    }
-});
-
-type ActivityFormData = z.infer<typeof activityFormSchema>;
-
-
 interface ActivityEditorProps {
   initialData?: QuestionData & { id?: string };
   onSave: (data: QuestionData) => void;
@@ -84,6 +57,26 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
     // AI poll generation state
     const [isGenerating, startTransition] = useTransition();
     const [topic, setTopic] = useState("");
+
+    const activityFormSchema = z.object({
+        type: z.enum(['multiple-choice', 'true-false', 'short-answer', 'drawing', 'image-annotation']),
+        question: z.string().min(1, t('createQuestionForm.question_empty_error')),
+        options: z.array(z.object({ value: z.string().min(1, t('createQuestionForm.option_empty_error')) })).optional(),
+        allowMultipleAnswers: z.boolean().optional(),
+        imageUrl: z.string().optional(),
+    }).superRefine((data, ctx) => {
+        if (data.type === 'multiple-choice') {
+            if (!data.options || data.options.length < 2) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: t('createQuestionForm.options_min_error'),
+                    path: ['options']
+                });
+            }
+        }
+    });
+
+    type ActivityFormData = z.infer<typeof activityFormSchema>;
 
     const form = useForm<ActivityFormData>({
         resolver: zodResolver(activityFormSchema),
@@ -149,7 +142,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                 finalData = { 
                     type: 'multiple-choice', 
                     question: data.question, 
-                    options: data.options, 
+                    options: data.options.filter(opt => opt.value.trim() !== ''),
                     allowMultipleAnswers: data.allowMultipleAnswers || false,
                 };
                 break;
@@ -306,5 +299,3 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         </Form>
     );
 }
-
-    
