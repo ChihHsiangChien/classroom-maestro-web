@@ -306,43 +306,51 @@ export function CoursewareManagement() {
 
   return (
     <>
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>{t('courseware.my_packages')}</CardTitle>
-          <Button onClick={() => handleOpenCoursewareDialog()}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t('courseware.create_package')}
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {coursewares.length > 0 ? (
-            <DndContext sensors={coursewareSensors} collisionDetection={closestCenter} onDragEnd={handleCoursewareDragEnd}>
-              <SortableContext items={coursewares} strategy={verticalListSortingStrategy}>
-                <Accordion type="single" collapsible className="w-full">
-                  {coursewares.map((cw) => (
-                    <SortableCoursewareItem
-                      key={cw.id}
-                      courseware={cw}
-                      onEdit={() => handleOpenCoursewareDialog(cw)}
-                      onDelete={() => handleDeleteCourseware(cw.id)}
-                      onAddActivity={() => handleOpenActivityEditor(cw.id)}
-                      onEditActivity={(activity) => handleOpenActivityEditor(cw.id, activity)}
-                      onDeleteActivity={(activityId) => deleteActivity(cw.id, activityId)}
-                      onReorderActivities={(event) => handleActivityDragEnd(event, cw)}
-                    />
-                  ))}
-                </Accordion>
-              </SortableContext>
-            </DndContext>
-          ) : (
-            <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-semibold">{t('courseware.no_packages_title')}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{t('courseware.no_packages_description')}</p>
+      <div className="container mx-auto max-w-5xl py-8">
+        <div className="flex items-center justify-between mb-6">
+            <div>
+                <h1 className="text-3xl font-bold">{t('courseware.title')}</h1>
+                <p className="text-muted-foreground">{t('courseware.description')}</p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <Button onClick={() => handleOpenCoursewareDialog()}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t('courseware.create_package')}
+            </Button>
+        </div>
+        <Card>
+            <CardHeader className="flex-row items-center justify-between">
+            <CardTitle>{t('courseware.my_packages')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+            {coursewares.length > 0 ? (
+                <DndContext sensors={coursewareSensors} collisionDetection={closestCenter} onDragEnd={handleCoursewareDragEnd}>
+                <SortableContext items={coursewares} strategy={verticalListSortingStrategy}>
+                    <Accordion type="single" collapsible className="w-full">
+                    {coursewares.map((cw) => (
+                        <SortableCoursewareItem
+                        key={cw.id}
+                        courseware={cw}
+                        onEdit={() => handleOpenCoursewareDialog(cw)}
+                        onDelete={() => handleDeleteCourseware(cw.id)}
+                        onAddActivity={() => handleOpenActivityEditor(cw.id)}
+                        onEditActivity={(activity) => handleOpenActivityEditor(cw.id, activity)}
+                        onDeleteActivity={(activityId) => deleteActivity(cw.id, activityId)}
+                        onReorderActivities={(event) => handleActivityDragEnd(event, cw)}
+                        />
+                    ))}
+                    </Accordion>
+                </SortableContext>
+                </DndContext>
+            ) : (
+                <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                    <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-4 text-lg font-semibold">{t('courseware.no_packages_title')}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{t('courseware.no_packages_description')}</p>
+                </div>
+            )}
+            </CardContent>
+        </Card>
+      </div>
 
       <Dialog open={isCoursewareDialogOpen} onOpenChange={setCoursewareDialogOpen}>
         <DialogContent>
