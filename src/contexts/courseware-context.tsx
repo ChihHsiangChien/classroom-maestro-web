@@ -55,7 +55,7 @@ const generateId = () => Math.random().toString(36).substring(2, 15) + Math.rand
 export function CoursewareProvider({ children }: { children: React.ReactNode }) {
     const [coursewares, setCoursewares] = useState<Courseware[]>([]);
     const [loading, setLoading] = useState(true);
-    const { user } = useAuth();
+    const { user, isAdmin } = useAuth();
     const { toast } = useToast();
     const { t } = useI18n();
 
@@ -67,7 +67,16 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
     useEffect(() => {
         if (user && db) {
             setLoading(true);
-            const q = query(collection(db, "courseware"), where("ownerId", "==", user.uid), orderBy("order"));
+            
+            let q;
+            if (isAdmin) {
+                // Admins can see all courseware, ordered by owner and then by custom order
+                q = query(collection(db, "courseware"), orderBy("ownerId"), orderBy("order"));
+            } else {
+                // Regular users only see their own courseware
+                q = query(collection(db, "courseware"), where("ownerId", "==", user.uid), orderBy("order"));
+            }
+
             const unsubscribe = onSnapshot(q, (querySnapshot) => {
                 const fetchedCoursewares = querySnapshot.docs.map(doc => ({
                     id: doc.id,
@@ -84,7 +93,7 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
             setCoursewares([]);
             setLoading(false);
         }
-    }, [user, handleFirestoreError]);
+    }, [user, isAdmin, handleFirestoreError]);
 
     const addCourseware = useCallback(async (name: string) => {
         if (!user || !db) return;
