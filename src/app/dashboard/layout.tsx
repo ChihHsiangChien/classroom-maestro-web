@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
-import { School, LogOut, User as UserIcon, Shield, BookCopy } from "lucide-react";
+import { School, LogOut, User as UserIcon, Shield, BookCopy, Users } from "lucide-react";
 import Image from "next/image";
 import { useI18n } from "@/lib/i18n/provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -44,6 +44,12 @@ export default function DashboardLayout({
         </Link>
         <div className="ml-auto flex items-center gap-4">
           <LanguageSwitcher />
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/dashboard">
+                <Users className="mr-2 h-4 w-4" />
+                {t('dashboard.classes')}
+              </Link>
+            </Button>
            <Button variant="outline" size="sm" asChild>
               <Link href="/dashboard/courseware">
                 <BookCopy className="mr-2 h-4 w-4" />

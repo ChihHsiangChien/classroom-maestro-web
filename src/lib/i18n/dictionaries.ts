@@ -90,6 +90,7 @@ export const dictionaries = {
       download_format_csv_zip_button: 'CSV 與圖片 (ZIP)',
       download_format_csv_zip_description: '一個 ZIP 壓縮檔，包含 CSV 格式的文字回答以及所有獨立的繪圖圖片檔。',
       toast_history_preparing_zip: '正在準備您的 ZIP 檔案，請稍候...',
+      classes: '班級',
     },
     teacherLoginForm: {
       room_code_label: '教室代碼',
@@ -446,6 +447,7 @@ export const dictionaries = {
       download_format_csv_zip_button: 'CSV & Images (ZIP)',
       download_format_csv_zip_description: 'A ZIP file with text answers in a CSV file and all drawings as separate image files.',
       toast_history_preparing_zip: 'Preparing your ZIP file, please wait...',
+      classes: 'Classes',
     },
     teacherLoginForm: {
       room_code_label: 'Classroom Code',
