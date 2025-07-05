@@ -149,7 +149,7 @@ function SortableCoursewareItem({
                     </div>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                              <div role="button" onClick={(e) => e.stopPropagation()} className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8 text-destructive hover:text-destructive")}>
+                            <div role="button" onClick={(e) => e.stopPropagation()} className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8 text-destructive hover:text-destructive")}>
                                 <Trash2 className="h-4 w-4" />
                             </div>
                         </AlertDialogTrigger>
@@ -187,7 +187,7 @@ function SortableCoursewareItem({
             <div className="pt-2">
                 <Button variant="secondary" onClick={onAddActivity}>
                     <Plus className="mr-2 h-4 w-4" />
-                    Add Activity
+                    {t('courseware.add_activity')}
                 </Button>
             </div>
           </AccordionContent>
@@ -368,7 +368,8 @@ export function CoursewareManagement() {
                   <ActivityEditor 
                     initialData={editingActivity || undefined} 
                     onSave={handleSaveActivity} 
-                    onCancel={() => setActivityEditorOpen(false)} 
+                    onCancel={() => setActivityEditorOpen(false)}
+                    submitButtonText={editingActivity ? t('common.save_changes') : t('common.save')}
                   />
               </div>
           </DialogContent>

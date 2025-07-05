@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { PlusCircle, XCircle, Loader2, FileText, Vote, Image as ImageIcon, CheckSquare as CheckSquareIcon, PencilRuler } from "lucide-react";
-import React, { useRef, useEffect } from "react";
+import React, from "react";
 import dynamic from "next/dynamic";
 
 import { Button } from "@/components/ui/button";
@@ -41,21 +41,31 @@ const DrawingEditor = dynamic(
   }
 );
 
-type ActivityFormData = {
-  type: QuestionData['type'];
-  question: string;
-  options: { value: string }[];
-  allowMultipleAnswers: boolean;
-  imageUrl?: string;
-};
-
 const activityFormSchema = z.object({
     type: z.enum(['multiple-choice', 'true-false', 'short-answer', 'drawing', 'image-annotation']),
     question: z.string().min(1, 'Question cannot be empty.'),
-    options: z.array(z.object({ value: z.string().min(1, 'Option cannot be empty') })),
-    allowMultipleAnswers: z.boolean(),
+    options: z.array(z.object({ value: z.string() })).optional(),
+    allowMultipleAnswers: z.boolean().optional(),
     imageUrl: z.string().optional(),
+}).superRefine((data, ctx) => {
+    if (data.type === 'multiple-choice') {
+        if (!data.options || data.options.length < 2) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Multiple choice questions must have at least 2 options.",
+                path: ['options']
+            });
+        } else if (data.options.some(o => o.value.trim() === '')) {
+             ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Options cannot be empty.",
+                path: ['options']
+            });
+        }
+    }
 });
+
+type ActivityFormData = z.infer<typeof activityFormSchema>;
 
 
 interface ActivityEditorProps {
@@ -65,10 +75,10 @@ interface ActivityEditorProps {
   submitButtonText?: string;
 }
 
-export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText = "Save Activity" }: ActivityEditorProps) {
+export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText }: ActivityEditorProps) {
     const { t } = useI18n();
     const { toast } = useToast();
-    const editorRef = useRef<DrawingEditorRef>(null);
+    const editorRef = React.useRef<DrawingEditorRef>(null);
 
     const form = useForm<ActivityFormData>({
         resolver: zodResolver(activityFormSchema),
@@ -86,16 +96,16 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
 
     // Sync tabs with form state
     const onTabChange = (value: string) => {
-        form.setValue("type", value as ActivityFormData['type']);
+        form.setValue("type", value as ActivityFormData['type'], { shouldValidate: true });
     };
 
-    useEffect(() => {
+    React.useEffect(() => {
         if (initialData) {
             form.reset({
                 type: initialData.type,
                 question: initialData.question,
                 options: (initialData.type === 'multiple-choice' ? initialData.options : [{ value: "" }, { value: "" }]),
-                allowMultipleAnswers: (initialData.type === 'multiple-choice' ? initialData.allowMultipleAnswers : false),
+                allowMultipleAnswers: !!(initialData.type === 'multiple-choice' && initialData.allowMultipleAnswers),
                 imageUrl: (initialData.type === 'image-annotation' ? initialData.imageUrl : undefined),
             });
         }
@@ -111,15 +121,15 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                 finalData = { type: data.type, question: data.question };
                 break;
             case 'multiple-choice':
-                if (data.options.length < 2) {
-                    toast({ variant: "destructive", title: "Validation Error", description: "Multiple choice questions must have at least 2 options."});
+                if (!data.options) { // Should be caught by validation, but as a safeguard.
+                    toast({ variant: "destructive", title: "Validation Error", description: "Options are missing."});
                     return;
                 }
                 finalData = { 
                     type: 'multiple-choice', 
                     question: data.question, 
                     options: data.options, 
-                    allowMultipleAnswers: data.allowMultipleAnswers 
+                    allowMultipleAnswers: data.allowMultipleAnswers || false,
                 };
                 break;
             case 'image-annotation':
@@ -153,100 +163,107 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                         <TabsTrigger value="image-annotation"><PencilRuler className="mr-2 h-4 w-4" />{t('createQuestionForm.tab_annotation')}</TabsTrigger>
                     </TabsList>
                     
-                    <TabsContent value="true-false" className="mt-6">
-                         <FormField control={form.control} name="question" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>{t('createQuestionForm.tf_question_label')}</FormLabel>
-                                <FormControl>
-                                    <Textarea placeholder={t('createQuestionForm.tf_question_placeholder')} {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                    </TabsContent>
+                    <div className="mt-6">
+                        <TabsContent value="true-false" forceMount={true} className={watchedType !== 'true-false' ? 'hidden' : ''}>
+                             <FormField control={form.control} name="question" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('createQuestionForm.tf_question_label')}</FormLabel>
+                                    <FormControl>
+                                        <Textarea placeholder={t('createQuestionForm.tf_question_placeholder')} {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                        </TabsContent>
 
-                    <TabsContent value="multiple-choice" className="mt-6 space-y-6">
-                         <FormField control={form.control} name="question" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>{t('createQuestionForm.poll_question_label')}</FormLabel>
-                                <FormControl>
-                                    <Textarea placeholder={t('createQuestionForm.poll_question_placeholder')} {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                        <div className="space-y-4">
-                            <FormLabel>{t('createQuestionForm.answer_options_label')}</FormLabel>
-                            {fields.map((field, index) => (
-                                <FormField key={field.id} control={form.control} name={`options.${index}.value`} render={({ field }) => (
+                        <TabsContent value="multiple-choice" forceMount={true} className={watchedType !== 'multiple-choice' ? 'hidden' : 'space-y-6'}>
+                             <FormField control={form.control} name="question" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('createQuestionForm.poll_question_label')}</FormLabel>
+                                    <FormControl>
+                                        <Textarea placeholder={t('createQuestionForm.poll_question_placeholder')} {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <div className="space-y-4">
+                                <FormField control={form.control} name="options" render={() => (
                                     <FormItem>
-                                        <div className="flex items-center gap-2">
-                                            <FormControl>
-                                                <Input placeholder={t('createQuestionForm.option_placeholder', { letter: String.fromCharCode(65 + index) })} {...field} />
-                                            </FormControl>
-                                            {fields.length > 2 && (<Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => remove(index)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>)}
-                                        </div>
+                                        <FormLabel>{t('createQuestionForm.answer_options_label')}</FormLabel>
+                                         {fields.map((field, index) => (
+                                            <FormField key={field.id} control={form.control} name={`options.${index}.value`} render={({ field: optionField }) => (
+                                                <FormItem>
+                                                    <div className="flex items-center gap-2">
+                                                        <FormControl>
+                                                            <Input placeholder={t('createQuestionForm.option_placeholder', { letter: String.fromCharCode(65 + index) })} {...optionField} />
+                                                        </FormControl>
+                                                        {fields.length > 2 && (<Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => remove(index)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>)}
+                                                    </div>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                        ))}
                                         <FormMessage />
                                     </FormItem>
                                 )} />
-                            ))}
-                            {fields.length < 10 && (<Button type="button" variant="outline" size="sm" onClick={() => append({ value: "" })}><PlusCircle className="mr-2 h-4 w-4" />{t('createQuestionForm.add_option_button')}</Button>)}
-                        </div>
-                        <FormField control={form.control} name="allowMultipleAnswers" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                <div className="space-y-0.5">
-                                    <FormLabel className="text-base">{t('createQuestionForm.allow_multiple_selections_label')}</FormLabel>
-                                    <FormDescription>{t('createQuestionForm.allow_multiple_selections_description')}</FormDescription>
-                                </div>
-                                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                            </FormItem>
-                        )} />
-                    </TabsContent>
+                                {fields.length < 10 && (<Button type="button" variant="outline" size="sm" onClick={() => append({ value: "" })}><PlusCircle className="mr-2 h-4 w-4" />{t('createQuestionForm.add_option_button')}</Button>)}
+                            </div>
+                            <FormField control={form.control} name="allowMultipleAnswers" render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                    <div className="space-y-0.5">
+                                        <FormLabel className="text-base">{t('createQuestionForm.allow_multiple_selections_label')}</FormLabel>
+                                        <FormDescription>{t('createQuestionForm.allow_multiple_selections_description')}</FormDescription>
+                                    </div>
+                                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                </FormItem>
+                            )} />
+                        </TabsContent>
 
-                    <TabsContent value="short-answer" className="mt-6">
-                        <FormField control={form.control} name="question" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>{t('createQuestionForm.sa_question_label')}</FormLabel>
-                                <FormControl>
-                                    <Textarea placeholder={t('createQuestionForm.sa_question_placeholder')} {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                    </TabsContent>
-                    
-                    <TabsContent value="drawing" className="mt-6">
-                         <FormField control={form.control} name="question" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>{t('createQuestionForm.drawing_prompt_label')}</FormLabel>
-                                <FormControl>
-                                    <Textarea placeholder={t('createQuestionForm.drawing_prompt_placeholder')} {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                    </TabsContent>
+                        <TabsContent value="short-answer" forceMount={true} className={watchedType !== 'short-answer' ? 'hidden' : ''}>
+                            <FormField control={form.control} name="question" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('createQuestionForm.sa_question_label')}</FormLabel>
+                                    <FormControl>
+                                        <Textarea placeholder={t('createQuestionForm.sa_question_placeholder')} {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                        </TabsContent>
+                        
+                        <TabsContent value="drawing" forceMount={true} className={watchedType !== 'drawing' ? 'hidden' : ''}>
+                             <FormField control={form.control} name="question" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('createQuestionForm.drawing_prompt_label')}</FormLabel>
+                                    <FormControl>
+                                        <Textarea placeholder={t('createQuestionForm.drawing_prompt_placeholder')} {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                        </TabsContent>
 
-                    <TabsContent value="image-annotation" className="mt-6 space-y-4">
-                        <FormField control={form.control} name="question" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>{t('createQuestionForm.annotation_prompt_label')}</FormLabel>
-                                <FormControl>
-                                    <Textarea placeholder={t('createQuestionForm.annotation_prompt_placeholder')} {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t('createQuestionForm.canvas_description')}</p>
-                            <DrawingEditor ref={editorRef} backgroundImageUrl={form.getValues('imageUrl')} />
-                        </div>
-                    </TabsContent>
+                        <TabsContent value="image-annotation" forceMount={true} className={watchedType !== 'image-annotation' ? 'hidden' : 'space-y-4'}>
+                            <FormField control={form.control} name="question" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('createQuestionForm.annotation_prompt_label')}</FormLabel>
+                                    <FormControl>
+                                        <Textarea placeholder={t('createQuestionForm.annotation_prompt_placeholder')} {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <div>
+                                <p className="text-sm text-muted-foreground">{t('createQuestionForm.canvas_description')}</p>
+                                <DrawingEditor ref={editorRef} backgroundImageUrl={form.getValues('imageUrl')} />
+                            </div>
+                        </TabsContent>
+                    </div>
                 </Tabs>
 
                 <div className="flex justify-end gap-2 pt-4">
                     <Button type="button" variant="ghost" onClick={onCancel}>{t('common.cancel')}</Button>
-                    <Button type="submit">{submitButtonText}</Button>
+                    <Button type="submit">{submitButtonText || t('common.save')}</Button>
                 </div>
             </form>
         </Form>
