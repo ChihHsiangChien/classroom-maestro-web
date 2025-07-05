@@ -17,6 +17,7 @@ import type { QuestionData } from "@/components/create-poll-form";
 import type { Student, Submission } from "@/contexts/classroom-context";
 import { LotteryModal } from "@/components/lottery-modal";
 import { RaceModal } from "@/components/race-modal";
+import { CoursewarePicker } from "@/components/courseware-picker";
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom } from "@/contexts/classroom-context";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +32,7 @@ type QuestionDataWithId = QuestionData & { id: string };
 export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace } = useClassroom();
+  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace, updateTeacherHeartbeat, pingStudents } = useClassroom();
   const { toast } = useToast();
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -215,17 +216,20 @@ export default function ActivityPage() {
                 isPanelOpen ? "lg:w-2/3" : "lg:w-full"
             )}>
               {!activeQuestion && !race ? (
-                <Card className="shadow-md">
-                  <CardHeader>
-                    <CardTitle>{t('teacherDashboard.create_question_card_title')}</CardTitle>
-                    <CardDescription>
-                      {t('teacherDashboard.create_question_card_description')}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <CreateQuestionForm onQuestionCreate={handleQuestionCreate} />
-                  </CardContent>
-                </Card>
+                <div className="space-y-6">
+                  <Card className="shadow-md">
+                    <CardHeader>
+                      <CardTitle>{t('teacherDashboard.create_question_card_title')}</CardTitle>
+                      <CardDescription>
+                        {t('teacherDashboard.create_question_card_description')}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <CreateQuestionForm onQuestionCreate={handleQuestionCreate} />
+                    </CardContent>
+                  </Card>
+                  <CoursewarePicker onQuestionSelect={handleQuestionCreate} />
+                </div>
               ) : activeQuestion ? (
                 <ActiveQuestion 
                   question={activeQuestion} 

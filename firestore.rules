@@ -2,79 +2,70 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper Functions
-    function isOwner() {
+    
+    function isOwner(resource) {
       return request.auth.uid == resource.data.ownerId;
     }
-
-    function isOwnerCreate() {
-      return request.auth.uid == request.resource.data.ownerId;
-    }
-
+    
     function isAdmin() {
       return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
-    
-    function isRaceClaim() {
-      // Allow unauthenticated users (students) to claim a race win under specific conditions
-      return request.auth == null &&
-             // The document must have a pending race before the update
-             resource.data.race.status == 'pending' &&
-             // The update must change the race status to finished
-             request.resource.data.race.status == 'finished' &&
-             // The update must provide a winner
-             request.resource.data.race.winnerId != null &&
-             // Check that ONLY the required race fields are being modified.
-             // This prevents a student from changing other classroom data.
-             request.writeFields.hasAll(['race.status', 'race.winnerId', 'race.winnerName']) &&
-             request.writeFields.size() == 3;
+
+    function isRaceClaim(request, resource) {
+      let isAnonymous = request.auth == null;
+      let incomingData = request.resource.data;
+      let existingData = resource.data;
+      
+      // Ensure only the race field is being modified
+      let onlyRaceModified = incomingData.diff(existingData).affectedKeys().hasOnly(['race']);
+      
+      // Ensure the status is changing from pending to finished
+      let statusChangeValid = existingData.race.status == 'pending' && incomingData.race.status == 'finished';
+      
+      // Ensure a winner is being set
+      let winnerSet = incomingData.race.winnerId != null && incomingData.race.winnerName != null;
+      
+      return isAnonymous && onlyRaceModified && statusChangeValid && winnerSet;
     }
 
-    // Rules for 'users' collection
+    // Courseware: Teachers can manage their own courseware packages.
+    match /courseware/{packageId} {
+      allow read, delete: if isOwner(resource) || isAdmin();
+      allow create: if isOwner(request.resource) || isAdmin();
+      allow update: if isOwner(resource) || isAdmin();
+    }
+
     match /users/{userId} {
-      allow read: if request.auth.uid == userId || isAdmin();
-      allow create: if request.auth.uid == userId;
-      allow update: if request.auth.uid == userId;
-      allow delete: if isAdmin();
-    }
-    
-    match /users/{path=**} {
-        allow list: if isAdmin();
+      allow read;
+      allow write: if request.auth.uid == userId || isAdmin();
     }
 
-    // Rules for 'admins' collection
-    match /admins/{userId} {
-      allow read: if request.auth != null;
+    match /admins/{adminId} {
+        allow read: if request.auth != null;
     }
 
-    // Rules for 'classrooms' collection and its subcollections
     match /classrooms/{classroomId} {
-      // GET: Anyone can get a single classroom doc to join.
-      allow get: if true;
-      // LIST: Only the owner or an admin can list classrooms.
-      allow list: if request.auth != null && (isOwner() || isAdmin());
-      // CREATE: Only authenticated users can create classrooms for themselves.
-      allow create: if request.auth != null && isOwnerCreate();
-      // UPDATE: Owner, admin, or a student claiming a race win can update.
-      allow update: if (request.auth != null && (isOwner() || isAdmin())) || isRaceClaim();
-      // DELETE: Only the owner or an admin can delete.
-      allow delete: if request.auth != null && (isOwner() || isAdmin());
+      // Anyone can GET a single classroom doc to join, but only owners/admins can LIST them.
+      allow read: if request.method == 'get' || isOwner(resource) || isAdmin();
+      
+      // Only owners/admins can create or delete classrooms.
+      allow create: if isOwner(request.resource) || isAdmin();
+      allow delete: if isOwner(resource) || isAdmin();
 
-      // Rules for 'submissions' subcollection
+      // Owners/admins can update, OR an anonymous user can claim a race.
+      allow update: if isOwner(resource) || isAdmin() || isRaceClaim(request, resource);
+
       match /submissions/{submissionId} {
-        // Anyone can create a submission (students are not authenticated).
+        // Students can create submissions, only owners/admins can read/delete them.
         allow create: if true;
-        // Only the classroom owner or an admin can read/list/delete submissions.
-        allow read, list, delete: if request.auth != null && (isOwner() || isAdmin());
-        // Nobody can update a submission once it's made.
+        allow read, delete: if isOwner(get(/databases/$(database)/documents/classrooms/$(classroomId))) || isAdmin();
         allow update: if false;
       }
       
-      // Rules for 'presence' subcollection
       match /presence/{studentId} {
-        // Anyone can read/write their presence status.
-        allow read, write: if true;
+        // Anyone can update presence (students joining/leaving)
+        allow write: if true;
+        allow read: if true;
       }
     }
   }
