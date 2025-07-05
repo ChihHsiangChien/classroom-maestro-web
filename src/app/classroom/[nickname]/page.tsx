@@ -35,25 +35,40 @@ function ClassroomPageContent() {
     const activeQuestion = classroom?.activeQuestion;
     const activeRace = classroom?.race;
 
-    // This effect handles student presence (online status on mount/unmount)
+    // This effect handles student presence (online status on mount/unmount and tab visibility)
     useEffect(() => {
         if (!classroomId || !studentId) return;
 
-        // Set initial online status
+        // Set initial online status on mount
         updateStudentPresence(classroomId, studentId, true);
 
-        // When the user leaves, set their status to offline
+        // Handler for visibility changes
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                updateStudentPresence(classroomId, studentId, true);
+            } else {
+                updateStudentPresence(classroomId, studentId, false);
+            }
+        };
+
+        // Handler for when the user closes the tab/browser
         const handleBeforeUnload = () => {
              updateStudentPresence(classroomId, studentId, false);
         };
+
+        // Add event listeners
+        document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('beforeunload', handleBeforeUnload);
 
+        // Cleanup on component unmount
         return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
-            // Final offline update on component unmount
+            // Final offline update
             updateStudentPresence(classroomId, studentId, false);
         };
     }, [classroomId, studentId, updateStudentPresence]);
+
 
     // This effect handles responding to teacher pings
     useEffect(() => {
