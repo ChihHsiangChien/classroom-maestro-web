@@ -63,6 +63,7 @@ import { cn } from '@/lib/utils';
 
 
 function SortableActivityItem({ activity, onEdit, onDelete }: { activity: Activity; onEdit: () => void, onDelete: () => void }) {
+  const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: activity.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   
@@ -93,12 +94,12 @@ function SortableActivityItem({ activity, onEdit, onDelete }: { activity: Activi
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>This will permanently delete this activity. This action cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle>{t('courseware.delete_activity_confirm_title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('courseware.delete_activity_confirm_description')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={onDelete}>{t('common.delete')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -124,6 +125,7 @@ function SortableCoursewareItem({
   onDeleteActivity: (activityId: string) => void,
   onReorderActivities: (event: DragEndEvent) => void
 }) {
+  const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: courseware.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
 
@@ -155,12 +157,12 @@ function SortableCoursewareItem({
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure you want to delete this courseware?</AlertDialogTitle>
-                                <AlertDialogDescription>This will permanently delete "{courseware.name}" and all of its activities. This action cannot be undone.</AlertDialogDescription>
+                                <AlertDialogTitle>{t('courseware.delete_package_confirm_title')}</AlertDialogTitle>
+                                <AlertDialogDescription>{t('courseware.delete_package_confirm_description', { name: courseware.name })}</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+                                <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                                <AlertDialogAction onClick={onDelete}>{t('common.delete')}</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
@@ -182,7 +184,7 @@ function SortableCoursewareItem({
                   </div>
                 </SortableContext>
               </DndContext>
-              {(!courseware.activities || courseware.activities.length === 0) && <p className="ml-4 mt-2 text-sm text-muted-foreground">This courseware has no activities.</p>}
+              {(!courseware.activities || courseware.activities.length === 0) && <p className="ml-4 mt-2 text-sm text-muted-foreground">{t('courseware.no_activities_in_unit')}</p>}
 
             <div className="pt-2">
                 <Button variant="secondary" onClick={onAddActivity}>
