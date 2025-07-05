@@ -388,7 +388,12 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     if (!db || !classroomId || !studentId) return;
     try {
         const presenceRef = doc(db, 'classrooms', classroomId, 'presence', studentId);
-        await setDoc(presenceRef, { isOnline, lastSeen: Timestamp.now() }, { merge: true });
+        const dataToSet: PresenceData = { isOnline };
+        if (isOnline) {
+            dataToSet.lastSeen = Timestamp.now();
+        }
+        // Use set with merge to create the doc if it doesn't exist or update it.
+        await setDoc(presenceRef, dataToSet, { merge: true });
     } catch (error) {
         console.error("Failed to update presence:", error);
     }
@@ -398,7 +403,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
       if (!db || !classroomId || !studentId) return;
       try {
           const presenceRef = doc(db, 'classrooms', classroomId, 'presence', studentId);
-          await setDoc(presenceRef, { forceLogout: true }, { merge: true });
+          await setDoc(presenceRef, { forceLogout: true, isOnline: false }, { merge: true });
           toast({ title: t('studentManagement.toast_student_kicked_title') });
       } catch (error) {
           handleFirestoreErrorRef.current?.(error, 'kick-student');
