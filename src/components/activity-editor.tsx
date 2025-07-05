@@ -90,7 +90,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         defaultValues: {
             type: initialData?.type || 'true-false',
             question: initialData?.question || "",
-            options: (initialData?.type === 'multiple-choice' && initialData.options) || [{ value: "" }, { value: "" }],
+            options: (initialData?.type === 'multiple-choice' && initialData.options) || [{ value: "" }, { value: "" }, { value: "" }, { value: "" }],
             allowMultipleAnswers: (initialData?.type === 'multiple-choice' && initialData.allowMultipleAnswers) || false,
             imageUrl: (initialData?.type === 'image-annotation' && initialData.imageUrl) || undefined,
         },
@@ -306,3 +306,5 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         </Form>
     );
 }
+
+    
