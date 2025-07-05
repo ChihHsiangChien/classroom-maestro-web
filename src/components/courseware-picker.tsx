@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from './ui/button';
@@ -15,15 +15,25 @@ interface CoursewarePickerProps {
     onQuestionSelect: (question: QuestionData) => void;
 }
 
+const LAST_COURSEWARE_ID_KEY = 'lastSelectedCoursewareId';
+
 export function CoursewarePicker({ onQuestionSelect }: CoursewarePickerProps) {
     const { t } = useI18n();
     const { coursewares, loading } = useCourseware();
     const [selectedCoursewareId, setSelectedCoursewareId] = useState<string | null>(null);
 
+    useEffect(() => {
+        const lastId = localStorage.getItem(LAST_COURSEWARE_ID_KEY);
+        if (lastId && !loading && coursewares.some(cw => cw.id === lastId)) {
+            setSelectedCoursewareId(lastId);
+        }
+    }, [coursewares, loading]);
+
     const selectedCourseware = useMemo(() => coursewares.find(p => p.id === selectedCoursewareId), [coursewares, selectedCoursewareId]);
 
     const handleCoursewareChange = (coursewareId: string) => {
         setSelectedCoursewareId(coursewareId);
+        localStorage.setItem(LAST_COURSEWARE_ID_KEY, coursewareId);
     };
 
     const handleSelectQuestion = (activity: Activity) => {
@@ -53,7 +63,7 @@ export function CoursewarePicker({ onQuestionSelect }: CoursewarePickerProps) {
                     </div>
                 )}
                 <div className="grid sm:grid-cols-1 gap-4">
-                     <Select onValueChange={handleCoursewareChange} disabled={coursewares.length === 0}>
+                     <Select value={selectedCoursewareId ?? ''} onValueChange={handleCoursewareChange} disabled={coursewares.length === 0}>
                         <SelectTrigger>
                             <SelectValue placeholder={t('courseware.select_package')} />
                         </SelectTrigger>

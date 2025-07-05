@@ -37,7 +37,7 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert educator who creates engaging poll questions for students.
       Generate a multiple-choice poll question about the following topic: {{{topic}}}.
       The question should be interesting and suitable for a classroom setting.
-      Provide between 2 and 4 plausible options. One option should be clearly correct, but the others should be thought-provoking distractors.
+      Provide between 4 plausible options. One option should be clearly correct, but the others should be thought-provoking distractors.
       
       The entire output, including the question and all options, must be in Traditional Chinese (繁體中文).
       
