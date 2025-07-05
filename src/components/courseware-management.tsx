@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -218,9 +217,9 @@ export function CoursewareManagement() {
                     <div className="flex w-full items-center justify-between pr-4">
                         <span className="text-lg font-semibold">{cw.name}</span>
                         <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleOpenCoursewareDialog(cw); }}>
+                            <div role="button" className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8")} onClick={(e) => { e.stopPropagation(); handleOpenCoursewareDialog(cw); }}>
                                 <Edit className="h-4 w-4" />
-                            </Button>
+                            </div>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                      <div role="button" onClick={(e) => e.stopPropagation()} className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8 text-destructive hover:text-destructive")}>
@@ -243,7 +242,7 @@ export function CoursewareManagement() {
                   </AccordionTrigger>
                   <AccordionContent className="pt-2 pl-4 pr-2 space-y-4">
                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, cw)}>
-                        <SortableContext items={cw.activities || []} strategy={verticalListSortingStrategy}>
+                        <SortableContext items={(cw.activities || [])} strategy={verticalListSortingStrategy}>
                           <div className="space-y-2">
                             {(cw.activities || []).map((activity) => (
                               <SortableActivityItem 
