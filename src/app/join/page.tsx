@@ -29,7 +29,7 @@ function JoinPageContent() {
   const { t } = useI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [classroom, setClassroom] = useState<(Omit<Classroom, 'students'> & { students: (Student & { isOnline?: boolean })[] }) | null>(null);
+  const [classroom, setClassroom] = useState<(Omit<Classroom, 'students'> & { students: (Student & { isLoggedIn?: boolean })[] }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -59,8 +59,10 @@ function JoinPageContent() {
 
             const studentsWithPresence = (classroomData.students || []).map((student: Student) => {
               const presence = presenceData[student.id];
-              const isConsideredOnline = !!(presence?.isOnline === true && presence?.lastSeen && (Timestamp.now().seconds - presence.lastSeen.seconds < 45));
-              return { ...student, isOnline: isConsideredOnline };
+              // A student is considered logged in if their session is marked as active.
+              // This prevents another student from taking their spot if they just switch tabs.
+              const isLoggedIn = !!presence?.isOnline;
+              return { ...student, isLoggedIn };
             });
 
             const fetchedClassroom = {
@@ -70,7 +72,7 @@ function JoinPageContent() {
               ownerId: classroomData.ownerId,
               isLocked: classroomData.isLocked || false,
             };
-            setClassroom(fetchedClassroom as (Omit<Classroom, 'students'> & { students: (Student & { isOnline?: boolean })[] }));
+            setClassroom(fetchedClassroom as (Omit<Classroom, 'students'> & { students: (Student & { isLoggedIn?: boolean })[] }));
             setLoading(false);
           }, (err) => {
               const errorMessage = `Failed to listen for presence. Code: ${err.code}. Message: ${err.message}`;
@@ -98,8 +100,8 @@ function JoinPageContent() {
     }
   }, [searchParams, t]);
 
-  const handleStudentClick = (student: Student & { isOnline?: boolean }) => {
-    if (student.isOnline || !classroom) return;
+  const handleStudentClick = (student: Student & { isLoggedIn?: boolean }) => {
+    if (student.isLoggedIn || !classroom) return;
     const url = `/classroom/${classroom.id}?studentId=${student.id}&name=${encodeURIComponent(student.name)}`;
     router.push(url);
   };
@@ -195,7 +197,7 @@ function JoinPageContent() {
                   key={student.id}
                   className={cn(
                     "cursor-pointer hover:bg-muted/50",
-                    student.isOnline && "cursor-not-allowed opacity-50 hover:bg-transparent"
+                    student.isLoggedIn && "cursor-not-allowed opacity-50 hover:bg-transparent"
                   )}
                   onClick={() => handleStudentClick(student)}
                 >
@@ -206,7 +208,7 @@ function JoinPageContent() {
                         <User className="h-5 w-5 text-muted-foreground" />
                         <span className="font-medium">{student.name}</span>
                     </div>
-                     {student.isOnline && (
+                     {student.isLoggedIn && (
                         <div className="flex items-center gap-2 text-sm text-green-600">
                             <div className="h-2 w-2 rounded-full bg-green-500" />
                             <span>{t('joinPage.logged_in')}</span>

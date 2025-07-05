@@ -35,36 +35,35 @@ function ClassroomPageContent() {
     const activeQuestion = classroom?.activeQuestion;
     const activeRace = classroom?.race;
 
-    // This effect handles student presence (online status on mount/unmount and tab visibility)
+    // This effect handles student presence: login session and attention tracking.
     useEffect(() => {
         if (!classroomId || !studentId) return;
 
-        // Set initial online status on mount
+        // --- Session Management ---
+        // Set student as "logged in" when the component mounts.
         updateStudentPresence(classroomId, studentId, true);
 
-        // Handler for visibility changes
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                updateStudentPresence(classroomId, studentId, true);
-            } else {
-                updateStudentPresence(classroomId, studentId, false);
-            }
-        };
-
-        // Handler for when the user closes the tab/browser
+        // Set student as "logged out" when they close the tab/browser.
         const handleBeforeUnload = () => {
              updateStudentPresence(classroomId, studentId, false);
         };
-
-        // Add event listeners
-        document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('beforeunload', handleBeforeUnload);
+
+        // --- Attention Tracking ---
+        // When the tab becomes visible, update their presence to signal they are "active".
+        // This updates the `lastSeen` timestamp for the teacher.
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                updateStudentPresence(classroomId, studentId, true);
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         // Cleanup on component unmount
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
-            // Final offline update
+            // Final "logout" update on cleanup
             updateStudentPresence(classroomId, studentId, false);
         };
     }, [classroomId, studentId, updateStudentPresence]);
@@ -79,6 +78,7 @@ function ClassroomPageContent() {
         // Respond only to new pings and if the page is visible
         if (pingId !== lastRespondedPingId && document.visibilityState === 'visible') {
             console.log(`Responding to ping: ${pingId}`);
+            // A ping response signals the student is online and active.
             updateStudentPresence(classroomId, studentId, true);
             setLastRespondedPingId(pingId);
         }
@@ -148,7 +148,7 @@ function ClassroomPageContent() {
     const handleLogout = () => {
         if (isLocked) return;
         if (classroomId) {
-            // Set presence to offline before logging out
+            // Explicitly set presence to offline before logging out
             if (studentId) {
                 updateStudentPresence(classroomId, studentId, false);
             }
