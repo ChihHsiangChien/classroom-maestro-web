@@ -19,13 +19,12 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Edit, Trash2, GripVertical, FileText, ChevronDown, CheckSquareIcon, Vote, ImageIcon, PencilRuler, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, GripVertical, FileText, CheckSquareIcon, Vote, ImageIcon, PencilRuler, Loader2 } from 'lucide-react';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from '@/components/ui/card';
 import {
   Accordion,
@@ -36,6 +35,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -55,41 +55,17 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button, buttonVariants } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useCourseware, type CoursewarePackage, type Unit, type Activity } from '@/contexts/courseware-context';
+import { useCourseware, type Courseware, type Activity } from '@/contexts/courseware-context';
 import type { QuestionData } from './create-poll-form';
 import { useI18n } from '@/lib/i18n/provider';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { ActivityEditor } from './activity-editor';
 import { cn } from '@/lib/utils';
 
-// Activity List for a Unit with Drag-and-Drop
-function ActivityList({ unit, packageId }: { unit: Unit; packageId: string }) {
-  const { t } = useI18n();
-  const { reorderActivities, deleteActivity, updateActivity } = useCourseware();
-  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = unit.activities.findIndex((a) => a.id === active.id);
-      const newIndex = unit.activities.findIndex((a) => a.id === over.id);
-      const newOrder = arrayMove(unit.activities, oldIndex, newIndex);
-      reorderActivities(packageId, unit.id, newOrder);
-    }
-  };
-
-  const handleSaveActivity = (data: QuestionData) => {
-    if (editingActivity) {
-      updateActivity(packageId, unit.id, editingActivity.id, data);
-      setEditingActivity(null);
-    }
-  };
-
+function SortableActivityItem({ activity, onEdit, onDelete }: { activity: Activity; onEdit: () => void, onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: activity.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  
   const activityIcons: { [key in QuestionData['type']]: React.ElementType } = {
     'true-false': CheckSquareIcon,
     'multiple-choice': Vote,
@@ -97,61 +73,7 @@ function ActivityList({ unit, packageId }: { unit: Unit; packageId: string }) {
     'drawing': ImageIcon,
     'image-annotation': PencilRuler,
   };
-
-  return (
-    <>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={unit.activities} strategy={verticalListSortingStrategy}>
-          <div className="ml-8 mt-2 space-y-2 border-l pl-4">
-            {unit.activities.map((activity) => (
-              <SortableActivityItem key={activity.id} activity={activity} icon={activityIcons[activity.type]}>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingActivity(activity)}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>{t('courseware.delete_activity_confirm_title')}</AlertDialogTitle>
-                      <AlertDialogDescription>{t('courseware.delete_activity_confirm_description')}</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => deleteActivity(packageId, unit.id, activity.id)}>Delete</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </SortableActivityItem>
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
-      {unit.activities.length === 0 && <p className="ml-12 mt-2 text-sm text-muted-foreground">{t('courseware.no_activities_in_unit')}</p>}
-
-      <Dialog open={!!editingActivity} onOpenChange={(open) => !open && setEditingActivity(null)}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader><DialogTitle>{t('courseware.edit_activity')}</DialogTitle></DialogHeader>
-          {editingActivity && (
-            <ActivityEditor
-              initialData={editingActivity}
-              onSave={handleSaveActivity}
-              onCancel={() => setEditingActivity(null)}
-              submitButtonText={t('common.save_changes')}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-function SortableActivityItem({ activity, icon: Icon, children }: { activity: Activity; icon: React.ElementType; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: activity.id });
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  const Icon = activityIcons[activity.type];
 
   return (
     <div ref={setNodeRef} style={style} className="flex items-center gap-2 rounded-md bg-muted/50 p-2">
@@ -160,7 +82,26 @@ function SortableActivityItem({ activity, icon: Icon, children }: { activity: Ac
       </Button>
       <Icon className="h-4 w-4 text-muted-foreground" />
       <p className="flex-grow truncate text-sm font-medium">{activity.question}</p>
-      {children}
+      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}>
+        <Edit className="h-4 w-4" />
+      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently delete this activity. This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -168,57 +109,85 @@ function SortableActivityItem({ activity, icon: Icon, children }: { activity: Ac
 // Main Component
 export function CoursewareManagement() {
   const { t } = useI18n();
-  const { packages, addPackage, deletePackage, addUnit, deleteUnit, addActivity, loading } = useCourseware();
+  const { coursewares, addCourseware, deleteCourseware, updateCourseware, reorderActivities, addActivity, updateActivity, deleteActivity, loading } = useCourseware();
   const { toast } = useToast();
 
-  const [isPackageDialogOpen, setPackageDialogOpen] = useState(false);
-  const [newPackageName, setNewPackageName] = useState('');
-
-  const [isUnitDialogOpen, setUnitDialogOpen] = useState(false);
-  const [newUnitName, setNewUnitName] = useState('');
-  const [currentPackageId, setCurrentPackageId] = useState<string | null>(null);
-
+  const [isCoursewareDialogOpen, setCoursewareDialogOpen] = useState(false);
+  const [editingCourseware, setEditingCourseware] = useState<Courseware | null>(null);
+  const [newCoursewareName, setNewCoursewareName] = useState('');
+  
   const [isActivityEditorOpen, setActivityEditorOpen] = useState(false);
-  const [currentUnitId, setCurrentUnitId] = useState<string | null>(null);
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [currentCoursewareId, setCurrentCoursewareId] = useState<string | null>(null);
 
-  const handleAddPackage = async () => {
-    if (newPackageName.trim()) {
-      await addPackage(newPackageName.trim());
-      toast({ title: t('courseware.toast_package_created') });
-      setNewPackageName('');
-      setPackageDialogOpen(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent, courseware: Courseware) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = courseware.activities.findIndex((a) => a.id === active.id);
+      const newIndex = courseware.activities.findIndex((a) => a.id === over.id);
+      const newOrder = arrayMove(courseware.activities, oldIndex, newIndex);
+      reorderActivities(courseware.id, newOrder);
     }
   };
 
-  const openUnitDialog = (packageId: string) => {
-    setCurrentPackageId(packageId);
-    setNewUnitName('');
-    setUnitDialogOpen(true);
-  };
+  const handleOpenCoursewareDialog = (courseware?: Courseware) => {
+    if (courseware) {
+        setEditingCourseware(courseware);
+        setNewCoursewareName(courseware.name);
+    } else {
+        setEditingCourseware(null);
+        setNewCoursewareName('');
+    }
+    setCoursewareDialogOpen(true);
+  }
 
-  const handleAddUnit = async () => {
-    if (newUnitName.trim() && currentPackageId) {
-      await addUnit(currentPackageId, newUnitName.trim());
-      toast({ title: t('courseware.toast_unit_created') });
-      setNewUnitName('');
-      setUnitDialogOpen(false);
-      setCurrentPackageId(null);
+  const handleSaveCourseware = async () => {
+    if (isSaving || !newCoursewareName.trim()) return;
+    setIsSaving(true);
+    try {
+        if (editingCourseware) {
+            await updateCourseware(editingCourseware.id, newCoursewareName.trim());
+            toast({ title: t('courseware.toast_package_updated')});
+        } else {
+            await addCourseware(newCoursewareName.trim());
+            toast({ title: t('courseware.toast_package_created') });
+        }
+        setCoursewareDialogOpen(false);
+    } finally {
+        setIsSaving(false);
     }
   };
 
-  const openActivityEditor = (packageId: string, unitId: string) => {
-    setCurrentPackageId(packageId);
-    setCurrentUnitId(unitId);
+  const handleDeleteCourseware = async (coursewareId: string) => {
+    await deleteCourseware(coursewareId);
+  }
+
+  const handleOpenActivityEditor = (coursewareId: string, activity?: Activity) => {
+    setCurrentCoursewareId(coursewareId);
+    setEditingActivity(activity || null);
     setActivityEditorOpen(true);
-  };
+  }
 
-  const handleAddActivity = async (data: QuestionData) => {
-    if (currentPackageId && currentUnitId) {
-      await addActivity(currentPackageId, currentUnitId, data);
-      toast({ title: t('courseware.toast_activity_saved') });
-      setActivityEditorOpen(false);
-      setCurrentPackageId(null);
-      setCurrentUnitId(null);
+  const handleSaveActivity = async (data: QuestionData) => {
+    if (!currentCoursewareId || isSaving) return;
+    setIsSaving(true);
+
+    try {
+        if (editingActivity) {
+            await updateActivity(currentCoursewareId, editingActivity.id, data);
+        } else {
+            await addActivity(currentCoursewareId, data);
+        }
+        setActivityEditorOpen(false);
+    } finally {
+        setIsSaving(false);
     }
   };
 
@@ -235,90 +204,65 @@ export function CoursewareManagement() {
       <Card>
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle>{t('courseware.my_packages')}</CardTitle>
-          <Button onClick={() => setPackageDialogOpen(true)}>
+          <Button onClick={() => handleOpenCoursewareDialog()}>
             <Plus className="mr-2 h-4 w-4" />
             {t('courseware.create_package')}
           </Button>
         </CardHeader>
         <CardContent>
-          {packages.length > 0 ? (
+          {coursewares.length > 0 ? (
             <Accordion type="single" collapsible className="w-full">
-              {packages.map((pkg) => (
-                <AccordionItem value={pkg.id} key={pkg.id}>
+              {coursewares.map((cw) => (
+                <AccordionItem value={cw.id} key={cw.id}>
                   <AccordionTrigger className="hover:no-underline">
                     <div className="flex w-full items-center justify-between pr-4">
-                        <span className="text-lg font-semibold">{pkg.name}</span>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <div
-                                  role="button"
-                                  tabIndex={0}
-                                  className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8 text-destructive hover:text-destructive")}
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </div>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>{t('courseware.delete_package_confirm_title')}</AlertDialogTitle>
-                                    <AlertDialogDescription>{t('courseware.delete_package_confirm_description', { name: pkg.name })}</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => deletePackage(pkg.id)}>{t('common.delete')}</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                        <span className="text-lg font-semibold">{cw.name}</span>
+                        <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleOpenCoursewareDialog(cw); }}>
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                     <div role="button" onClick={(e) => e.stopPropagation()} className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8 text-destructive hover:text-destructive")}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </div>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>{t('courseware.delete_package_confirm_title')}</AlertDialogTitle>
+                                        <AlertDialogDescription>{t('courseware.delete_package_confirm_description', { name: cw.name })}</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteCourseware(cw.id)}>{t('common.delete')}</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent className="pt-2">
-                    <div className="space-y-4">
-                        {pkg.units?.map((unit) => (
-                           <Collapsible key={unit.id} defaultOpen>
-                                <div className="flex items-center justify-between rounded-md p-2 hover:bg-muted/50">
-                                    <div className="flex items-center gap-2">
-                                         <CollapsibleTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-0 data-[state=closed]:-rotate-90" />
-                                            </Button>
-                                        </CollapsibleTrigger>
-                                        <h4 className="font-semibold">{unit.name}</h4>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                         <Button variant="outline" size="sm" onClick={() => openActivityEditor(pkg.id, unit.id)}>
-                                            <Plus className="mr-2 h-4 w-4" />
-                                            {t('courseware.add_activity')}
-                                        </Button>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>{t('courseware.delete_unit_confirm_title')}</AlertDialogTitle>
-                                                    <AlertDialogDescription>{t('courseware.delete_unit_confirm_description', { name: unit.name })}</AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => deleteUnit(pkg.id, unit.id)}>{t('common.delete')}</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
-                                </div>
-                                <CollapsibleContent>
-                                    <ActivityList unit={unit} packageId={pkg.id} />
-                                </CollapsibleContent>
-                            </Collapsible>
-                        ))}
-                        <div className="pt-2 pl-4">
-                            <Button variant="secondary" onClick={() => openUnitDialog(pkg.id)}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                {t('courseware.add_unit')}
-                            </Button>
-                        </div>
+                  <AccordionContent className="pt-2 pl-4 pr-2 space-y-4">
+                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, cw)}>
+                        <SortableContext items={cw.activities} strategy={verticalListSortingStrategy}>
+                          <div className="space-y-2">
+                            {cw.activities.map((activity) => (
+                              <SortableActivityItem 
+                                key={activity.id} 
+                                activity={activity}
+                                onEdit={() => handleOpenActivityEditor(cw.id, activity)}
+                                onDelete={() => deleteActivity(cw.id, activity.id)}
+                              />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      </DndContext>
+                      {cw.activities.length === 0 && <p className="ml-4 mt-2 text-sm text-muted-foreground">{t('courseware.no_activities_in_unit')}</p>}
+
+                    <div className="pt-2">
+                        <Button variant="secondary" onClick={() => handleOpenActivityEditor(cw.id)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            {t('courseware.add_activity')}
+                        </Button>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -334,27 +278,31 @@ export function CoursewareManagement() {
         </CardContent>
       </Card>
 
-      {/* Dialogs for creating new items */}
-      <Dialog open={isPackageDialogOpen} onOpenChange={setPackageDialogOpen}>
+      <Dialog open={isCoursewareDialogOpen} onOpenChange={setCoursewareDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t('courseware.create_package')}</DialogTitle></DialogHeader>
-          <div className="py-4"><Label htmlFor="pkg-name">{t('courseware.package_name_label')}</Label><Input id="pkg-name" value={newPackageName} onChange={(e) => setNewPackageName(e.target.value)} placeholder={t('courseware.package_name_placeholder')} /></div>
-          <DialogFooter><Button variant="ghost" onClick={() => setPackageDialogOpen(false)}>{t('common.cancel')}</Button><Button onClick={handleAddPackage}>{t('common.save')}</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isUnitDialogOpen} onOpenChange={setUnitDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{t('courseware.add_unit')}</DialogTitle></DialogHeader>
-          <div className="py-4"><Label htmlFor="unit-name">{t('courseware.unit_name_label')}</Label><Input id="unit-name" value={newUnitName} onChange={(e) => setNewUnitName(e.target.value)} placeholder={t('courseware.unit_name_placeholder')} /></div>
-          <DialogFooter><Button variant="ghost" onClick={() => setUnitDialogOpen(false)}>{t('common.cancel')}</Button><Button onClick={handleAddUnit}>{t('common.save')}</Button></DialogFooter>
+          <DialogHeader><DialogTitle>{editingCourseware ? t('courseware.edit_package') : t('courseware.create_package')}</DialogTitle></DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="pkg-name">{t('courseware.package_name_label')}</Label>
+            <Input id="pkg-name" value={newCoursewareName} onChange={(e) => setNewCoursewareName(e.target.value)} placeholder={t('courseware.package_name_placeholder')} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCoursewareDialogOpen(false)}>{t('common.cancel')}</Button>
+            <Button onClick={handleSaveCourseware} disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       
-      <Dialog open={isActivityEditorOpen} onOpenChange={setActivityEditorOpen}>
+      <Dialog open={isActivityEditorOpen} onOpenChange={(open) => { if (!open) setActivityEditorOpen(false)}}>
           <DialogContent className="sm:max-w-2xl">
-              <DialogHeader><DialogTitle>{t('courseware.activity_editor_title_add')}</DialogTitle></DialogHeader>
-              <ActivityEditor onSave={handleAddActivity} onCancel={() => setActivityEditorOpen(false)} />
+              <DialogHeader><DialogTitle>{editingActivity ? t('courseware.activity_editor_title_edit') : t('courseware.activity_editor_title_add')}</DialogTitle></DialogHeader>
+              <ActivityEditor 
+                initialData={editingActivity || undefined} 
+                onSave={handleSaveActivity} 
+                onCancel={() => setActivityEditorOpen(false)} 
+              />
           </DialogContent>
       </Dialog>
     </>

@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
 import { 
@@ -12,9 +12,7 @@ import {
   updateDoc, 
   deleteDoc,
   addDoc,
-  onSnapshot,
-  arrayUnion,
-  arrayRemove
+  onSnapshot
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/provider';
@@ -25,32 +23,25 @@ export interface Activity extends QuestionData {
   id: string;
 }
 
-export interface Unit {
-  id: string;
-  name: string;
-  activities: Activity[];
-}
-
-export interface CoursewarePackage {
+export interface Courseware {
   id: string;
   name: string;
   ownerId: string;
-  units: Unit[];
+  activities: Activity[];
 }
 
 
 // --- Context ---
 interface CoursewareContextType {
-  packages: CoursewarePackage[];
+  coursewares: Courseware[];
   loading: boolean;
-  addPackage: (name: string) => Promise<void>;
-  deletePackage: (packageId: string) => Promise<void>;
-  addUnit: (packageId: string, unitName: string) => Promise<void>;
-  deleteUnit: (packageId: string, unitId: string) => Promise<void>;
-  addActivity: (packageId: string, unitId: string, activityData: QuestionData) => Promise<void>;
-  updateActivity: (packageId: string, unitId: string, activityId: string, activityData: QuestionData) => Promise<void>;
-  deleteActivity: (packageId: string, unitId: string, activityId: string) => Promise<void>;
-  reorderActivities: (packageId: string, unitId: string, activities: Activity[]) => Promise<void>;
+  addCourseware: (name: string) => Promise<void>;
+  updateCourseware: (coursewareId: string, name: string) => Promise<void>;
+  deleteCourseware: (coursewareId: string) => Promise<void>;
+  addActivity: (coursewareId: string, activityData: QuestionData) => Promise<void>;
+  updateActivity: (coursewareId: string, activityId: string, activityData: QuestionData) => Promise<void>;
+  deleteActivity: (coursewareId: string, activityId: string) => Promise<void>;
+  reorderActivities: (coursewareId: string, activities: Activity[]) => Promise<void>;
 }
 
 const CoursewareContext = createContext<CoursewareContextType | undefined>(undefined);
@@ -58,7 +49,7 @@ const CoursewareContext = createContext<CoursewareContextType | undefined>(undef
 const generateId = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
 export function CoursewareProvider({ children }: { children: React.ReactNode }) {
-    const [packages, setPackages] = useState<CoursewarePackage[]>([]);
+    const [coursewares, setCoursewares] = useState<Courseware[]>([]);
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
     const { toast } = useToast();
@@ -74,11 +65,11 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
             setLoading(true);
             const q = query(collection(db, "courseware"), where("ownerId", "==", user.uid));
             const unsubscribe = onSnapshot(q, (querySnapshot) => {
-                const fetchedPackages = querySnapshot.docs.map(doc => ({
+                const fetchedCoursewares = querySnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
-                } as CoursewarePackage));
-                setPackages(fetchedPackages);
+                } as Courseware));
+                setCoursewares(fetchedCoursewares);
                 setLoading(false);
             }, (error) => {
                 handleFirestoreError(error, 'fetch-courseware');
@@ -86,151 +77,116 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
             });
             return () => unsubscribe();
         } else {
-            setPackages([]);
+            setCoursewares([]);
             setLoading(false);
         }
     }, [user, handleFirestoreError]);
 
-    const addPackage = useCallback(async (name: string) => {
+    const addCourseware = useCallback(async (name: string) => {
         if (!user || !db) return;
         try {
-            await addDoc(collection(db, "courseware"), { name, ownerId: user.uid, units: [] });
+            await addDoc(collection(db, "courseware"), { name, ownerId: user.uid, activities: [] });
         } catch (error) {
-            handleFirestoreError(error, 'add-package');
+            handleFirestoreError(error, 'add-courseware');
         }
     }, [user, handleFirestoreError]);
 
-    const deletePackage = useCallback(async (packageId: string) => {
+    const updateCourseware = useCallback(async (coursewareId: string, name: string) => {
         if (!db) return;
         try {
-            await deleteDoc(doc(db, 'courseware', packageId));
-            toast({ title: t('courseware.toast_package_deleted') });
+            await updateDoc(doc(db, 'courseware', coursewareId), { name });
         } catch (error) {
-            handleFirestoreError(error, 'delete-package');
-        }
-    }, [t, toast, handleFirestoreError]);
-    
-    const findPackageAndUnit = useCallback((packageId: string, unitId: string) => {
-        const pkg = packages.find(p => p.id === packageId);
-        if (!pkg) return { pkg: null, unit: null, unitIndex: -1 };
-        const unitIndex = pkg.units.findIndex(u => u.id === unitId);
-        const unit = unitIndex > -1 ? pkg.units[unitIndex] : null;
-        return { pkg, unit, unitIndex };
-    }, [packages]);
-
-    const addUnit = useCallback(async (packageId: string, unitName: string) => {
-        if (!db) return;
-        const newUnit: Unit = { id: generateId(), name: unitName, activities: [] };
-        try {
-            await updateDoc(doc(db, 'courseware', packageId), {
-                units: arrayUnion(newUnit)
-            });
-        } catch (error) {
-            handleFirestoreError(error, 'add-unit');
+            handleFirestoreError(error, 'update-courseware');
         }
     }, [handleFirestoreError]);
 
-    const deleteUnit = useCallback(async (packageId: string, unitId: string) => {
+    const deleteCourseware = useCallback(async (coursewareId: string) => {
         if (!db) return;
-        const { pkg, unit } = findPackageAndUnit(packageId, unitId);
-        if (!pkg || !unit) return;
         try {
-            await updateDoc(doc(db, 'courseware', packageId), {
-                units: arrayRemove(unit)
-            });
-            toast({ title: t('courseware.toast_unit_deleted') });
+            await deleteDoc(doc(db, 'courseware', coursewareId));
+            toast({ title: t('courseware.toast_package_deleted') });
         } catch (error) {
-            handleFirestoreError(error, 'delete-unit');
+            handleFirestoreError(error, 'delete-courseware');
         }
-    }, [t, toast, handleFirestoreError, findPackageAndUnit]);
+    }, [t, toast, handleFirestoreError]);
 
-    const addActivity = useCallback(async (packageId: string, unitId: string, activityData: QuestionData) => {
+    const findCourseware = useCallback((coursewareId: string) => {
+        return coursewares.find(c => c.id === coursewareId);
+    }, [coursewares]);
+
+    const addActivity = useCallback(async (coursewareId: string, activityData: QuestionData) => {
         if (!db) return;
-        const { pkg, unit, unitIndex } = findPackageAndUnit(packageId, unitId);
-        if (!pkg || !unit) return;
+        const courseware = findCourseware(coursewareId);
+        if (!courseware) return;
         
         const newActivity: Activity = { ...activityData, id: generateId() };
-        const updatedUnit = { ...unit, activities: [...unit.activities, newActivity] };
-        const newUnits = [...pkg.units];
-        newUnits[unitIndex] = updatedUnit;
+        const updatedActivities = [...courseware.activities, newActivity];
 
         try {
-            await updateDoc(doc(db, 'courseware', packageId), { units: newUnits });
+            await updateDoc(doc(db, 'courseware', coursewareId), { activities: updatedActivities });
         } catch (error) {
             handleFirestoreError(error, 'add-activity');
         }
-    }, [findPackageAndUnit, handleFirestoreError]);
+    }, [findCourseware, handleFirestoreError]);
     
-    const updateActivity = useCallback(async (packageId: string, unitId: string, activityId: string, activityData: QuestionData) => {
+    const updateActivity = useCallback(async (coursewareId: string, activityId: string, activityData: QuestionData) => {
         if (!db) return;
-        const { pkg, unit, unitIndex } = findPackageAndUnit(packageId, unitId);
-        if (!pkg || !unit) return;
+        const courseware = findCourseware(coursewareId);
+        if (!courseware) return;
 
-        const updatedActivities = unit.activities.map(a => a.id === activityId ? { ...activityData, id: activityId } : a);
-        const updatedUnit = { ...unit, activities: updatedActivities };
-        const newUnits = [...pkg.units];
-        newUnits[unitIndex] = updatedUnit;
+        const updatedActivities = courseware.activities.map(a => a.id === activityId ? { ...activityData, id: activityId } : a);
         
         try {
-            await updateDoc(doc(db, 'courseware', packageId), { units: newUnits });
+            await updateDoc(doc(db, 'courseware', coursewareId), { activities: updatedActivities });
             toast({ title: t('courseware.toast_activity_saved') });
         } catch (error) {
             handleFirestoreError(error, 'update-activity');
         }
-    }, [findPackageAndUnit, t, toast, handleFirestoreError]);
+    }, [findCourseware, t, toast, handleFirestoreError]);
 
-    const deleteActivity = useCallback(async (packageId: string, unitId: string, activityId: string) => {
+    const deleteActivity = useCallback(async (coursewareId: string, activityId: string) => {
         if (!db) return;
-        const { pkg, unit, unitIndex } = findPackageAndUnit(packageId, unitId);
-        if (!pkg || !unit) return;
+        const courseware = findCourseware(coursewareId);
+        if (!courseware) return;
         
-        const updatedActivities = unit.activities.filter(a => a.id !== activityId);
-        const updatedUnit = { ...unit, activities: updatedActivities };
-        const newUnits = [...pkg.units];
-        newUnits[unitIndex] = updatedUnit;
+        const updatedActivities = courseware.activities.filter(a => a.id !== activityId);
         
         try {
-            await updateDoc(doc(db, 'courseware', packageId), { units: newUnits });
+            await updateDoc(doc(db, 'courseware', coursewareId), { activities: updatedActivities });
             toast({ title: t('courseware.toast_activity_deleted') });
         } catch (error) {
             handleFirestoreError(error, 'delete-activity');
         }
-    }, [findPackageAndUnit, t, toast, handleFirestoreError]);
+    }, [findCourseware, t, toast, handleFirestoreError]);
     
-    const reorderActivities = useCallback(async (packageId: string, unitId: string, activities: Activity[]) => {
+    const reorderActivities = useCallback(async (coursewareId: string, activities: Activity[]) => {
         if (!db) return;
-        const { pkg, unit, unitIndex } = findPackageAndUnit(packageId, unitId);
-        if (!pkg || !unit) return;
-
-        const updatedUnit = { ...unit, activities };
-        const newUnits = [...pkg.units];
-        newUnits[unitIndex] = updatedUnit;
+        const courseware = findCourseware(coursewareId);
+        if (!courseware) return;
 
         try {
-            await updateDoc(doc(db, 'courseware', packageId), { units: newUnits });
+            await updateDoc(doc(db, 'courseware', coursewareId), { activities });
         } catch (error) {
             handleFirestoreError(error, 'reorder-activities');
         }
-    }, [findPackageAndUnit, handleFirestoreError]);
+    }, [findCourseware, handleFirestoreError]);
 
     const value = useMemo(() => ({
-        packages,
+        coursewares,
         loading,
-        addPackage,
-        deletePackage,
-        addUnit,
-        deleteUnit,
+        addCourseware,
+        updateCourseware,
+        deleteCourseware,
         addActivity,
         updateActivity,
         deleteActivity,
         reorderActivities,
     }), [
-        packages,
+        coursewares,
         loading,
-        addPackage,
-        deletePackage,
-        addUnit,
-        deleteUnit,
+        addCourseware,
+        updateCourseware,
+        deleteCourseware,
         addActivity,
         updateActivity,
         deleteActivity,
