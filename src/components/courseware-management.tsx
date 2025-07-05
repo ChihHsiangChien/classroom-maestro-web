@@ -53,13 +53,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Button } from './ui/button';
+import { Button, buttonVariants } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useCourseware, type CoursewarePackage, type Unit, type Activity } from '@/contexts/courseware-context';
 import type { QuestionData } from './create-poll-form';
 import { useI18n } from '@/lib/i18n/provider';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { ActivityEditor } from './activity-editor';
+import { cn } from '@/lib/utils';
 
 // Activity List for a Unit with Drag-and-Drop
 function ActivityList({ unit, packageId }: { unit: Unit; packageId: string }) {
@@ -248,10 +249,14 @@ export function CoursewareManagement() {
                     <div className="flex w-full items-center justify-between pr-4">
                         <span className="text-lg font-semibold">{pkg.name}</span>
                         <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
+                            <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <div
+                                  role="button"
+                                  tabIndex={0}
+                                  className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8 text-destructive hover:text-destructive")}
+                                >
                                     <Trash2 className="h-4 w-4" />
-                                </Button>
+                                </div>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
