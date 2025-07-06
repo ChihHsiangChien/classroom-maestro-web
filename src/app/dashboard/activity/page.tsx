@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CreateQuestionForm } from "@/components/create-poll-form";
 import { ActiveQuestion } from "@/components/active-poll";
-import type { QuestionData } from "@/components/create-poll-form";
+import type { QuestionData, TrueFalseQuestion, MultipleChoiceQuestion } from "@/components/create-poll-form";
 import type { Student, Submission } from "@/contexts/classroom-context";
 import { LotteryModal } from "@/components/lottery-modal";
 import { RaceModal } from "@/components/race-modal";
@@ -40,7 +40,7 @@ import { cn } from "@/lib/utils";
 import { Timestamp } from "firebase/firestore";
 
 // Add a unique ID to the QuestionData type
-type QuestionDataWithId = QuestionData & { id: string };
+type QuestionDataWithId = QuestionData & { id: string; showAnswer?: boolean; };
 
 export default function ActivityPage() {
   const { t } = useI18n();
@@ -114,7 +114,7 @@ export default function ActivityPage() {
       id: `q_${Date.now()}`,
       type: question.type,
       question: question.question,
-      showAnswer: false, // Default to not showing answer
+      showAnswer: false,
     };
 
     let newQuestion: QuestionDataWithId;
@@ -124,9 +124,9 @@ export default function ActivityPage() {
         newQuestion = {
           ...baseQuestion,
           type: 'multiple-choice',
-          options: question.options || [],
-          allowMultipleAnswers: question.allowMultipleAnswers || false,
-          answer: question.answer || [],
+          options: (question as MultipleChoiceQuestion).options,
+          allowMultipleAnswers: (question as MultipleChoiceQuestion).allowMultipleAnswers,
+          answer: (question as MultipleChoiceQuestion).answer,
         };
         break;
       case 'image-annotation':
@@ -137,11 +137,15 @@ export default function ActivityPage() {
         };
         break;
       case 'true-false':
-         newQuestion = {
+        const tfQuestionPayload: QuestionDataWithId = {
           ...baseQuestion,
           type: 'true-false',
-          answer: question.answer,
         };
+        // Only include the answer key if it exists to avoid sending 'undefined' to Firestore.
+        if (question.answer) {
+          tfQuestionPayload.answer = question.answer;
+        }
+        newQuestion = tfQuestionPayload;
         break;
       case 'short-answer':
         newQuestion = {
