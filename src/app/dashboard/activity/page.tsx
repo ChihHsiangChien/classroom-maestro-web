@@ -34,10 +34,11 @@ import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom } from "@/contexts/classroom-context";
 import { useCourseware } from "@/contexts/courseware-context";
 import { useToast } from "@/hooks/use-toast";
-import { PanelLeftClose, PanelLeftOpen, Eye, Loader2, UserCheck, Rocket, History, Save, CheckCheck } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Eye, Loader2, UserCheck, Rocket, History, Save } from "lucide-react";
 import { ManagementPanel } from "@/components/management-panel";
 import { cn } from "@/lib/utils";
 import { Timestamp } from "firebase/firestore";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // Add a unique ID to the QuestionData type
 type QuestionDataWithId = QuestionData & { id: string; showAnswer?: boolean; };
@@ -64,6 +65,7 @@ export default function ActivityPage() {
   const [activityHistory, setActivityHistory] = useState<QuestionDataWithId[]>([]);
   const [isSaveCoursewareDialogOpen, setIsSaveCoursewareDialogOpen] = useState(false);
   const [newCoursewareName, setNewCoursewareName] = useState('');
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
 
   const activeQuestion = activeClassroom?.activeQuestion || null;
   const race = activeClassroom?.race || null;
@@ -126,8 +128,10 @@ export default function ActivityPage() {
           type: 'multiple-choice',
           options: (question as MultipleChoiceQuestion).options,
           allowMultipleAnswers: (question as MultipleChoiceQuestion).allowMultipleAnswers,
-          answer: (question as MultipleChoiceQuestion).answer,
         };
+        if (question.answer) {
+          newQuestion.answer = question.answer;
+        }
         break;
       case 'image-annotation':
         newQuestion = {
@@ -360,15 +364,34 @@ export default function ActivityPage() {
                     <CardContent>
                         <div className="space-y-2">
                             {activityHistory.map((activity, index) => (
-                                <div key={`${activity.id}-${index}`} className="flex items-center justify-between rounded-md p-2 hover:bg-muted/50">
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                        <History className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-                                        <p className="truncate font-medium text-sm">{index + 1}. {activity.question}</p>
+                                <Collapsible 
+                                    key={`${activity.id}-${index}`}
+                                    open={expandedHistoryId === activity.id}
+                                    onOpenChange={(isOpen) => setExpandedHistoryId(isOpen ? activity.id : null)}
+                                >
+                                    <div className="flex items-center justify-between rounded-md p-2 hover:bg-muted/50">
+                                        <CollapsibleTrigger asChild>
+                                            <div className="flex flex-1 items-center gap-3 overflow-hidden cursor-pointer">
+                                                <History className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                                                <p className="truncate font-medium text-sm">{index + 1}. {activity.question}</p>
+                                            </div>
+                                        </CollapsibleTrigger>
+                                        <Button onClick={() => handleReuseQuestion(activity)} disabled={activityInProgress}>
+                                            {t('teacherDashboard.reuse_question_button')}
+                                        </Button>
                                     </div>
-                                    <Button size="sm" onClick={() => handleReuseQuestion(activity)} disabled={activityInProgress}>
-                                        {t('teacherDashboard.reuse_question_button')}
-                                    </Button>
-                                </div>
+                                    <CollapsibleContent>
+                                        {activity.type === 'multiple-choice' && 'options' in activity && (
+                                            <div className="pl-10 pr-4 pb-2">
+                                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                                                    {(activity as MultipleChoiceQuestion).options.map((opt, optIndex) => (
+                                                        <li key={optIndex}>{opt.value || <em>{t('common.empty_option')}</em>}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </CollapsibleContent>
+                                </Collapsible>
                             ))}
                         </div>
                     </CardContent>

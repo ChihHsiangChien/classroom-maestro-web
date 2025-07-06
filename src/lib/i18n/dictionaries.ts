@@ -19,6 +19,7 @@ export const dictionaries = {
       error: '錯誤',
       success: '成功',
       copy: '副本',
+      empty_option: '空選項',
     },
     firebase: {
       config_error_title: 'Firebase 設定錯誤',
@@ -456,6 +457,7 @@ export const dictionaries = {
       error: 'Error',
       success: 'Success',
       copy: 'Copy',
+      empty_option: 'Empty Option',
     },
     firebase: {
       config_error_title: 'Firebase Configuration Error',

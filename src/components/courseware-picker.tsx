@@ -6,10 +6,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
-import { useCourseware, type Courseware, type Activity } from '@/contexts/courseware-context';
-import type { QuestionData } from './create-poll-form';
+import { useCourseware, type Activity } from '@/contexts/courseware-context';
+import type { QuestionData, MultipleChoiceQuestion } from './create-poll-form';
 import { useI18n } from '@/lib/i18n/provider';
 import { BookCopy, CheckSquareIcon, Vote, FileText, ImageIcon, PencilRuler, Loader2 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 
 interface CoursewarePickerProps {
     onQuestionSelect: (question: QuestionData) => void;
@@ -21,6 +23,8 @@ export function CoursewarePicker({ onQuestionSelect }: CoursewarePickerProps) {
     const { t } = useI18n();
     const { coursewares, loading } = useCourseware();
     const [selectedCoursewareId, setSelectedCoursewareId] = useState<string | null>(null);
+    const [expandedActivityId, setExpandedActivityId] = useState<string | null>(null);
+
 
     useEffect(() => {
         const lastId = localStorage.getItem(LAST_COURSEWARE_ID_KEY);
@@ -33,6 +37,7 @@ export function CoursewarePicker({ onQuestionSelect }: CoursewarePickerProps) {
 
     const handleCoursewareChange = (coursewareId: string) => {
         setSelectedCoursewareId(coursewareId);
+        setExpandedActivityId(null); // Reset expanded view on courseware change
         localStorage.setItem(LAST_COURSEWARE_ID_KEY, coursewareId);
     };
 
@@ -81,13 +86,32 @@ export function CoursewarePicker({ onQuestionSelect }: CoursewarePickerProps) {
                         {selectedCourseware.activities.length > 0 ? selectedCourseware.activities.map(activity => {
                             const Icon = activityIcons[activity.type];
                             return (
-                                <div key={activity.id} className="flex items-center justify-between rounded-md p-2 hover:bg-muted/50">
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                        {Icon && <Icon className="h-5 w-5 flex-shrink-0 text-muted-foreground" />}
-                                        <p className="truncate font-medium text-sm">{activity.question}</p>
+                                <Collapsible
+                                    key={activity.id}
+                                    open={expandedActivityId === activity.id}
+                                    onOpenChange={(isOpen) => setExpandedActivityId(isOpen ? activity.id : null)}
+                                >
+                                    <div className="flex items-center justify-between rounded-md p-2 hover:bg-muted/50">
+                                        <CollapsibleTrigger asChild>
+                                            <div className="flex flex-1 items-center gap-3 overflow-hidden cursor-pointer">
+                                                {Icon && <Icon className="h-5 w-5 flex-shrink-0 text-muted-foreground" />}
+                                                <p className="truncate font-medium text-sm">{activity.question}</p>
+                                            </div>
+                                        </CollapsibleTrigger>
+                                        <Button size="sm" onClick={() => handleSelectQuestion(activity)}>{t('courseware.send_question')}</Button>
                                     </div>
-                                    <Button size="sm" onClick={() => handleSelectQuestion(activity)}>{t('courseware.send_question')}</Button>
-                                </div>
+                                    <CollapsibleContent>
+                                        {activity.type === 'multiple-choice' && 'options' in activity && (
+                                            <div className="pl-10 pr-4 pb-2">
+                                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                                                    {(activity as MultipleChoiceQuestion).options.map((opt, optIndex) => (
+                                                        <li key={optIndex}>{opt.value || <em>{t('common.empty_option')}</em>}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </CollapsibleContent>
+                                </Collapsible>
                             )
                         }) : (
                             <div className="text-center py-10 text-sm text-muted-foreground">
