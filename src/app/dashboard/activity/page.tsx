@@ -34,7 +34,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom } from "@/contexts/classroom-context";
 import { useCourseware } from "@/contexts/courseware-context";
 import { useToast } from "@/hooks/use-toast";
-import { PanelLeftClose, PanelLeftOpen, Eye, Loader2, UserCheck, Rocket, History, Redo, Save } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Eye, Loader2, UserCheck, Rocket, History, Redo, Save, CheckCheck } from "lucide-react";
 import { ManagementPanel } from "@/components/management-panel";
 import { cn } from "@/lib/utils";
 import { Timestamp } from "firebase/firestore";
@@ -45,7 +45,7 @@ type QuestionDataWithId = QuestionData & { id: string };
 export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace, pingStudents } = useClassroom();
+  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace, pingStudents, revealAnswer } = useClassroom();
   const { addCoursewareFromActivities } = useCourseware();
   const { toast } = useToast();
 
@@ -100,6 +100,12 @@ export default function ActivityPage() {
       await setActiveQuestionInDB(activeClassroom.id, null);
     }
   };
+
+  const handleRevealAnswer = async () => {
+    if (activeClassroom) {
+      await revealAnswer(activeClassroom.id);
+    }
+  };
   
   const handleQuestionCreate = async (question: QuestionData) => {
     if (!activeClassroom) return;
@@ -108,6 +114,7 @@ export default function ActivityPage() {
       id: `q_${Date.now()}`,
       type: question.type,
       question: question.question,
+      showAnswer: false, // Default to not showing answer
     };
 
     let newQuestion: QuestionDataWithId;
@@ -119,6 +126,7 @@ export default function ActivityPage() {
           type: 'multiple-choice',
           options: question.options || [],
           allowMultipleAnswers: question.allowMultipleAnswers || false,
+          answer: question.answer || [],
         };
         break;
       case 'image-annotation':
@@ -132,6 +140,7 @@ export default function ActivityPage() {
          newQuestion = {
           ...baseQuestion,
           type: 'true-false',
+          answer: question.answer,
         };
         break;
       case 'short-answer':
@@ -304,6 +313,7 @@ export default function ActivityPage() {
                       joinUrl={joinUrl}
                       activeQuestion={activeQuestion}
                       onEndQuestion={handleEndQuestion}
+                      onRevealAnswer={handleRevealAnswer}
                   />
               </aside>
             )}
@@ -331,6 +341,7 @@ export default function ActivityPage() {
                 <ActiveQuestion 
                   question={activeQuestion} 
                   onEndQuestion={handleEndQuestion}
+                  onRevealAnswer={handleRevealAnswer}
                   students={activeClassroom.students}
                   submissions={submissions}
                 />

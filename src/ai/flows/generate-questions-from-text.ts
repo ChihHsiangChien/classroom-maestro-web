@@ -23,11 +23,13 @@ const MultipleChoiceQuestionSchema = z.object({
   question: z.string().describe('The multiple-choice question.'),
   options: z.array(z.object({ value: z.string() })).min(4).max(4).describe('A list of exactly 4 plausible options.'),
   allowMultipleAnswers: z.boolean().default(false).describe('Whether multiple answers are allowed.'),
+  answer: z.array(z.string()).min(1).describe("An array containing the correct option value(s). The value(s) must exactly match one or more of the 'options' values."),
 });
 
 const TrueFalseQuestionSchema = z.object({
   type: z.enum(['true-false']),
   question: z.string().describe('The true/false question.'),
+  answer: z.enum(['O', 'X']).describe('The correct answer, either "O" for true or "X" for false.'),
 });
 
 const QuestionDataSchema = z.union([MultipleChoiceQuestionSchema, TrueFalseQuestionSchema]);
@@ -52,11 +54,11 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateQuestionsFromTextOutputSchema},
   prompt: `You are an expert educator creating classroom materials. Based on the following text context, please generate exactly {{{numMultipleChoice}}} multiple-choice questions and {{{numTrueFalse}}} true/false questions. If a number for a question type is 0, do not generate any questions of that type.
 
-For each multiple-choice question, you must provide exactly 4 plausible options. One option must be the correct answer, and the others should be plausible but incorrect distractors.
+For each multiple-choice question, you must provide exactly 4 plausible options. One or more options must be the correct answer, and the others should be plausible but incorrect distractors. You MUST provide the correct answer(s) in the 'answer' field. The values in the 'answer' array must exactly match the 'value' of the correct option(s).
 
-For each true/false question, create a clear statement that is definitively true or false based on the text.
+For each true/false question, create a clear statement that is definitively true or false based on the text. You MUST provide the correct answer ('O' for true, 'X' for false) in the 'answer' field.
 
-The entire output, including questions and all options, must be in Traditional Chinese (繁體中文).
+The entire output, including questions, all options, and answers, must be in Traditional Chinese (繁體中文).
 
 It is crucial that your output is a single, valid JSON object that strictly adheres to the requested schema. Do not add any extra text, explanations, or markdown formatting outside of the JSON structure.
 
@@ -97,7 +99,7 @@ const generateQuestionsFromTextFlow = ai.defineFlow(
       const jsonEnd = rawText.lastIndexOf('}');
       
       if (jsonStart === -1 || jsonEnd === -1) {
-        throw new Error(`Could not find a JSON object in the AI response.`);
+        throw new Error(`Could not find a JSON object in the AI response. Raw output:\n---\n${rawText}\n---`);
       }
       
       const jsonString = rawText.substring(jsonStart, jsonEnd + 1);
@@ -109,7 +111,7 @@ const generateQuestionsFromTextFlow = ai.defineFlow(
       const validationResult = GenerateQuestionsFromTextOutputSchema.safeParse(parsedJson);
       if (!validationResult.success) {
         // If validation fails, throw an error with details.
-        throw new Error(`AI output failed validation. Details: ${validationResult.error.message}`);
+        throw new Error(`AI output failed validation. Details: ${validationResult.error.message}. Raw output:\n---\n${rawText}\n---`);
       }
 
       return validationResult.data;

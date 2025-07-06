@@ -6,6 +6,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useClassroom, type Classroom } from '@/contexts/classroom-context';
 import type { QuestionData } from '@/components/create-poll-form';
 import { StudentQuestionForm } from '@/components/student-poll';
+import { StudentAnswerResult } from '@/components/student-answer-result';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Loader2, PartyPopper, LogOut, RefreshCw } from 'lucide-react';
@@ -30,6 +31,7 @@ function ClassroomPageContent() {
     const [classroom, setClassroom] = useState<Classroom | null>(null);
     const [isLocked, setIsLocked] = useState(false);
     const [submittedQuestionId, setSubmittedQuestionId] = useState<string | null>(null);
+    const [myLastAnswer, setMyLastAnswer] = useState<string | string[] | null>(null);
     const [loading, setLoading] = useState(true);
     const [kicked, setKicked] = useState(false);
     const [lastRespondedPingId, setLastRespondedPingId] = useState<string | null>(null);
@@ -100,6 +102,7 @@ function ClassroomPageContent() {
             const previousQuestionId = classroom?.activeQuestion?.id;
             if (currentQuestionId && currentQuestionId !== previousQuestionId) {
                 setSubmittedQuestionId(null);
+                setMyLastAnswer(null);
             }
             
             setClassroom(classroomData);
@@ -137,6 +140,7 @@ function ClassroomPageContent() {
 
         await addSubmission(classroomId, activeQuestion.id, activeQuestion.question, activeQuestion.type, studentId, studentName, answer);
         setSubmittedQuestionId(activeQuestion.id);
+        setMyLastAnswer(answer);
     };
 
     const handleClaimRace = async (): Promise<boolean> => {
@@ -192,6 +196,11 @@ function ClassroomPageContent() {
     if (activeRace) {
         // Use the race ID as a key to force re-render on new race
         return <StudentRace key={activeRace.id} race={activeRace} studentId={studentId} onClaim={handleClaimRace} />;
+    }
+
+    // New logic to show answer result
+    if (activeQuestion?.showAnswer) {
+        return <StudentAnswerResult question={activeQuestion} myAnswer={myLastAnswer} />;
     }
 
     if (activeQuestion && submittedQuestionId !== activeQuestion.id) {

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, ChevronDown, Wand2, Loader2, BrainCircuit, ArrowDownUp, ArrowDown, ArrowUp } from "lucide-react";
+import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, ChevronDown, Wand2, Loader2, BrainCircuit, ArrowDownUp, ArrowDown, ArrowUp, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -42,6 +42,7 @@ import { useUsage } from "@/contexts/usage-context";
 interface ActiveQuestionProps {
   question: QuestionData;
   onEndQuestion: () => void;
+  onRevealAnswer: () => void;
   students: Student[];
   submissions: Submission[];
 }
@@ -50,7 +51,7 @@ interface ResultsProps {
     submissions: Submission[];
 }
 
-function MultipleChoiceResults({ question, submissions, students }: { question: MultipleChoiceQuestion | (QuestionData & { type: 'true-false', options: { value: string }[], allowMultipleAnswers?: boolean }); submissions: Submission[], students: Student[] }) {
+function MultipleChoiceResults({ question, submissions, students }: { question: (MultipleChoiceQuestion | (QuestionData & { type: 'true-false' })) & { options: { value: string }[], allowMultipleAnswers?: boolean }, submissions: Submission[], students: Student[] }) {
   const { t } = useI18n();
   const [isResponsesOpen, setIsResponsesOpen] = useState(true);
   const isTrueFalse = question.type === 'true-false';
@@ -84,15 +85,18 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
       const letter = String.fromCharCode(65 + index);
       const optionIdentifier = option.value || letter;
       const votes = voteCounts.get(optionIdentifier) || 0;
-      const displayValue = isTrueFalse ? option.value : (option.value ? `${letter}. ${option.value}` : letter);
+      const displayValue = isTrueFalse ? (option.value === 'O' ? 'O' : 'X') : (option.value ? `${letter}. ${option.value}` : letter);
+      const isCorrect = !!(question.showAnswer && question.answer?.includes(optionIdentifier));
 
       return {
         option: displayValue,
+        optionIdentifier,
         votes,
-        percentage: totalVotes > 0 ? (votes / (question.allowMultipleAnswers ? submissions.length : totalVotes)) * 100 : 0
+        percentage: totalVotes > 0 ? (votes / (question.allowMultipleAnswers ? submissions.length : totalVotes)) * 100 : 0,
+        isCorrect,
       };
     });
-  }, [submissions, question.options, question.allowMultipleAnswers, isTrueFalse]);
+  }, [submissions, question, isTrueFalse]);
 
   const studentAnswers = useMemo(() => {
     const answerMap = new Map<string, string | string[]>();
@@ -167,12 +171,15 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
           {results.map((result, index) => (
             <div key={`${result.option}-${index}`}>
               <div className="mb-1 flex items-center justify-between">
-                <p className="font-medium">{result.option}</p>
+                <p className={cn("font-medium flex items-center gap-2", result.isCorrect && "text-green-600")}>
+                  {result.isCorrect && <Check className="h-5 w-5" />}
+                  {result.option}
+                </p>
                 <p className="text-sm text-muted-foreground">
                   {t('activePoll.votes_count', { count: result.votes })} ({result.percentage.toFixed(0)}%)
                 </p>
               </div>
-              <Progress value={result.percentage} className="h-3" />
+              <Progress value={result.percentage} className={cn("h-3", result.isCorrect && "[&>div]:bg-green-500")} />
             </div>
           ))}
         </div>
@@ -222,19 +229,18 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
                   <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
                     <TableRow>
                       <TableHead className="w-[150px]">{t('activePoll.student_table_header')}</TableHead>
-                      {question.options.map((option, index) => {
-                         const letter = String.fromCharCode(65 + index);
-                         const optionIdentifier = option.value || letter;
-                         const headerText = isTrueFalse ? option.value : letter;
-                         const isSortActive = sortBy === 'option' && optionSortKey === optionIdentifier;
+                      {results.map((result, index) => {
+                         const headerText = isTrueFalse ? result.option : String.fromCharCode(65 + index);
+                         const isSortActive = sortBy === 'option' && optionSortKey === result.optionIdentifier;
                          return (
-                            <TableHead key={`${letter}-${index}`} className="text-center p-1">
+                            <TableHead key={`${result.optionIdentifier}-${index}`} className="text-center p-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleOptionSort(optionIdentifier)}
-                                className="w-full justify-center"
+                                onClick={() => handleOptionSort(result.optionIdentifier)}
+                                className={cn("w-full justify-center", result.isCorrect && "font-bold text-green-600")}
                               >
+                                {result.isCorrect && <Check className="h-4 w-4 mr-1" />}
                                 {headerText}
                                 {isSortActive && (
                                   sortOrder === 'asc' ? <ArrowUp className="ml-2 h-3 w-3" /> : <ArrowDown className="ml-2 h-3 w-3" />
@@ -251,12 +257,10 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
                       return (
                         <TableRow key={student.id} data-answered={!!answer} className="data-[answered=true]:bg-green-500/10">
                           <TableCell className="font-medium">{student.name}</TableCell>
-                          {question.options.map((option, index) => {
-                             const letter = String.fromCharCode(65 + index);
-                             const optionIdentifier = option.value || letter;
+                          {results.map((result, index) => {
                             return (
-                                <TableCell key={`${letter}-${index}`} className="text-center">
-                                {answer && (Array.isArray(answer) ? answer.includes(optionIdentifier) : answer === optionIdentifier) && (
+                                <TableCell key={`${result.optionIdentifier}-${index}`} className="text-center">
+                                {answer && (Array.isArray(answer) ? answer.includes(result.optionIdentifier) : answer === result.optionIdentifier) && (
                                     <div className="flex justify-center">
                                     <CheckCircle className="h-5 w-5 text-green-600" />
                                     </div>
@@ -590,7 +594,7 @@ function ImageAnnotationResults({ question, submissions }: { question: ImageAnno
     );
 }
 
-export function ActiveQuestion({ question, onEndQuestion, students, submissions }: ActiveQuestionProps) {
+export function ActiveQuestion({ question, onEndQuestion, onRevealAnswer, students, submissions }: ActiveQuestionProps) {
     const { t } = useI18n();
 
     const renderResults = () => {
@@ -611,20 +615,31 @@ export function ActiveQuestion({ question, onEndQuestion, students, submissions 
                 return null;
         }
     };
+    
+    const hasAnswer = 'answer' in question && !!question.answer;
+    const isAnswerRevealed = question.showAnswer;
 
     return (
         <Card className="shadow-lg">
             <CardHeader>
-                <div className="flex items-start justify-between">
-                    <div>
+                <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
                         <CardTitle className="text-2xl">{question.question}</CardTitle>
                         <CardDescription>
                             {t('teacherDashboard.live_poll_description')}
                         </CardDescription>
                     </div>
-                    <Button variant="destructive" onClick={onEndQuestion}>
-                        {t('teacherDashboard.end_question_button')}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        {hasAnswer && !isAnswerRevealed && (
+                           <Button variant="secondary" onClick={onRevealAnswer}>
+                                <CheckCheck className="mr-2 h-4 w-4" />
+                                {t('teacherDashboard.reveal_answer_button')}
+                            </Button>
+                        )}
+                        <Button variant="destructive" onClick={onEndQuestion}>
+                            {t('teacherDashboard.end_question_button')}
+                        </Button>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent className="space-y-6">

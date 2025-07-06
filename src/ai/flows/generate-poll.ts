@@ -19,7 +19,14 @@ const GeneratePollOutputSchema = z.object({
   question: z.string().describe('The generated poll question.'),
   options: z
     .array(z.object({value: z.string()}))
-    .describe('A list of 2 to 4 options for the poll.'),
+    .min(4)
+    .max(4)
+    .describe('A list of exactly 4 plausible options for the poll.'),
+  answer: z
+    .array(z.string())
+    .min(1)
+    .max(1)
+    .describe('An array containing the single correct option value.'),
 });
 export type GeneratePollOutput = z.infer<typeof GeneratePollOutputSchema>;
 
@@ -35,13 +42,14 @@ const prompt = ai.definePrompt({
   input: {schema: GeneratePollInputSchema},
   output: {schema: GeneratePollOutputSchema},
   prompt: `You are an expert educator who creates engaging poll questions for students.
-      Generate a multiple-choice poll question about the following topic: {{{topic}}}.
+      Generate a single-choice poll question about the following topic: {{{topic}}}.
       The question should be interesting and suitable for a classroom setting.
-      Provide between 4 plausible options. One option should be clearly correct, but the others should be thought-provoking distractors.
+      You must provide exactly 4 plausible options. One option must be clearly correct, and the others should be thought-provoking distractors.
+      You must also specify the correct answer in the 'answer' field. The answer must be one of the provided option values.
       
-      The entire output, including the question and all options, must be in Traditional Chinese (繁體中文).
+      The entire output, including the question, all options, and the answer, must be in Traditional Chinese (繁體中文).
       
-      Return the question and options in the specified format.
+      Return the question, options, and answer in the specified JSON format.
       `,
 });
 

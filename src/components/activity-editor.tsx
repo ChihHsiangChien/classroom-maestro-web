@@ -28,7 +28,9 @@ import type { DrawingEditorRef } from "./drawing-editor";
 import { useI18n } from "@/lib/i18n/provider";
 import type { QuestionData } from "./create-poll-form";
 import { generatePollAction, generateImageAction } from "@/app/actions";
-import { useUsage } from "@/contexts/usage-context";
+import { useUsage } from "@/hooks/use-usage";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { Checkbox } from "./ui/checkbox";
 
 const DrawingEditor = dynamic(
   () => import('./drawing-editor').then((mod) => mod.DrawingEditor),
@@ -70,24 +72,57 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         options: z.array(z.object({ value: z.string().optional() })).optional(),
         allowMultipleAnswers: z.boolean().optional(),
         imageUrl: z.string().optional(),
+        answer: z.any().optional(),
+    }).superRefine((data, ctx) => {
+        if (data.type === 'multiple-choice') {
+            if (!data.question?.trim()) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('createQuestionForm.question_empty_error'), path: ['question'] });
+            }
+            if (!data.options || data.options.length < 2) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('createQuestionForm.options_min_error'), path: ['options'] });
+            }
+            data.options?.forEach((opt, i) => {
+                if (!opt.value?.trim()) {
+                    ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('createQuestionForm.option_empty_error'), path: [`options.${i}.value`] });
+                }
+            });
+            if (!data.answer || (Array.isArray(data.answer) && data.answer.length === 0)) {
+                 ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('createQuestionForm.answer_empty_error'), path: ['answer'] });
+            }
+        }
+        if (data.type === 'true-false') {
+            if (!data.question?.trim()) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('createQuestionForm.question_empty_error'), path: ['question'] });
+            }
+            if (!data.answer) {
+                 ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('createQuestionForm.answer_empty_error'), path: ['answer'] });
+            }
+        }
     });
 
     type ActivityFormData = z.infer<typeof activityFormSchema>;
 
     const form = useForm<ActivityFormData>({
         resolver: zodResolver(activityFormSchema),
-        defaultValues: {
-            type: initialData?.type || 'true-false',
-            question: initialData?.question || "",
-            options: (initialData?.type === 'multiple-choice' && initialData.options) || [{ value: "" }, { value: "" }, { value: "" }, { value: "" }],
-            allowMultipleAnswers: (initialData?.type === 'multiple-choice' && initialData.allowMultipleAnswers) || false,
-            imageUrl: (initialData?.type === 'image-annotation' && initialData.imageUrl) || undefined,
+        defaultValues: initialData ? {
+            type: initialData.type,
+            question: initialData.question,
+            options: initialData.type === 'multiple-choice' ? initialData.options : [{ value: "" }, { value: "" }],
+            allowMultipleAnswers: initialData.type === 'multiple-choice' ? initialData.allowMultipleAnswers : false,
+            imageUrl: initialData.type === 'image-annotation' ? initialData.imageUrl : '',
+            answer: 'answer' in initialData ? initialData.answer : undefined,
+        } : {
+            type: 'true-false',
+            question: "",
+            options: [{ value: "" }, { value: "" }, { value: "" }, { value: "" }],
+            allowMultipleAnswers: false,
         },
     });
 
     const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "options" });
     const watchedType = useWatch({ control: form.control, name: "type" });
     const watchedImageUrl = useWatch({ control: form.control, name: "imageUrl" });
+    const allowMultipleAnswers = useWatch({ control: form.control, name: "allowMultipleAnswers" });
 
     // AI poll generation handler
     async function handleGeneratePoll() {
@@ -98,6 +133,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                 if (result.poll.options) {
                     replace(result.poll.options);
                 }
+                form.setValue("answer", result.poll.answer, { shouldValidate: true });
                 form.clearErrors();
                 logAiUsage('generatePoll');
             } else {
@@ -126,6 +162,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
     // Sync tabs with form state
     const onTabChange = (value: string) => {
         form.setValue("type", value as ActivityFormData['type'], { shouldValidate: true });
+        form.clearErrors();
     };
 
     React.useEffect(() => {
@@ -136,6 +173,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                 options: (initialData.type === 'multiple-choice' ? initialData.options : [{ value: "" }, { value: "" }]),
                 allowMultipleAnswers: !!(initialData.type === 'multiple-choice' && initialData.allowMultipleAnswers),
                 imageUrl: (initialData.type === 'image-annotation' ? initialData.imageUrl : undefined),
+                answer: 'answer' in initialData ? initialData.answer : undefined
             });
         }
     }, [initialData, form]);
@@ -146,17 +184,22 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
 
         switch (data.type) {
             case 'true-false':
-            case 'short-answer':
-            case 'drawing':
-                finalData = { type: data.type, question: question };
+                finalData = { type: 'true-false', question: question, answer: data.answer };
                 break;
             case 'multiple-choice':
                 finalData = { 
                     type: 'multiple-choice', 
                     question: question, 
-                    options: data.options || [],
+                    options: data.options?.map(o => ({ value: o.value || '' })) || [],
                     allowMultipleAnswers: data.allowMultipleAnswers || false,
+                    answer: data.answer || [],
                 };
+                break;
+            case 'drawing':
+                finalData = { type: 'drawing', question: question };
+                break;
+             case 'short-answer':
+                finalData = { type: 'short-answer', question: question };
                 break;
             case 'image-annotation':
                 const imageUrl = editorRef.current?.getCanvasDataUrl() || data.imageUrl;
@@ -200,6 +243,24 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                                     <FormMessage />
                                 </FormItem>
                             )} />
+                            <FormField control={form.control} name="answer" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('createQuestionForm.correct_answer_label')}</FormLabel>
+                                    <FormControl>
+                                        <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                                <FormControl><RadioGroupItem value="O" /></FormControl>
+                                                <FormLabel className="font-normal text-2xl">O</FormLabel>
+                                            </FormItem>
+                                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                                <FormControl><RadioGroupItem value="X" /></FormControl>
+                                                <FormLabel className="font-normal text-2xl">X</FormLabel>
+                                            </FormItem>
+                                        </RadioGroup>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
                         </TabsContent>
 
                         <TabsContent value="multiple-choice" forceMount={true} className={watchedType !== 'multiple-choice' ? 'hidden' : 'space-y-6'}>
@@ -228,35 +289,89 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                                     <FormMessage />
                                 </FormItem>
                             )} />
-                            <div className="space-y-4">
-                                <FormField control={form.control} name="options" render={() => (
-                                    <FormItem>
-                                        <FormLabel>{t('createQuestionForm.answer_options_label')}</FormLabel>
-                                         {fields.map((field, index) => (
-                                            <FormField key={field.id} control={form.control} name={`options.${index}.value`} render={({ field: optionField }) => (
-                                                <FormItem>
-                                                    <div className="flex items-center gap-2">
-                                                        <FormControl>
-                                                            <Input placeholder={t('createQuestionForm.option_placeholder', { letter: String.fromCharCode(65 + index) })} {...optionField} />
-                                                        </FormControl>
-                                                        {fields.length > 2 && (<Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => remove(index)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>)}
-                                                    </div>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )} />
-                                        ))}
-                                        <FormMessage />
+                           
+                            <FormField
+                                control={form.control}
+                                name="answer"
+                                render={({ field }) => (
+                                    <FormItem className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <FormLabel>{t('createQuestionForm.answer_options_label')}</FormLabel>
+                                            <FormMessage>{form.formState.errors.answer?.message}</FormMessage>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            {fields.map((optionField, index) => (
+                                                <div key={optionField.id} className="flex items-center gap-3">
+                                                    <FormControl>
+                                                        {allowMultipleAnswers ? (
+                                                            <Checkbox
+                                                                checked={field.value?.includes(form.getValues(`options.${index}.value`))}
+                                                                onCheckedChange={(checked) => {
+                                                                    const optionValue = form.getValues(`options.${index}.value`);
+                                                                    if (!optionValue) return;
+                                                                    const currentAnswers = field.value || [];
+                                                                    const newAnswers = checked
+                                                                        ? [...currentAnswers, optionValue]
+                                                                        : currentAnswers.filter((value: string) => value !== optionValue);
+                                                                    field.onChange(newAnswers);
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <RadioGroup
+                                                                onValueChange={(val) => field.onChange([val])}
+                                                                value={field.value?.[0]}
+                                                            >
+                                                                <RadioGroupItem value={form.getValues(`options.${index}.value`)} />
+                                                            </RadioGroup>
+                                                        )}
+                                                    </FormControl>
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`options.${index}.value`}
+                                                        render={({ field: optionInput }) => (
+                                                            <FormItem className="flex-1">
+                                                                <FormControl>
+                                                                    <Input placeholder={t('createQuestionForm.option_placeholder', { letter: String.fromCharCode(65 + index) })} {...optionInput} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    {fields.length > 2 && (
+                                                        <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => remove(index)}>
+                                                            <XCircle className="h-5 w-5 text-muted-foreground" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {fields.length < 10 && (
+                                            <Button type="button" variant="outline" size="sm" onClick={() => append({ value: "" })}>
+                                                <PlusCircle className="mr-2 h-4 w-4" />
+                                                {t('createQuestionForm.add_option_button')}
+                                            </Button>
+                                        )}
                                     </FormItem>
-                                )} />
-                                {fields.length < 10 && (<Button type="button" variant="outline" size="sm" onClick={() => append({ value: "" })}><PlusCircle className="mr-2 h-4 w-4" />{t('createQuestionForm.add_option_button')}</Button>)}
-                            </div>
+                                )}
+                            />
+
                             <FormField control={form.control} name="allowMultipleAnswers" render={({ field }) => (
                                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                                     <div className="space-y-0.5">
                                         <FormLabel className="text-base">{t('createQuestionForm.allow_multiple_selections_label')}</FormLabel>
                                         <FormDescription>{t('createQuestionForm.allow_multiple_selections_description')}</FormDescription>
                                     </div>
-                                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    <FormControl>
+                                      <Switch
+                                          checked={field.value}
+                                          onCheckedChange={(checked) => {
+                                              field.onChange(checked);
+                                              form.setValue('answer', []); // Reset answer when toggling
+                                          }}
+                                      />
+                                    </FormControl>
                                 </FormItem>
                             )} />
                         </TabsContent>
@@ -334,5 +449,3 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         </Form>
     );
 }
-
-    

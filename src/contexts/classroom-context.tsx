@@ -24,6 +24,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/provider';
 import { claimRaceAction } from '@/app/actions';
+import type { QuestionData } from '@/components/create-poll-form';
 
 export interface PresenceData {
   isOnline?: boolean;
@@ -61,7 +62,7 @@ export interface Classroom {
   students: Student[];
   ownerId: string;
   order: number;
-  activeQuestion?: any | null;
+  activeQuestion?: QuestionData | null;
   isLocked?: boolean;
   race?: RaceData | null;
   pingRequest?: { id: string; timestamp: Timestamp };
@@ -82,6 +83,7 @@ interface ClassroomContextType {
   reorderStudents: (classroomId: string, students: Student[]) => Promise<void>;
   reorderClassrooms: (reorderedClassrooms: Classroom[]) => Promise<void>;
   setActiveQuestionInDB: (classroomId: string, question: any | null) => Promise<void>;
+  revealAnswer: (classroomId: string) => Promise<void>;
   addSubmission: (classroomId: string, questionId: string, questionText: string, questionType: string, studentId: string, studentName: string, answer: string | string[]) => Promise<void>;
   listenForSubmissions: (classroomId: string, questionId: string, callback: (submissions: Submission[]) => void) => () => void;
   listenForClassroom: (classroomId: string, callback: (classroom: Classroom | null) => void) => () => void;
@@ -333,6 +335,26 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
       handleFirestoreErrorRef.current?.(error, 'set-active-question');
     }
   }, [updateUserLastActivity]);
+
+  const revealAnswer = useCallback(async (classroomId: string) => {
+    if (!db) return;
+    const classroomDocRef = doc(db, 'classrooms', classroomId);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const classroomDoc = await transaction.get(classroomDocRef);
+        if (!classroomDoc.exists()) {
+          throw "Document does not exist!";
+        }
+        const currentQuestion = classroomDoc.data().activeQuestion;
+        if (currentQuestion) {
+          const newQuestion = { ...currentQuestion, showAnswer: true };
+          transaction.update(classroomDocRef, { activeQuestion: newQuestion });
+        }
+      });
+    } catch (error) {
+      handleFirestoreErrorRef.current?.(error, 'reveal-answer');
+    }
+  }, []);
   
   const addSubmission = useCallback(async (
     classroomId: string, 
@@ -590,6 +612,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     reorderStudents,
     reorderClassrooms,
     setActiveQuestionInDB,
+    revealAnswer,
     addSubmission,
     listenForSubmissions,
     listenForClassroom,
@@ -617,8 +640,9 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     deleteStudent,
     importStudents,
     reorderStudents,
-    reorderClassrooms,
+reorderClassrooms,
     setActiveQuestionInDB,
+    revealAnswer,
     addSubmission,
     listenForSubmissions,
     listenForClassroom,
@@ -650,5 +674,3 @@ export function useClassroom() {
   }
   return context;
 }
-
-    
