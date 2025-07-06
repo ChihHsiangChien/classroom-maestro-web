@@ -15,13 +15,22 @@ interface StudentAnswerResultProps {
 export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultProps) {
     const { t } = useI18n();
 
+    // Helper function to normalize strings for a more robust comparison
+    const normalizeString = (str: string | undefined | null): string => {
+        if (typeof str !== 'string') return '';
+        return str
+            .replace(/，/g, ',') // Replace full-width comma with half-width
+            .replace(/\s\s+/g, ' ') // Collapse multiple whitespace chars into a single space
+            .trim();
+    };
+
     const getIsCorrect = (): boolean => {
         if (myAnswer === null || myAnswer === undefined) {
             return false;
         }
 
         if (question.type === 'true-false') {
-            return question.answer === myAnswer;
+            return normalizeString(question.answer) === normalizeString(myAnswer as string);
         }
 
         if (question.type === 'multiple-choice') {
@@ -34,10 +43,11 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
                 return false;
             }
 
-            // Trim all strings before sorting and comparing to handle potential whitespace issues.
-            const sortedCorrect = correctAnswers.map(s => typeof s === 'string' ? s.trim() : s).sort();
-            const sortedStudent = studentAnswers.map(s => typeof s === 'string' ? s.trim() : s).sort();
-
+            // Normalize and sort both arrays before comparing
+            const sortedCorrect = correctAnswers.map(s => normalizeString(s)).sort();
+            const sortedStudent = studentAnswers.map(s => normalizeString(s)).sort();
+            
+            // Check if every element at every position is identical
             return sortedCorrect.every((value, index) => value === sortedStudent[index]);
         }
 
@@ -48,7 +58,7 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
     const isMcq = question.type === 'multiple-choice';
     const isTf = question.type === 'true-false';
 
-    const renderAnswer = (answer: string | string[] | undefined, isCorrectAnswer: boolean) => {
+    const renderAnswer = (answer: string | string[] | undefined) => {
         if (!answer) return <span className="text-muted-foreground">{t('studentAnswerResult.no_answer')}</span>;
         
         const answerArray = Array.isArray(answer) ? answer : [answer];
@@ -84,12 +94,12 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
                 <CardContent className="space-y-4">
                     <div className="p-4 bg-muted/50 rounded-lg">
                         <p className="text-sm font-medium text-muted-foreground">{t('studentAnswerResult.your_answer')}</p>
-                        <p className="text-lg font-semibold">{renderAnswer(myAnswer || undefined, false)}</p>
+                        <p className="text-lg font-semibold">{renderAnswer(myAnswer || undefined)}</p>
                     </div>
                     {!isCorrect && 'answer' in question && question.answer && (
                          <div className="p-4 bg-green-500/10 rounded-lg">
                             <p className="text-sm font-medium text-green-700">{t('studentAnswerResult.correct_answer')}</p>
-                            <p className="text-lg font-semibold text-green-800">{renderAnswer(question.answer, true)}</p>
+                            <p className="text-lg font-semibold text-green-800">{renderAnswer(question.answer)}</p>
                         </div>
                     )}
                 </CardContent>
