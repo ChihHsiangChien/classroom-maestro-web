@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { generatePollAction } from "@/app/actions";
+import { generatePollAction, generateImageAction } from "@/app/actions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import type { DrawingEditorRef } from "./drawing-editor";
@@ -30,6 +30,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Checkbox } from "./ui/checkbox";
 import { cn } from "@/lib/utils";
+import { useUsage } from "@/contexts/usage-context";
 
 const DrawingEditor = dynamic(
   () => import('./drawing-editor').then((mod) => mod.DrawingEditor),
@@ -321,16 +322,39 @@ function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
     const editorRef = useRef<DrawingEditorRef>(null);
     const [question, setQuestion] = useState("");
     const { toast } = useToast();
+    const { logAiUsage } = useUsage();
+
+    // AI State
+    const [isGeneratingImage, startImageTransition] = useTransition();
+    const [imagePrompt, setImagePrompt] = useState("");
+    const [imageUrl, setImageUrl] = useState<string | undefined>();
+
+    const handleGenerateImage = async () => {
+        startImageTransition(async () => {
+            const result = await generateImageAction({ prompt: imagePrompt });
+            if (result.imageUrl) {
+                setImageUrl(result.imageUrl);
+                toast({
+                    title: t('activityEditor.toast_image_generated_title'),
+                    description: t('activityEditor.toast_image_generated_description'),
+                });
+                logAiUsage('generateImage');
+            } else {
+                toast({ variant: "destructive", title: t('common.error'), description: result.error });
+            }
+        });
+    };
 
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        const imageUrl = editorRef.current?.getCanvasDataUrl();
-        if (imageUrl) {
+        // If an AI image was generated, use that as the base. Otherwise, use what's on the canvas.
+        const finalImageUrl = imageUrl || editorRef.current?.getCanvasDataUrl();
+        if (finalImageUrl) {
             const finalQuestion = question.trim() || t('createQuestionForm.untitled_question');
             onQuestionCreate({
                 type: 'image-annotation',
                 question: finalQuestion,
-                imageUrl,
+                imageUrl: finalImageUrl,
             });
         } else {
             toast({ variant: "destructive", title: t('common.error'), description: t('createQuestionForm.toast_get_image_error') });
@@ -339,6 +363,35 @@ function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+                <Label htmlFor="image-prompt">{t('activityEditor.generate_image_label')}</Label>
+                <div className="flex items-center gap-2">
+                    <Input
+                        id="image-prompt"
+                        placeholder={t('activityEditor.generate_image_placeholder')}
+                        value={imagePrompt}
+                        onChange={(e) => setImagePrompt(e.target.value)}
+                        disabled={isGeneratingImage}
+                    />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={handleGenerateImage}
+                        disabled={isGeneratingImage || !imagePrompt}
+                        className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0"
+                    >
+                        {isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                        <span className="sr-only">{t('activityEditor.generate_image_button')}</span>
+                    </Button>
+                </div>
+            </div>
+
+            <div className="relative">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">{t('common.or_create_manually')}</span></div>
+            </div>
+
             <div className="space-y-2">
                 <Label htmlFor="annotation-prompt">{t('createQuestionForm.annotation_prompt_label')}</Label>
                 <Textarea 
@@ -354,7 +407,7 @@ function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
                 <p className="text-sm text-muted-foreground">
                     {t('createQuestionForm.canvas_description')}
                 </p>
-                <DrawingEditor ref={editorRef} />
+                <DrawingEditor ref={editorRef} backgroundImageUrl={imageUrl} />
             </div>
             <Button type="submit" className="w-full md:w-auto">{t('createQuestionForm.start_question_button')}</Button>
         </form>

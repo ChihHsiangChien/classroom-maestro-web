@@ -123,7 +123,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         startImageTransition(async () => {
             const result = await generateImageAction({ prompt: imagePrompt });
             if (result.imageUrl) {
-                editorRef.current?.addImageFromUrl(result.imageUrl);
+                form.setValue('imageUrl', result.imageUrl, { shouldValidate: true });
                 toast({
                     title: t('activityEditor.toast_image_generated_title'),
                     description: t('activityEditor.toast_image_generated_description'),
@@ -183,7 +183,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                 finalData = { type: 'short-answer', question: question };
                 break;
             case 'image-annotation':
-                const imageUrl = editorRef.current?.getCanvasDataUrl() || data.imageUrl;
+                const imageUrl = data.imageUrl || editorRef.current?.getCanvasDataUrl();
                 if (!imageUrl) {
                     toast({ variant: "destructive", title: t('common.error'), description: t('createQuestionForm.toast_get_image_error') });
                     return;
@@ -391,7 +391,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                                     <FormMessage />
                                 </FormItem>
                             )} />
-                             <div className="space-y-2 pt-4 border-t">
+                            <div className="space-y-2">
                                 <Label htmlFor="image-prompt-2">{t('activityEditor.generate_image_label')}</Label>
                                 <div className="flex items-center gap-2">
                                      <Input
@@ -413,6 +413,10 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                                         <span className="sr-only">{t('activityEditor.generate_image_button')}</span>
                                     </Button>
                                 </div>
+                            </div>
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                                <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">{t('common.or_create_manually')}</span></div>
                             </div>
                             <div>
                                 <p className="text-sm text-muted-foreground">{t('createQuestionForm.canvas_description')}</p>
