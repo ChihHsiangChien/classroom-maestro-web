@@ -168,8 +168,6 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
       const canvas = fabricCanvasRef.current;
       if (!canvas) return;
 
-      // Reset cursor and drawing mode defaults
-      canvas.freeDrawingCursor = 'default';
       canvas.isDrawingMode = tool === 'pen' || tool === 'eraser';
 
       if (tool === 'select') {
@@ -179,49 +177,13 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
         canvas.freeDrawingBrush.color = brushColor;
         canvas.freeDrawingBrush.width = brushWidth;
       } else if (tool === 'eraser') {
-        // Create the custom cursor SVG string with a dashed box
-        const eraserCursorSvg = `<svg width="${brushWidth}" height="${brushWidth}" viewBox="0 0 ${brushWidth} ${brushWidth}" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="${brushWidth - 2}" height="${brushWidth - 2}" fill="none" stroke="black" stroke-width="1" stroke-dasharray="3 3"/></svg>`;
-        
-        // Base64 encode the SVG and format it as a data URI for the cursor
-        // The numbers set the cursor's hotspot to its center.
-        const eraserCursor = `url(data:image/svg+xml;base64,${btoa(eraserCursorSvg)}) ${brushWidth / 2} ${brushWidth / 2}, auto`;
-        
-        canvas.freeDrawingCursor = eraserCursor;
-        
-        // The eraser is implemented using a PencilBrush, and the erasing logic is
-        // handled in the 'path:created' event listener.
-        canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+        // In Fabric.js 5.x, there is a dedicated EraserBrush.
+        // It handles erasing without flickering or needing a path:created hook.
+        canvas.freeDrawingBrush = new fabric.EraserBrush(canvas);
         canvas.freeDrawingBrush.width = brushWidth;
       }
     }, [tool, brushColor, brushWidth]);
 
-
-    // Effect to handle eraser functionality by modifying created paths
-    useEffect(() => {
-      const canvas = fabricCanvasRef.current;
-      if (!canvas) return;
-  
-      const handlePathCreated = (e: fabric.IEvent) => {
-        // The event object in fabric.js for path:created has a `path` property
-        const createdPath = (e as any).path as fabric.Path;
-        if (createdPath && tool === 'eraser') {
-          // Setting this composite operation makes the path "erase" whatever is below it.
-          createdPath.globalCompositeOperation = 'destination-out';
-          createdPath.set({
-            dirty: true,
-          });
-        }
-      };
-  
-      canvas.on('path:created', handlePathCreated);
-  
-      // Cleanup function to remove the event listener
-      return () => {
-        if (canvas) {
-          canvas.off('path:created', handlePathCreated);
-        }
-      };
-    }, [tool]); // Re-register if the tool changes, to be safe
 
     const getCameraPermission = useCallback(async (deviceId: string) => {
       try {
