@@ -10,7 +10,19 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { CreateQuestionForm } from "@/components/create-poll-form";
 import { ActiveQuestion } from "@/components/active-poll";
 import type { QuestionData } from "@/components/create-poll-form";
@@ -20,8 +32,9 @@ import { RaceModal } from "@/components/race-modal";
 import { CoursewarePicker } from "@/components/courseware-picker";
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom } from "@/contexts/classroom-context";
+import { useCourseware } from "@/contexts/courseware-context";
 import { useToast } from "@/hooks/use-toast";
-import { PanelLeftClose, PanelLeftOpen, Eye, Loader2, UserCheck, Rocket } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Eye, Loader2, UserCheck, Rocket, History, Redo, Save } from "lucide-react";
 import { ManagementPanel } from "@/components/management-panel";
 import { cn } from "@/lib/utils";
 import { Timestamp } from "firebase/firestore";
@@ -33,6 +46,7 @@ export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
   const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace, pingStudents } = useClassroom();
+  const { addCoursewareFromActivities } = useCourseware();
   const { toast } = useToast();
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -46,9 +60,14 @@ export default function ActivityPage() {
   const [lotteryPoolSource, setLotteryPoolSource] = useState<'all' | 'online'>('all');
   const [isUniquePick, setIsUniquePick] = useState(true);
 
+  // --- Session History State ---
+  const [activityHistory, setActivityHistory] = useState<QuestionDataWithId[]>([]);
+  const [isSaveCoursewareDialogOpen, setIsSaveCoursewareDialogOpen] = useState(false);
+  const [newCoursewareName, setNewCoursewareName] = useState('');
 
   const activeQuestion = activeClassroom?.activeQuestion || null;
   const race = activeClassroom?.race || null;
+  const activityInProgress = !!activeQuestion || !!race;
 
   useEffect(() => {
     if (!classroomLoading && !activeClassroom) {
@@ -128,13 +147,19 @@ export default function ActivityPage() {
         };
         break;
       default:
-        // This should not be reached if all question types are handled
         console.error("Unknown question type:", question);
         return;
     }
     
     await setActiveQuestionInDB(activeClassroom.id, newQuestion);
     setSubmissions([]);
+    // Add to history only if it's not already the most recent item
+    setActivityHistory(prev => {
+        if (prev[prev.length -1]?.id !== newQuestion.id) {
+            return [...prev, newQuestion];
+        }
+        return prev;
+    });
   };
 
   const handlePickStudent = () => {
@@ -201,6 +226,34 @@ export default function ActivityPage() {
       window.open(joinUrl, '_blank');
     }
   };
+  
+  const handleReuseQuestion = (question: QuestionData) => {
+    if (activityInProgress) {
+        toast({
+            variant: "destructive",
+            title: t('teacherDashboard.activity_in_progress_title'),
+            description: t('teacherDashboard.activity_in_progress_description'),
+        });
+        return;
+    }
+    handleQuestionCreate(question);
+  };
+
+  const handleSaveAsCourseware = async () => {
+    if (!newCoursewareName.trim()) {
+        toast({ variant: "destructive", title: t('common.error'), description: t('courseware.package_name_empty_error') });
+        return;
+    }
+    try {
+        const activitiesToSave = activityHistory.map(({ id, ...rest }) => rest);
+        await addCoursewareFromActivities(newCoursewareName.trim(), activitiesToSave);
+        toast({ title: t('courseware.toast_package_created') });
+        setIsSaveCoursewareDialogOpen(false);
+        setNewCoursewareName('');
+    } catch (error) {
+        // The context handles the specific error toast
+    }
+  };
 
   if (classroomLoading || !activeClassroom) {
       return (
@@ -212,8 +265,6 @@ export default function ActivityPage() {
         </div>
       );
   }
-  
-  const activityInProgress = !!activeQuestion || !!race;
 
   return (
     <>
@@ -284,6 +335,60 @@ export default function ActivityPage() {
                   submissions={submissions}
                 />
               ) : null}
+
+              {activityHistory.length > 0 && (
+                <Card className="mt-8 shadow-md">
+                    <CardHeader>
+                        <CardTitle>{t('teacherDashboard.session_history_title')}</CardTitle>
+                        <CardDescription>{t('teacherDashboard.session_history_description')}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            {activityHistory.map((activity, index) => (
+                                <div key={`${activity.id}-${index}`} className="flex items-center justify-between rounded-md p-2 hover:bg-muted/50">
+                                    <div className="flex items-center gap-3 overflow-hidden">
+                                        <History className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                                        <p className="truncate font-medium text-sm">{index + 1}. {activity.question}</p>
+                                    </div>
+                                    <Button size="sm" variant="ghost" onClick={() => handleReuseQuestion(activity)} disabled={activityInProgress}>
+                                        <Redo className="mr-2 h-4 w-4" />
+                                        {t('teacherDashboard.reuse_question_button')}
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                    <CardFooter className="border-t pt-6">
+                        <Dialog open={isSaveCoursewareDialogOpen} onOpenChange={setIsSaveCoursewareDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <Save className="mr-2 h-4 w-4" />
+                                    {t('teacherDashboard.save_as_courseware_button')}
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>{t('teacherDashboard.save_courseware_dialog_title')}</DialogTitle>
+                                    <DialogDescription>{t('teacherDashboard.save_courseware_dialog_description')}</DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4">
+                                    <Label htmlFor="courseware-name">{t('courseware.package_name_label')}</Label>
+                                    <Input 
+                                        id="courseware-name" 
+                                        value={newCoursewareName}
+                                        onChange={(e) => setNewCoursewareName(e.target.value)}
+                                        placeholder={t('courseware.package_name_placeholder')} 
+                                    />
+                                </div>
+                                <DialogFooter>
+                                    <Button variant="ghost" onClick={() => setIsSaveCoursewareDialogOpen(false)}>{t('common.cancel')}</Button>
+                                    <Button onClick={handleSaveAsCourseware}>{t('common.save')}</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </CardFooter>
+                </Card>
+              )}
             </main>
         </div>
       </div>

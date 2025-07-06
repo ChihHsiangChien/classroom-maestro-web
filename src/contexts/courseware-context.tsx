@@ -46,6 +46,7 @@ interface CoursewareContextType {
   deleteActivity: (coursewareId: string, activityId: string) => Promise<void>;
   reorderActivities: (coursewareId: string, activities: Activity[]) => Promise<void>;
   reorderCoursewares: (reorderedCoursewares: Courseware[]) => Promise<void>;
+  addCoursewareFromActivities: (name: string, activities: QuestionData[]) => Promise<void>;
 }
 
 const CoursewareContext = createContext<CoursewareContextType | undefined>(undefined);
@@ -98,7 +99,8 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
     const addCourseware = useCallback(async (name: string) => {
         if (!user || !db) return;
         try {
-            const newOrder = coursewares.length;
+            const userCoursewares = coursewares.filter(cw => cw.ownerId === user.uid);
+            const newOrder = userCoursewares.length > 0 ? Math.max(...userCoursewares.map(c => c.order || 0)) + 1 : 0;
             await addDoc(collection(db, "courseware"), { 
               name, 
               ownerId: user.uid, 
@@ -108,7 +110,7 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         } catch (error) {
             handleFirestoreError(error, 'add-courseware');
         }
-    }, [user, handleFirestoreError, coursewares.length]);
+    }, [user, handleFirestoreError, coursewares]);
 
     const updateCourseware = useCallback(async (coursewareId: string, name: string) => {
         if (!db) return;
@@ -204,6 +206,27 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         }
     }, [handleFirestoreError]);
 
+    const addCoursewareFromActivities = useCallback(async (name: string, activities: QuestionData[]) => {
+        if (!user || !db) return;
+        try {
+            const userCoursewares = coursewares.filter(cw => cw.ownerId === user.uid);
+            const newOrder = userCoursewares.length > 0 ? Math.max(...userCoursewares.map(c => c.order || 0)) + 1 : 0;
+            const newActivitiesWithIds: Activity[] = activities.map(activity => ({
+                ...activity,
+                id: generateId()
+            }));
+            await addDoc(collection(db, "courseware"), { 
+              name, 
+              ownerId: user.uid, 
+              activities: newActivitiesWithIds,
+              order: newOrder
+            });
+        } catch (error) {
+            handleFirestoreError(error, 'add-courseware-from-activities');
+            throw error;
+        }
+    }, [user, coursewares, handleFirestoreError]);
+
     const value = useMemo(() => ({
         coursewares,
         loading,
@@ -215,6 +238,7 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         deleteActivity,
         reorderActivities,
         reorderCoursewares,
+        addCoursewareFromActivities,
     }), [
         coursewares,
         loading,
@@ -226,6 +250,7 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         deleteActivity,
         reorderActivities,
         reorderCoursewares,
+        addCoursewareFromActivities,
     ]);
 
     return (
