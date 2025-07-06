@@ -88,7 +88,7 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
 
     const multipleChoiceSchema = z.object({
         question: z.string().max(200),
-        options: z.array(z.object({ value: z.string().min(1, t('createQuestionForm.option_empty_error')).max(50) })).min(2, t('createQuestionForm.options_min_error')).max(10),
+        options: z.array(z.object({ value: z.string().max(50) })).min(2, t('createQuestionForm.options_min_error')).max(10),
         allowMultipleAnswers: z.boolean().default(false),
     });
 

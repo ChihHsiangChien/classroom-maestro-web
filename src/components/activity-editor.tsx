@@ -60,8 +60,8 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
 
     const activityFormSchema = z.object({
         type: z.enum(['multiple-choice', 'true-false', 'short-answer', 'drawing', 'image-annotation']),
-        question: z.string().min(1, t('createQuestionForm.question_empty_error')),
-        options: z.array(z.object({ value: z.string().min(1, t('createQuestionForm.option_empty_error')) })).optional(),
+        question: z.string(),
+        options: z.array(z.object({ value: z.string() })).optional(),
         allowMultipleAnswers: z.boolean().optional(),
         imageUrl: z.string().optional(),
     }).superRefine((data, ctx) => {
@@ -127,12 +127,13 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
 
     function onSubmit(data: ActivityFormData) {
         let finalData: QuestionData;
+        const question = data.question.trim() || t('createQuestionForm.untitled_question');
 
         switch (data.type) {
             case 'true-false':
             case 'short-answer':
             case 'drawing':
-                finalData = { type: data.type, question: data.question };
+                finalData = { type: data.type, question: question };
                 break;
             case 'multiple-choice':
                 if (!data.options) { // Should be caught by validation, but as a safeguard.
@@ -141,8 +142,8 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                 }
                 finalData = { 
                     type: 'multiple-choice', 
-                    question: data.question, 
-                    options: data.options.filter(opt => opt.value.trim() !== ''),
+                    question: question, 
+                    options: data.options,
                     allowMultipleAnswers: data.allowMultipleAnswers || false,
                 };
                 break;
@@ -154,7 +155,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                 }
                 finalData = {
                     type: 'image-annotation',
-                    question: data.question,
+                    question: question,
                     imageUrl,
                 };
                 break;
