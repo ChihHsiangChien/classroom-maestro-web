@@ -74,19 +74,10 @@ export async function claimRaceAction(input: ClaimRaceInput): Promise<{ success:
       const classroomData = classroomSnap.data();
       const race = classroomData.race as RaceData | undefined;
 
-      // Check 1: Is there a pending race with the correct ID?
       // This is the critical check that the transaction's atomicity protects.
       // Only the first user to pass this check will succeed.
       if (!race || race.id !== raceId || race.status !== 'pending') {
         throw new Error("Race not available to be claimed.");
-      }
-      
-      // Check 2: Is the server-side start time available?
-      // This is a minimal check to ensure the race has been properly initialized by the teacher.
-      if (!race.startTime || !('toMillis' in race.startTime)) {
-        // This can happen if the transaction runs before the serverTimestamp is resolved.
-        // It's a very small window but possible. We should tell the user to try again.
-        throw new Error("Race is not ready yet. Please try again in a moment.");
       }
       
       // If we passed all checks, this is a valid claim. The transaction ensures atomicity.
