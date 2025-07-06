@@ -13,6 +13,8 @@ import {z} from 'zod';
 
 const GenerateQuestionsFromTextInputSchema = z.object({
   context: z.string().describe('The text content to generate questions from.'),
+  numMultipleChoice: z.number().int().min(0).describe('The desired number of multiple-choice questions.'),
+  numTrueFalse: z.number().int().min(0).describe('The desired number of true/false questions.'),
 });
 export type GenerateQuestionsFromTextInput = z.infer<typeof GenerateQuestionsFromTextInputSchema>;
 
@@ -48,9 +50,11 @@ const prompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-flash-latest',
   input: {schema: GenerateQuestionsFromTextInputSchema},
   output: {schema: GenerateQuestionsFromTextOutputSchema},
-  prompt: `You are an expert educator creating classroom materials. Based on the following text context, please generate a mix of 3 to 5 multiple-choice and true/false questions.
+  prompt: `You are an expert educator creating classroom materials. Based on the following text context, please generate exactly {{{numMultipleChoice}}} multiple-choice questions and {{{numTrueFalse}}} true/false questions. If a number for a question type is 0, do not generate any questions of that type.
 
-For multiple-choice questions, you must provide exactly 4 plausible options. One option must be the correct answer, and the others should be plausible but incorrect distractors. For true/false questions, create a clear statement that is definitively true or false based on the text.
+For each multiple-choice question, you must provide exactly 4 plausible options. One option must be the correct answer, and the others should be plausible but incorrect distractors.
+
+For each true/false question, create a clear statement that is definitively true or false based on the text.
 
 The entire output, including questions and all options, must be in Traditional Chinese (繁體中文).
 
@@ -72,6 +76,10 @@ const generateQuestionsFromTextFlow = ai.defineFlow(
     outputSchema: GenerateQuestionsFromTextOutputSchema,
   },
   async input => {
+    if (input.numMultipleChoice === 0 && input.numTrueFalse === 0) {
+      return { questions: [] };
+    }
+    
     const response = await prompt(input);
     const rawText = response.text;
 
