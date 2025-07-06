@@ -1,13 +1,14 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { useClassroom } from '@/contexts/classroom-context';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
-import { Loader2, Users, School, Trash2, ArrowRight, BookCopy } from 'lucide-react';
+import { collection, getDocs, query, where, onSnapshot, type Timestamp } from 'firebase/firestore';
+import { formatDistanceToNow } from 'date-fns';
+import { Loader2, ArrowRight } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -37,6 +38,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/i18n/provider';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Trash2 } from 'lucide-react';
 
 interface Teacher {
   uid: string;
@@ -45,6 +48,7 @@ interface Teacher {
   classCount: number;
   studentCount: number;
   coursewareCount: number;
+  lastActivity?: Timestamp;
 }
 
 export default function AdminPage() {
@@ -58,21 +62,27 @@ export default function AdminPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  // Auth guard
   useEffect(() => {
     if (!authLoading && !isAdmin) {
       router.replace('/dashboard');
     }
   }, [isAdmin, authLoading, router]);
 
-  // Data fetching
   useEffect(() => {
     if (!isAdmin || !db) return;
 
     const usersRef = collection(db, 'users');
     const unsubscribe = onSnapshot(usersRef, async (usersSnapshot) => {
         setLoadingData(true);
-        const usersData = usersSnapshot.docs.map(doc => doc.data() as { uid: string, displayName: string, email: string });
+        const usersData = usersSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return { 
+                uid: data.uid,
+                displayName: data.displayName,
+                email: data.email,
+                lastActivity: data.lastActivity as Timestamp | undefined,
+            }
+        });
         
         const teachersWithStats: Teacher[] = await Promise.all(
             usersData.map(async (user) => {
@@ -85,7 +95,7 @@ export default function AdminPage() {
                 const coursewareSnapshot = await getDocs(coursewareQuery);
                 const coursewareCount = coursewareSnapshot.size;
 
-                return { ...user, classCount, studentCount, coursewareCount };
+                return { ...user, classCount, studentCount, coursewareCount, lastActivity: user.lastActivity };
             })
         );
         
@@ -136,6 +146,7 @@ export default function AdminPage() {
                 <TableRow>
                     <TableHead>{t('admin.table_header_teacher')}</TableHead>
                     <TableHead>{t('admin.table_header_email')}</TableHead>
+                    <TableHead>{t('admin.table_header_last_activity')}</TableHead>
                     <TableHead className="text-center">{t('admin.table_header_class_count')}</TableHead>
                     <TableHead className="text-center">{t('admin.table_header_courseware_count')}</TableHead>
                     <TableHead className="text-center">{t('admin.table_header_student_count')}</TableHead>
@@ -147,6 +158,24 @@ export default function AdminPage() {
                     <TableRow key={teacher.uid} className={teacher.uid === adminUser?.uid ? 'bg-primary/5' : ''}>
                         <TableCell className="font-medium">{teacher.displayName}{teacher.uid === adminUser?.uid && ` (${t('admin.you_label')})`}</TableCell>
                         <TableCell>{teacher.email}</TableCell>
+                        <TableCell>
+                            {teacher.lastActivity ? (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <span className="cursor-default text-sm">
+                                                {formatDistanceToNow(teacher.lastActivity.toDate(), { addSuffix: true })}
+                                            </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            {teacher.lastActivity.toDate().toLocaleString()}
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            ) : (
+                                <span className="text-sm text-muted-foreground">{t('admin.last_activity_never')}</span>
+                            )}
+                        </TableCell>
                         <TableCell className="text-center">{teacher.classCount}</TableCell>
                         <TableCell className="text-center">{teacher.coursewareCount}</TableCell>
                         <TableCell className="text-center">{teacher.studentCount}</TableCell>
@@ -205,3 +234,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    

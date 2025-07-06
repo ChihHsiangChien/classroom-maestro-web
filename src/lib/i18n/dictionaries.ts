@@ -345,6 +345,8 @@ export const dictionaries = {
       delete_data_success_title: "資料已刪除",
       delete_data_success_description: "{name} 的所有班級資料已被清除。",
       error_not_logged_in: "您必須登入才能執行此操作。",
+      table_header_last_activity: '上次使用',
+      last_activity_never: '從未使用',
     },
     courseware: {
       title: '教材',
@@ -730,6 +732,8 @@ export const dictionaries = {
       delete_data_success_title: "Data Deleted",
       delete_data_success_description: "All classroom data for {name} has been cleared.",
       error_not_logged_in: "You must be logged in to perform this action.",
+      table_header_last_activity: 'Last Used',
+      last_activity_never: 'Never',
     },
     courseware: {
       title: 'Courseware',
@@ -785,3 +789,5 @@ export const formatString = (str: string, values: Record<string, string | number
     return values[placeholder] !== undefined ? String(values[placeholder]) : placeholderWithBraces;
   });
 };
+
+    

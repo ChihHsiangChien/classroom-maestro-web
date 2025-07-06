@@ -157,10 +157,8 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       let q;
       if (isAdmin) {
-          // Admins can see all classrooms, ordered by owner and then by custom order
           q = query(collection(db, "classrooms"), orderBy("ownerId"), orderBy("order"));
       } else {
-          // Regular users only see their own
           q = query(collection(db, "classrooms"), where("ownerId", "==", user.uid), orderBy("order"));
       }
 
@@ -188,7 +186,6 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     if (internalActiveClassroom?.id) {
         const updatedClassroom = classrooms.find(c => c.id === internalActiveClassroom.id);
         if (updatedClassroom) {
-            // Preserve the merged students list from the memoized activeClassroom
             const currentStudents = activeClassroom?.students || updatedClassroom.students;
             setInternalActiveClassroom({ ...updatedClassroom, students: currentStudents });
         }
@@ -217,17 +214,26 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [internalActiveClassroom]);
 
-  // The publicly exposed activeClassroom is a memoized merge of roster and live presence data
   const activeClassroom = useMemo<Classroom | null>(() => {
     if (!internalActiveClassroom) return null;
 
     const studentsWithPresence = internalActiveClassroom.students.map(s => ({
         ...s,
-        ...activePresenceData[s.id] // Merges isOnline, lastSeen, forceLogout
+        ...activePresenceData[s.id]
     }));
 
     return { ...internalActiveClassroom, students: studentsWithPresence };
   }, [internalActiveClassroom, activePresenceData]);
+
+  const updateUserLastActivity = useCallback(async () => {
+    if (!user || !db) return;
+    try {
+        const userDocRef = doc(db, 'users', user.uid);
+        await updateDoc(userDocRef, { lastActivity: serverTimestamp() });
+    } catch (error) {
+        console.error("Failed to update user last activity timestamp:", error);
+    }
+  }, [user]);
 
   const addClassroom = useCallback(async (name: string) => {
     if (!user || !db) return;
@@ -264,7 +270,6 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
   const updateStudentList = useCallback(async (classroomId: string, newStudents: Student[]) => {
       if (!db) return;
       try {
-          // We only update the 'name' and 'id' fields, stripping presence data
           const studentRoster = newStudents.map(({ id, name }) => ({ id, name }));
           await updateDoc(doc(db, 'classrooms', classroomId), { students: studentRoster });
       } catch (error) {
@@ -292,7 +297,6 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
 
   const reorderClassrooms = useCallback(async (reorderedClassrooms: Classroom[]) => {
     if (!db) return;
-    // Optimistically update local state for instant UI feedback
     setClassrooms(reorderedClassrooms);
     try {
         const batch = writeBatch(db);
@@ -303,7 +307,6 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
         await batch.commit();
     } catch (error) {
         handleFirestoreErrorRef.current?.(error, 'reorder-classrooms');
-        // If error, snapshot listener should eventually revert the state.
     }
   }, []);
 
@@ -325,10 +328,11 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     if (!db) return;
     try {
       await updateDoc(doc(db, 'classrooms', classroomId), { activeQuestion: question });
+      await updateUserLastActivity();
     } catch (error) {
       handleFirestoreErrorRef.current?.(error, 'set-active-question');
     }
-  }, []);
+  }, [updateUserLastActivity]);
   
   const addSubmission = useCallback(async (
     classroomId: string, 
@@ -402,7 +406,6 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
         if (isOnline) {
             dataToSet.lastSeen = Timestamp.now();
         }
-        // Use set with merge to create the doc if it doesn't exist or update it.
         await setDoc(presenceRef, dataToSet, { merge: true });
     } catch (error) {
         console.error("Failed to update presence:", error);
@@ -489,10 +492,11 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
             await updateDoc(doc(db, 'classrooms', classroomId), {
                 race: raceData
             });
+            await updateUserLastActivity();
         } catch (error) {
             handleFirestoreErrorRef.current?.(error, 'start-race');
         }
-    }, []);
+    }, [updateUserLastActivity]);
 
     const claimRace = useCallback(async (classroomId: string, studentId: string, studentName: string): Promise<boolean> => {
         try {
@@ -526,7 +530,6 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
         try {
             const batch = writeBatch(db);
 
-            // 1. Find and delete all classrooms owned by the teacher
             const classroomsQuery = query(collection(db, "classrooms"), where("ownerId", "==", ownerId));
             const classroomsSnapshot = await getDocs(classroomsQuery);
             
@@ -537,8 +540,6 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
                     console.log(`Scheduling deletion for classroom ${classroomDoc.id}`);
                     batch.delete(classroomDoc.ref);
                     
-                    // Note: Deleting subcollections this way on the client is not recommended for large scale.
-                    // For this app's scale, we assume it's okay, but a Cloud Function would be better.
                     const submissionsRef = collection(db, 'classrooms', classroomDoc.id, 'submissions');
                     const presenceRef = collection(db, 'classrooms', classroomDoc.id, 'presence');
                     const subsSnapshot = await getDocs(submissionsRef);
@@ -548,11 +549,9 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
                 }
             }
 
-            // 2. Delete the user's document from the 'users' collection
             const userDocRef = doc(db, 'users', ownerId);
             batch.delete(userDocRef);
 
-            // 3. Commit the batch
             await batch.commit();
 
             toast({ title: t('admin.delete_data_success_title') });
@@ -651,3 +650,5 @@ export function useClassroom() {
   }
   return context;
 }
+
+    
