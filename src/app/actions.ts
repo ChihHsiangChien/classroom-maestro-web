@@ -128,9 +128,10 @@ export async function generateQuestionsFromTextAction(input: GenerateQuestionsFr
     return { questions: result.questions, error: null };
   } catch (error) {
     console.error("Error generating questions:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred while generating questions.";
     return {
       questions: null,
-      error: "Could not generate questions. Please try again.",
+      error: errorMessage,
     };
   }
 }

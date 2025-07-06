@@ -79,32 +79,24 @@ const generateQuestionsFromTextFlow = ai.defineFlow(
       throw new Error("AI returned an empty response. No text was received.");
     }
 
-    // Attempt to find and parse the JSON block from the raw text
     try {
       const jsonStart = rawText.indexOf('{');
       const jsonEnd = rawText.lastIndexOf('}');
 
       if (jsonStart === -1 || jsonEnd === -1) {
-        throw new Error(`Could not find a JSON object in the AI response. Raw output:\n---\n${rawText}\n---`);
+        throw new Error(`Could not find a JSON object in the AI response.`);
       }
 
       const jsonString = rawText.substring(jsonStart, jsonEnd + 1);
-      
       const parsedJson = JSON.parse(jsonString);
+      
       const validationResult = GenerateQuestionsFromTextOutputSchema.safeParse(parsedJson);
-
       if (!validationResult.success) {
-        // Provide detailed validation errors along with the raw output for debugging
-        const validationErrors = validationResult.error.errors.map(e => `  - Path: ${e.path.join('.')}, Message: ${e.message}`).join('\n');
-        throw new Error(`AI output failed validation after parsing.\nValidation Errors:\n${validationErrors}\n\nRaw AI output:\n---\n${rawText}\n---`);
+        throw new Error(`AI output failed validation. Details: ${validationResult.error.message}`);
       }
-
-      console.log('Successfully parsed AI output:', JSON.stringify(validationResult.data, null, 2));
       return validationResult.data;
-
     } catch (e: any) {
-      console.error('AI output failed parsing. Raw text:', rawText, 'Error:', e);
-      // Re-throw the error with the raw text included for client-side display
+      // Throw a new error that includes the raw text for debugging on the client
       throw new Error(`Failed to parse AI response. Raw output:\n---\n${rawText}\n---`);
     }
   }
