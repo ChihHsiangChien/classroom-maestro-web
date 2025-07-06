@@ -168,18 +168,19 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
       const canvas = fabricCanvasRef.current;
       if (!canvas) return;
 
-      canvas.isDrawingMode = tool === 'pen' || tool === 'eraser';
-
       if (tool === 'select') {
         canvas.isDrawingMode = false;
       } else if (tool === 'pen') {
+        canvas.isDrawingMode = true;
         canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
         canvas.freeDrawingBrush.color = brushColor;
         canvas.freeDrawingBrush.width = brushWidth;
       } else if (tool === 'eraser') {
-        // In Fabric.js 5.x, there is a dedicated EraserBrush.
-        // It handles erasing without flickering or needing a path:created hook.
-        canvas.freeDrawingBrush = new fabric.EraserBrush(canvas);
+        canvas.isDrawingMode = true;
+        // This is a safe fallback for erasing. It paints with the background color.
+        // It's not a "true" eraser but prevents crashes and provides a stable UX.
+        canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+        canvas.freeDrawingBrush.color = '#FFFFFF';
         canvas.freeDrawingBrush.width = brushWidth;
       }
     }, [tool, brushColor, brushWidth]);
