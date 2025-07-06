@@ -616,7 +616,10 @@ export function ActiveQuestion({ question, onEndQuestion, onRevealAnswer, studen
         }
     };
     
-    const hasAnswer = 'answer' in question && !!question.answer;
+    const hasAnswer = 'answer' in question && 
+      question.answer && 
+      (Array.isArray(question.answer) ? question.answer.length > 0 : !!question.answer);
+
     const isAnswerRevealed = question.showAnswer;
 
     return (

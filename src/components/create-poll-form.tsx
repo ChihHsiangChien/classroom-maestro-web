@@ -57,7 +57,7 @@ export interface MultipleChoiceQuestion {
 export interface TrueFalseQuestion {
   type: 'true-false';
   question: string;
-  answer: 'O' | 'X';
+  answer?: 'O' | 'X';
   showAnswer?: boolean;
 }
 export interface ShortAnswerQuestion {
@@ -94,10 +94,10 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
     const { toast } = useToast();
 
     const multipleChoiceSchema = z.object({
-        question: z.string().nonempty(t('createQuestionForm.question_empty_error')),
-        options: z.array(z.object({ value: z.string().nonempty(t('createQuestionForm.option_empty_error')) })).min(2, t('createQuestionForm.options_min_error')).max(10),
+        question: z.string(),
+        options: z.array(z.object({ value: z.string() })).max(10),
         allowMultipleAnswers: z.boolean().default(false),
-        answer: z.array(z.string()).nonempty(t('createQuestionForm.answer_empty_error')),
+        answer: z.array(z.string()),
     });
 
     const form = useForm<z.infer<typeof multipleChoiceSchema>>({
@@ -157,7 +157,7 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
                                 ) : (
                                     <RadioGroup
                                         onValueChange={(val) => field.onChange([val])}
-                                        value={field.value[0]}
+                                        value={field.value?.[0]}
                                     >
                                         <RadioGroupItem value={form.getValues(`options.${index}.value`)} />
                                     </RadioGroup>
@@ -225,8 +225,8 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
 function TrueFalseForm({ onQuestionCreate }: QuestionFormProps) {
     const { t } = useI18n();
     const trueFalseSchema = z.object({
-        question: z.string().nonempty(t('createQuestionForm.question_empty_error')),
-        answer: z.enum(['O', 'X'], { errorMap: () => ({ message: t('createQuestionForm.answer_empty_error') }) }),
+        question: z.string(),
+        answer: z.enum(['O', 'X']).optional(),
     });
 
     const form = useForm<z.infer<typeof trueFalseSchema>>({

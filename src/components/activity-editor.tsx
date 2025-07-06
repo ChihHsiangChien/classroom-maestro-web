@@ -73,31 +73,6 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         allowMultipleAnswers: z.boolean().optional(),
         imageUrl: z.string().optional(),
         answer: z.any().optional(),
-    }).superRefine((data, ctx) => {
-        if (data.type === 'multiple-choice') {
-            if (!data.question?.trim()) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('createQuestionForm.question_empty_error'), path: ['question'] });
-            }
-            if (!data.options || data.options.length < 2) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('createQuestionForm.options_min_error'), path: ['options'] });
-            }
-            data.options?.forEach((opt, i) => {
-                if (!opt.value?.trim()) {
-                    ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('createQuestionForm.option_empty_error'), path: [`options.${i}.value`] });
-                }
-            });
-            if (!data.answer || (Array.isArray(data.answer) && data.answer.length === 0)) {
-                 ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('createQuestionForm.answer_empty_error'), path: ['answer'] });
-            }
-        }
-        if (data.type === 'true-false') {
-            if (!data.question?.trim()) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('createQuestionForm.question_empty_error'), path: ['question'] });
-            }
-            if (!data.answer) {
-                 ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('createQuestionForm.answer_empty_error'), path: ['answer'] });
-            }
-        }
     });
 
     type ActivityFormData = z.infer<typeof activityFormSchema>;
