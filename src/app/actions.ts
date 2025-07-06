@@ -74,16 +74,11 @@ export async function claimRaceAction(input: ClaimRaceInput): Promise<{ success:
       const classroomData = classroomSnap.data();
       const race = classroomData.race as RaceData | undefined;
 
+      // The transaction ensures that only the first person to change the status from 'pending' will succeed.
+      // All subsequent attempts will fail this check and throw an error.
+      // This is more reliable than comparing client/server timestamps which can have skews.
       if (!race || race.id !== raceId || race.status !== 'pending') {
         throw new Error("Race not available to be claimed.");
-      }
-      
-      const serverTime = Date.now();
-      const startTime = (race.startTime as Timestamp).toMillis();
-      const activationTime = startTime + 2900;
-
-      if (serverTime < activationTime) {
-        throw new Error("Race claimed too early.");
       }
       
       transaction.update(classroomRef, {
@@ -94,6 +89,7 @@ export async function claimRaceAction(input: ClaimRaceInput): Promise<{ success:
     });
     return { success: true };
   } catch (error: any) {
+    // This will catch the "Race not available" error for all but the first student, which is expected.
     console.log("Claim race failed inside action:", error.message);
     return { success: false, error: error.message };
   }
