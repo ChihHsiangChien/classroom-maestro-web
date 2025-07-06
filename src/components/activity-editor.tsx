@@ -28,7 +28,7 @@ import type { DrawingEditorRef } from "./drawing-editor";
 import { useI18n } from "@/lib/i18n/provider";
 import type { QuestionData, TrueFalseQuestion, MultipleChoiceQuestion } from "./create-poll-form";
 import { generatePollAction, generateImageAction } from "@/app/actions";
-import { useUsage } from "@/hooks/use-usage";
+import { useUsage } from "@/contexts/usage-context";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Checkbox } from "./ui/checkbox";
 
@@ -430,3 +430,5 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         </Form>
     );
 }
+
+    
