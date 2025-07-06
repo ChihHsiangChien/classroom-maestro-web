@@ -159,28 +159,27 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
 
     const addMultipleActivities = useCallback(async (coursewareId: string, activitiesData: QuestionData[]) => {
         if (!db) return;
-        const courseware = coursewares.find(c => c.id === coursewareId);
-        if (!courseware) {
-            // It might be a newly created one, so we need to wait for the state update or just proceed.
-            // For now, let's assume the calling function handles creation and passes a valid ID.
-             console.error(`Courseware with ID ${coursewareId} not found in state.`);
-             // Let's try to proceed by updating directly, which is less optimal but might work for new items.
-        }
-        
+
+        const coursewareRef = doc(db, 'courseware', coursewareId);
         const newActivities: Activity[] = activitiesData.map(activity => ({
             ...activity,
             id: generateId()
         }));
-        
-        const existingActivities = courseware ? courseware.activities || [] : [];
-        const updatedActivities = [...existingActivities, ...newActivities];
 
         try {
-            await updateDoc(doc(db, 'courseware', coursewareId), { activities: updatedActivities });
+            await runTransaction(db, async (transaction) => {
+                const coursewareDoc = await transaction.get(coursewareRef);
+                if (!coursewareDoc.exists()) {
+                    throw new Error("Courseware document does not exist!");
+                }
+                const existingActivities = coursewareDoc.data().activities || [];
+                const updatedActivities = [...existingActivities, ...newActivities];
+                transaction.update(coursewareRef, { activities: updatedActivities });
+            });
         } catch (error) {
             handleFirestoreError(error, 'add-multiple-activities');
         }
-    }, [coursewares, handleFirestoreError]);
+    }, [handleFirestoreError]);
     
     const updateActivity = useCallback(async (coursewareId: string, activityId: string, activityData: QuestionData) => {
         if (!db) return;
