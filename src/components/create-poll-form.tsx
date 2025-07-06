@@ -87,7 +87,7 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
     const { toast } = useToast();
 
     const multipleChoiceSchema = z.object({
-        question: z.string().min(1, t('createQuestionForm.question_empty_error')).max(200),
+        question: z.string().max(200),
         options: z.array(z.object({ value: z.string().min(1, t('createQuestionForm.option_empty_error')).max(50) })).min(2, t('createQuestionForm.options_min_error')).max(10),
         allowMultipleAnswers: z.boolean().default(false),
     });
@@ -112,7 +112,8 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
     }
 
     function onSubmit(data: z.infer<typeof multipleChoiceSchema>) {
-        onQuestionCreate({ type: 'multiple-choice', ...data });
+        const finalQuestion = data.question.trim() || t('createQuestionForm.untitled_question');
+        onQuestionCreate({ type: 'multiple-choice', ...data, question: finalQuestion });
     }
     
     return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><div className="space-y-2"><Label htmlFor="topic">{t('createQuestionForm.generate_with_ai_label')}</Label><div className="flex items-center gap-2"><Input id="topic" placeholder={t('createQuestionForm.generate_with_ai_placeholder')} value={topic} onChange={(e) => setTopic(e.target.value)} disabled={isGenerating} /><Button type="button" variant="outline" size="icon" onClick={handleGeneratePoll} disabled={isGenerating || !topic} className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0">{isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}<span className="sr-only">Generate Poll</span></Button></div><p className="text-xs text-muted-foreground">{t('createQuestionForm.generate_with_ai_description')}</p></div><div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">{t('common.or_create_manually')}</span></div></div><div className="space-y-8"><FormField control={form.control} name="question" render={({ field }) => (<FormItem><FormLabel>{t('createQuestionForm.poll_question_label')}</FormLabel><FormControl><Textarea placeholder={t('createQuestionForm.poll_question_placeholder')} {...field} /></FormControl><FormMessage /></FormItem>)} /><div className="space-y-4"><FormLabel>{t('createQuestionForm.answer_options_label')}</FormLabel><FormField control={form.control} name="options" render={() => ( <FormItem>{fields.map((field, index) => (<FormField key={field.id} control={form.control} name={`options.${index}.value`} render={({ field: optionField }) => (<FormItem><div className="flex items-center gap-2"><FormControl><Input placeholder={t('createQuestionForm.option_placeholder', { letter: String.fromCharCode(65 + index) })} {...optionField} /></FormControl>{fields.length > 2 && (<Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => remove(index)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>)}</div><FormMessage /></FormItem>)} />))}{fields.length < 10 && (<Button type="button" variant="outline" size="sm" onClick={() => append({ value: "" })}><PlusCircle className="mr-2 h-4 w-4" />{t('createQuestionForm.add_option_button')}</Button>)}<FormMessage/></FormItem>)} /></div>
@@ -144,7 +145,7 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
 function SimpleQuestionForm({ type, onQuestionCreate, placeholder, label }: QuestionFormProps & { type: 'true-false' | 'short-answer' | 'drawing', placeholder: string, label: string }) {
     const { t } = useI18n();
     const simpleQuestionSchema = z.object({
-        question: z.string().min(1, t('createQuestionForm.question_empty_error')),
+        question: z.string(),
     });
     const form = useForm<z.infer<typeof simpleQuestionSchema>>({
         resolver: zodResolver(simpleQuestionSchema),
@@ -152,7 +153,8 @@ function SimpleQuestionForm({ type, onQuestionCreate, placeholder, label }: Ques
     });
 
     function onSubmit(data: z.infer<typeof simpleQuestionSchema>) {
-        onQuestionCreate({ type, ...data });
+        const finalQuestion = data.question.trim() || t('createQuestionForm.untitled_question');
+        onQuestionCreate({ type, ...data, question: finalQuestion });
     }
 
     return (
@@ -175,9 +177,10 @@ function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
         e.preventDefault();
         const imageUrl = editorRef.current?.getCanvasDataUrl();
         if (imageUrl) {
+            const finalQuestion = question.trim() || t('createQuestionForm.untitled_question');
             onQuestionCreate({
                 type: 'image-annotation',
-                question: question.trim(),
+                question: finalQuestion,
                 imageUrl,
             });
         } else {

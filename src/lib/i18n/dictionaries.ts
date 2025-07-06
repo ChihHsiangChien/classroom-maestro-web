@@ -187,6 +187,7 @@ export const dictionaries = {
       question_empty_error: '問題不可為空。',
       option_empty_error: '選項內容不可為空。',
       options_min_error: '選擇題至少需要 2 個選項。',
+      untitled_question: '(無標題問題)',
     },
     activePoll: {
       live_results_title: '即時結果',
@@ -563,6 +564,7 @@ export const dictionaries = {
       question_empty_error: 'Question cannot be empty.',
       option_empty_error: 'Option cannot be empty.',
       options_min_error: 'Multiple choice questions must have at least 2 options.',
+      untitled_question: '(Untitled Question)',
     },
     activePoll: {
       live_results_title: 'Live Results',
