@@ -74,13 +74,32 @@ export async function claimRaceAction(input: ClaimRaceInput): Promise<{ success:
       const classroomData = classroomSnap.data();
       const race = classroomData.race as RaceData | undefined;
 
-      // The transaction ensures that only the first person to change the status from 'pending' will succeed.
-      // All subsequent attempts will fail this check and throw an error.
-      // This is more reliable than comparing client/server timestamps which can have skews.
+      // Check 1: Is there a pending race with the correct ID?
       if (!race || race.id !== raceId || race.status !== 'pending') {
         throw new Error("Race not available to be claimed.");
       }
       
+      // Check 2: Is the server-side start time available?
+      if (!race.startTime || !('toMillis' in race.startTime)) {
+        // This can happen if the transaction runs before the serverTimestamp is resolved.
+        // It's a very small window but possible. We should tell the user to try again.
+        throw new Error("Race is not ready yet. Please try again in a moment.");
+      }
+      
+      // Check 3: Has the 3-second countdown passed ACCORDING TO THE SERVER?
+      // This is the authoritative check.
+      const activationTime = (race.startTime as Timestamp).toMillis() + 3000;
+      const now = Timestamp.now().toMillis();
+      
+      // We add a small buffer (e.g., 200ms) to account for network latency and client-side clock skew.
+      // The client might be slightly ahead and send the request a fraction of a second "too early".
+      const buffer = 200; // 200ms
+      if (now < activationTime - buffer) {
+          const timeLeft = activationTime - now;
+          throw new Error(`Claim attempt was too early. Time left: ${timeLeft}ms`);
+      }
+      
+      // If we passed all checks, this is a valid claim. The transaction ensures atomicity.
       transaction.update(classroomRef, {
         'race.winnerName': studentName,
         'race.winnerId': studentId,
@@ -89,8 +108,8 @@ export async function claimRaceAction(input: ClaimRaceInput): Promise<{ success:
     });
     return { success: true };
   } catch (error: any) {
-    // This will catch the "Race not available" error for all but the first student, which is expected.
-    console.log("Claim race failed inside action:", error.message);
+    // This will catch errors from the transaction, including our explicit `throw new Error` checks.
+    console.log(`Claim race failed inside action: ${error.message}`);
     return { success: false, error: error.message };
   }
 }
