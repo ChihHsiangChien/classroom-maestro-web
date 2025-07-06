@@ -34,7 +34,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom } from "@/contexts/classroom-context";
 import { useCourseware } from "@/contexts/courseware-context";
 import { useToast } from "@/hooks/use-toast";
-import { PanelLeftClose, PanelLeftOpen, Eye, Loader2, UserCheck, Rocket, History, Redo, Save, CheckCheck } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Eye, Loader2, UserCheck, Rocket, History, Save, CheckCheck } from "lucide-react";
 import { ManagementPanel } from "@/components/management-panel";
 import { cn } from "@/lib/utils";
 import { Timestamp } from "firebase/firestore";
@@ -365,8 +365,7 @@ export default function ActivityPage() {
                                         <History className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
                                         <p className="truncate font-medium text-sm">{index + 1}. {activity.question}</p>
                                     </div>
-                                    <Button size="sm" variant="ghost" onClick={() => handleReuseQuestion(activity)} disabled={activityInProgress}>
-                                        <Redo className="mr-2 h-4 w-4" />
+                                    <Button size="sm" onClick={() => handleReuseQuestion(activity)} disabled={activityInProgress}>
                                         {t('teacherDashboard.reuse_question_button')}
                                     </Button>
                                 </div>
