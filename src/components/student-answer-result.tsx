@@ -12,30 +12,33 @@ interface StudentAnswerResultProps {
     myAnswer: string | string[] | null;
 }
 
-// Helper to check if two arrays of strings are equal, regardless of order.
-const areArraysEqual = (arr1: string[], arr2: string[]) => {
-    if (arr1.length !== arr2.length) return false;
-    const sorted1 = [...arr1].sort();
-    const sorted2 = [...arr2].sort();
-    return sorted1.every((value, index) => value === sorted2[index]);
-};
-
 export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultProps) {
     const { t } = useI18n();
 
     const getIsCorrect = (): boolean => {
-        if (myAnswer === null || myAnswer === undefined) return false;
-        
+        if (myAnswer === null || myAnswer === undefined) {
+            return false;
+        }
+
         if (question.type === 'true-false') {
             return question.answer === myAnswer;
         }
 
         if (question.type === 'multiple-choice') {
-            const correctAnswer = question.answer;
-            if (!Array.isArray(correctAnswer)) return false;
+            const correctAnswers = question.answer;
+            if (!Array.isArray(correctAnswers)) return false;
 
-            const studentAnswerArray = Array.isArray(myAnswer) ? myAnswer : [myAnswer];
-            return areArraysEqual(correctAnswer, studentAnswerArray);
+            const studentAnswers = Array.isArray(myAnswer) ? myAnswer : [myAnswer];
+
+            if (correctAnswers.length !== studentAnswers.length) {
+                return false;
+            }
+
+            // Trim all strings before sorting and comparing to handle potential whitespace issues.
+            const sortedCorrect = correctAnswers.map(s => typeof s === 'string' ? s.trim() : s).sort();
+            const sortedStudent = studentAnswers.map(s => typeof s === 'string' ? s.trim() : s).sort();
+
+            return sortedCorrect.every((value, index) => value === sortedStudent[index]);
         }
 
         return false;
@@ -52,7 +55,7 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
         
         if (isMcq && 'options' in question) {
              const getOptionText = (val: string) => {
-                const option = question.options.find(o => o.value === val);
+                const option = (question as MultipleChoiceQuestion).options.find(o => o.value === val);
                 return option ? option.value : val;
             };
             return answerArray.map(getOptionText).join(', ');
