@@ -70,16 +70,17 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
 
     const { toast } = useToast();
 
-    const addImageFromUrl = useCallback((dataUrl: string) => {
-      fabric.Image.fromURL(dataUrl, (img) => {
-        const canvas = fabricCanvasRef.current;
-        if (!canvas) return;
-        setTool('select');
-        img.scaleToWidth((canvas.getWidth() || 500) / 2);
-        canvas.add(img);
-        canvas.centerObject(img);
-        canvas.setActiveObject(img);
-        canvas.renderAll();
+    const addImageFromUrl = useCallback((url: string) => {
+      // Use the editorRef to add the generated image as a movable object
+      fabric.Image.fromURL(url, (img) => {
+          const canvas = fabricCanvasRef.current;
+          if (!canvas) return;
+          setTool('select');
+          img.scaleToWidth((canvas.getWidth() || 500) / 2);
+          canvas.add(img);
+          canvas.centerObject(img);
+          canvas.setActiveObject(img);
+          canvas.renderAll();
       }, { crossOrigin: 'anonymous' });
     }, []);
 
@@ -176,11 +177,39 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
         canvas.freeDrawingBrush.color = brushColor;
         canvas.freeDrawingBrush.width = brushWidth;
       } else if (tool === 'eraser') {
-        // In Fabric.js 5.x, there is a dedicated EraserBrush.
-        canvas.freeDrawingBrush = new fabric.EraserBrush(canvas);
+        // For the eraser, we still use a PencilBrush, but the magic
+        // happens in the `path:created` event handler.
+        canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
         canvas.freeDrawingBrush.width = brushWidth;
       }
     }, [tool, brushColor, brushWidth]);
+
+    // Effect to handle eraser functionality by modifying created paths
+    useEffect(() => {
+      const canvas = fabricCanvasRef.current;
+      if (!canvas) return;
+  
+      const handlePathCreated = (e: fabric.IEvent) => {
+        // The event object in fabric.js for path:created has a `path` property
+        const createdPath = (e as any).path as fabric.Path;
+        if (createdPath && tool === 'eraser') {
+          // Setting this composite operation makes the path "erase" whatever is below it.
+          createdPath.globalCompositeOperation = 'destination-out';
+          createdPath.set({
+            dirty: true,
+          });
+        }
+      };
+  
+      canvas.on('path:created', handlePathCreated);
+  
+      // Cleanup function to remove the event listener
+      return () => {
+        if (canvas) {
+          canvas.off('path:created', handlePathCreated);
+        }
+      };
+    }, [tool]); // Re-register if the tool changes, to be safe
 
     const getCameraPermission = useCallback(async (deviceId: string) => {
       try {
