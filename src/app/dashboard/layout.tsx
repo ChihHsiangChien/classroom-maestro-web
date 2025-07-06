@@ -18,7 +18,8 @@ import {
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-  DropdownMenuPortal
+  DropdownMenuPortal,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 
 export default function DashboardLayout({
