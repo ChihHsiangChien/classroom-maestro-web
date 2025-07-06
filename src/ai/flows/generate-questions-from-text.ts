@@ -72,7 +72,16 @@ const generateQuestionsFromTextFlow = ai.defineFlow(
     outputSchema: GenerateQuestionsFromTextOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    const response = await prompt(input);
+    const output = response.output;
+
+    if (!output) {
+      console.error("AI output failed parsing. Raw text response from model:", response.text);
+      throw new Error("AI output validation failed.");
+    }
+    
+    console.log("Successfully parsed AI output:", JSON.stringify(output, null, 2));
+
+    return output;
   }
 );
