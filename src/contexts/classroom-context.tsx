@@ -108,7 +108,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
   const [internalActiveClassroom, setInternalActiveClassroom] = useState<Classroom | null>(null);
   const [activePresenceData, setActivePresenceData] = useState<{ [key: string]: PresenceData }>({});
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const { t } = useI18n();
   const handleFirestoreErrorRef = useRef<(error: any, action: string) => void>();
@@ -155,7 +155,15 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (user && db) {
       setLoading(true);
-      const q = query(collection(db, "classrooms"), where("ownerId", "==", user.uid), orderBy("order"));
+      let q;
+      if (isAdmin) {
+          // Admins can see all classrooms, ordered by owner and then by custom order
+          q = query(collection(db, "classrooms"), orderBy("ownerId"), orderBy("order"));
+      } else {
+          // Regular users only see their own
+          q = query(collection(db, "classrooms"), where("ownerId", "==", user.uid), orderBy("order"));
+      }
+
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const fetchedClassrooms = querySnapshot.docs.map(doc => ({
           id: doc.id,
@@ -173,7 +181,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
       setInternalActiveClassroom(null);
       setLoading(false);
     }
-  }, [user]);
+  }, [user, isAdmin]);
 
   // Effect to sync internal active classroom with the main list
   useEffect(() => {
@@ -224,7 +232,8 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
   const addClassroom = useCallback(async (name: string) => {
     if (!user || !db) return;
     try {
-      const newOrder = classroomsRef.current.length > 0 ? Math.max(...classroomsRef.current.map(c => c.order)) + 1 : 0;
+      const userClassrooms = classroomsRef.current.filter(c => c.ownerId === user.uid);
+      const newOrder = userClassrooms.length > 0 ? Math.max(...userClassrooms.map(c => c.order)) + 1 : 0;
       await addDoc(collection(db, "classrooms"), { name, ownerId: user.uid, students: [], isLocked: false, order: newOrder });
     } catch (error) {
       handleFirestoreErrorRef.current?.(error, 'add-classroom');
@@ -488,16 +497,11 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     const claimRace = useCallback(async (classroomId: string, studentId: string, studentName: string): Promise<boolean> => {
         try {
             const result = await claimRaceAction({ classroomId, studentId, studentName });
-            
             if (!result.success) {
-                // This is an expected outcome if another student is faster, or the claim was too early.
-                // Log it for debugging purposes, but it's not a system error.
                 console.log(`Claim race failed: ${result.error}`);
             }
-            
             return result.success;
         } catch (error) {
-            // This would catch network errors or other unexpected issues when calling the server action.
             console.error("Fatal error calling claimRaceAction:", error);
             return false;
         }
