@@ -3,6 +3,8 @@
 
 # The region of your App Hosting backend.
 region: asia-east1
+# An explicit ID for your backend.
+backendId: classroom-maestro-backend
 
 # Specifies the build and run settings for the backend.
 runConfig:
