@@ -327,13 +327,12 @@ function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
     // AI State
     const [isGeneratingImage, startImageTransition] = useTransition();
     const [imagePrompt, setImagePrompt] = useState("");
-    const [imageUrl, setImageUrl] = useState<string | undefined>();
 
     const handleGenerateImage = async () => {
         startImageTransition(async () => {
             const result = await generateImageAction({ prompt: imagePrompt });
             if (result.imageUrl) {
-                setImageUrl(result.imageUrl);
+                editorRef.current?.addImageFromUrl(result.imageUrl);
                 toast({
                     title: t('activityEditor.toast_image_generated_title'),
                     description: t('activityEditor.toast_image_generated_description'),
@@ -347,8 +346,7 @@ function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
 
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        // If an AI image was generated, use that as the base. Otherwise, use what's on the canvas.
-        const finalImageUrl = imageUrl || editorRef.current?.getCanvasDataUrl();
+        const finalImageUrl = editorRef.current?.getCanvasDataUrl();
         if (finalImageUrl) {
             const finalQuestion = question.trim() || t('createQuestionForm.untitled_question');
             onQuestionCreate({
@@ -407,7 +405,7 @@ function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
                 <p className="text-sm text-muted-foreground">
                     {t('createQuestionForm.canvas_description')}
                 </p>
-                <DrawingEditor ref={editorRef} backgroundImageUrl={imageUrl} />
+                <DrawingEditor ref={editorRef} />
             </div>
             <Button type="submit" className="w-full md:w-auto">{t('createQuestionForm.start_question_button')}</Button>
         </form>

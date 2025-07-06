@@ -123,7 +123,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         startImageTransition(async () => {
             const result = await generateImageAction({ prompt: imagePrompt });
             if (result.imageUrl) {
-                form.setValue('imageUrl', result.imageUrl, { shouldValidate: true });
+                editorRef.current?.addImageFromUrl(result.imageUrl);
                 toast({
                     title: t('activityEditor.toast_image_generated_title'),
                     description: t('activityEditor.toast_image_generated_description'),
@@ -183,7 +183,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                 finalData = { type: 'short-answer', question: question };
                 break;
             case 'image-annotation':
-                const imageUrl = data.imageUrl || editorRef.current?.getCanvasDataUrl();
+                const imageUrl = editorRef.current?.getCanvasDataUrl();
                 if (!imageUrl) {
                     toast({ variant: "destructive", title: t('common.error'), description: t('createQuestionForm.toast_get_image_error') });
                     return;
@@ -382,16 +382,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                         </TabsContent>
 
                         <TabsContent value="image-annotation" forceMount={true} className={watchedType !== 'image-annotation' ? 'hidden' : 'space-y-6'}>
-                            <FormField control={form.control} name="question" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{t('createQuestionForm.annotation_prompt_label')}</FormLabel>
-                                    <FormControl>
-                                        <Textarea placeholder={t('createQuestionForm.annotation_prompt_placeholder')} {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                            <div className="space-y-2">
+                             <div className="space-y-2">
                                 <Label htmlFor="image-prompt-2">{t('activityEditor.generate_image_label')}</Label>
                                 <div className="flex items-center gap-2">
                                      <Input
@@ -418,6 +409,15 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
                                 <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">{t('common.or_create_manually')}</span></div>
                             </div>
+                            <FormField control={form.control} name="question" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('createQuestionForm.annotation_prompt_label')}</FormLabel>
+                                    <FormControl>
+                                        <Textarea placeholder={t('createQuestionForm.annotation_prompt_placeholder')} {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
                             <div>
                                 <p className="text-sm text-muted-foreground">{t('createQuestionForm.canvas_description')}</p>
                                 <DrawingEditor ref={editorRef} backgroundImageUrl={watchedImageUrl} />
@@ -434,5 +434,3 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         </Form>
     );
 }
-
-    
