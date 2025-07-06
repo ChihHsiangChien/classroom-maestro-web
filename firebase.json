@@ -6,9 +6,7 @@
       "**/.*",
       "**/node_modules/**"
     ],
-    "frameworksBackend": {
-      "region": "asia-east1"
-    }
+    "frameworksBackend": {}
   },
   "firestore": {
     "rules": "firestore.rules"
