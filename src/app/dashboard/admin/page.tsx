@@ -2,13 +2,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { useClassroom } from '@/contexts/classroom-context';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, onSnapshot, type Timestamp } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
-import { Loader2, ArrowRight } from 'lucide-react';
+import { Loader2, ArrowRight, BrainCircuit } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -131,9 +132,17 @@ export default function AdminPage() {
   return (
     <div className="container mx-auto max-w-5xl py-8">
        <Card>
-        <CardHeader>
-          <CardTitle>{t('admin.title')}</CardTitle>
-          <CardDescription>{t('admin.description')}</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>{t('admin.title')}</CardTitle>
+            <CardDescription>{t('admin.description')}</CardDescription>
+          </div>
+          <Button asChild>
+            <Link href="/dashboard/ai-usage">
+              <BrainCircuit className="mr-2 h-4 w-4" />
+              {t('admin.ai_usage_dashboard')}
+            </Link>
+          </Button>
         </CardHeader>
         <CardContent>
             {loadingData ? (
@@ -234,5 +243,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    
