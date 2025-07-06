@@ -168,6 +168,8 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
       const canvas = fabricCanvasRef.current;
       if (!canvas) return;
 
+      // Reset cursor and drawing mode defaults
+      canvas.freeDrawingCursor = 'default';
       canvas.isDrawingMode = tool === 'pen' || tool === 'eraser';
 
       if (tool === 'select') {
@@ -177,12 +179,22 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
         canvas.freeDrawingBrush.color = brushColor;
         canvas.freeDrawingBrush.width = brushWidth;
       } else if (tool === 'eraser') {
-        // For the eraser, we still use a PencilBrush, but the magic
-        // happens in the `path:created` event handler.
+        // Create the custom cursor SVG string with a dashed box
+        const eraserCursorSvg = `<svg width="${brushWidth}" height="${brushWidth}" viewBox="0 0 ${brushWidth} ${brushWidth}" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="${brushWidth - 2}" height="${brushWidth - 2}" fill="none" stroke="black" stroke-width="1" stroke-dasharray="3 3"/></svg>`;
+        
+        // Base64 encode the SVG and format it as a data URI for the cursor
+        // The numbers set the cursor's hotspot to its center.
+        const eraserCursor = `url(data:image/svg+xml;base64,${btoa(eraserCursorSvg)}) ${brushWidth / 2} ${brushWidth / 2}, auto`;
+        
+        canvas.freeDrawingCursor = eraserCursor;
+        
+        // The eraser is implemented using a PencilBrush, and the erasing logic is
+        // handled in the 'path:created' event listener.
         canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
         canvas.freeDrawingBrush.width = brushWidth;
       }
     }, [tool, brushColor, brushWidth]);
+
 
     // Effect to handle eraser functionality by modifying created paths
     useEffect(() => {
