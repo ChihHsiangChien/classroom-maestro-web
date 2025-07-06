@@ -68,9 +68,11 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
     
     submissions.forEach(sub => {
       const answers = Array.isArray(sub.answer) ? sub.answer : [sub.answer];
-      answers.forEach(answerIndex => {
-        if (typeof answerIndex === 'number' && voteCounts.has(answerIndex)) {
-          voteCounts.set(answerIndex, (voteCounts.get(answerIndex) || 0) + 1);
+      answers.forEach(rawAnswer => {
+        if (rawAnswer === null || rawAnswer === undefined) return;
+        const answerIndex = parseInt(rawAnswer.toString(), 10);
+        if (!isNaN(answerIndex) && voteCounts.has(answerIndex)) {
+            voteCounts.set(answerIndex, (voteCounts.get(answerIndex) || 0) + 1);
         }
       });
     });
@@ -98,9 +100,19 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
   const studentAnswers = useMemo(() => {
     const answerMap = new Map<string, number | number[]>();
     submissions.forEach(sub => {
-      if (typeof sub.answer === 'number' || Array.isArray(sub.answer)) {
-        answerMap.set(sub.studentId, sub.answer);
-      }
+        if (sub.answer === null || sub.answer === undefined) return;
+
+        if (Array.isArray(sub.answer)) {
+            const parsedArray = sub.answer.map(a => parseInt(a.toString(), 10)).filter(a => !isNaN(a));
+            if (parsedArray.length > 0) {
+                answerMap.set(sub.studentId, parsedArray);
+            }
+        } else {
+            const parsedNumber = parseInt(sub.answer.toString(), 10);
+            if (!isNaN(parsedNumber)) {
+                answerMap.set(sub.studentId, parsedNumber);
+            }
+        }
     });
     return answerMap;
   }, [submissions]);
