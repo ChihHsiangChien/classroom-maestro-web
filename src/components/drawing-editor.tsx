@@ -35,6 +35,7 @@ import { useI18n } from '@/lib/i18n/provider';
 // --- Types ---
 export interface DrawingEditorRef {
   getCanvasDataUrl: () => string | undefined;
+  addImageFromUrl: (url: string) => void;
 }
 
 interface DrawingEditorProps {
@@ -69,6 +70,19 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
 
     const { toast } = useToast();
 
+    const addImageFromUrl = useCallback((dataUrl: string) => {
+      fabric.Image.fromURL(dataUrl, (img) => {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+        setTool('select');
+        img.scaleToWidth((canvas.getWidth() || 500) / 2);
+        canvas.add(img);
+        canvas.centerObject(img);
+        canvas.setActiveObject(img);
+        canvas.renderAll();
+      }, { crossOrigin: 'anonymous' });
+    }, []);
+
     // Expose method to parent component
     useImperativeHandle(ref, () => ({
       getCanvasDataUrl: () => {
@@ -78,6 +92,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
         }
         return undefined;
       },
+      addImageFromUrl,
     }));
 
     useEffect(() => {
@@ -241,19 +256,10 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
               const reader = new FileReader();
               reader.onload = (event) => {
                 const dataUrl = event.target?.result as string;
-                fabric.Image.fromURL(dataUrl, (img) => {
-                  const currentCanvas = fabricCanvasRef.current;
-                  if (!currentCanvas) return; // Guard
-                  setTool('select');
-                  img.scaleToWidth((currentCanvas.getWidth() || 500) / 2);
-                  currentCanvas.add(img);
-                  currentCanvas.centerObject(img);
-                  currentCanvas.setActiveObject(img);
-                  currentCanvas.renderAll();
-                  toast({ 
-                    title: t('drawingEditor.toast_image_pasted_title'), 
-                    description: t('drawingEditor.toast_image_pasted_description') 
-                  });
+                addImageFromUrl(dataUrl);
+                toast({ 
+                  title: t('drawingEditor.toast_image_pasted_title'), 
+                  description: t('drawingEditor.toast_image_pasted_description') 
                 });
               };
               reader.readAsDataURL(blob);
@@ -266,7 +272,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
       return () => {
         document.removeEventListener('paste', handlePaste);
       };
-    }, [toast, t]);
+    }, [toast, t, addImageFromUrl]);
 
     const addText = () => {
       const canvas = fabricCanvasRef.current;
@@ -291,16 +297,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
       const reader = new FileReader();
       reader.onload = (f) => {
         const data = f.target?.result as string;
-        fabric.Image.fromURL(data, (img) => {
-          const canvas = fabricCanvasRef.current;
-          if (!canvas) return; // Guard
-          setTool('select');
-          img.scaleToWidth((canvas.getWidth() || 500) / 2);
-          canvas.add(img);
-          canvas.centerObject(img);
-          canvas.setActiveObject(img);
-          canvas.renderAll();
-        });
+        addImageFromUrl(data);
       };
       reader.readAsDataURL(file);
       if (e.target) e.target.value = '';
@@ -314,17 +311,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
       tempCanvas.width = video.videoWidth;
       tempCanvas.height = video.videoHeight;
       tempCanvas.getContext('2d')?.drawImage(video, 0, 0);
-
-      fabric.Image.fromURL(tempCanvas.toDataURL(), (img) => {
-        const currentCanvas = fabricCanvasRef.current;
-        if (!currentCanvas) return; // Guard
-        setTool('select');
-        img.scaleToWidth((currentCanvas.getWidth() || 500) / 2);
-        currentCanvas.add(img);
-        currentCanvas.centerObject(img);
-        currentCanvas.setActiveObject(img);
-        currentCanvas.renderAll();
-      });
+      addImageFromUrl(tempCanvas.toDataURL());
       setIsCameraDialogOpen(false);
     };
 
@@ -515,3 +502,5 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
   }
 );
 DrawingEditor.displayName = 'DrawingEditor';
+
+    

@@ -111,10 +111,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         startImageTransition(async () => {
             const result = await generateImageAction({ prompt: imagePrompt });
             if (result.imageUrl) {
-                form.setValue('imageUrl', result.imageUrl, { shouldValidate: true });
-                if (form.getValues('type') === 'drawing') {
-                    form.setValue('type', 'image-annotation', { shouldValidate: true });
-                }
+                editorRef.current?.addImageFromUrl(result.imageUrl);
                 toast({
                     title: t('activityEditor.toast_image_generated_title'),
                     description: t('activityEditor.toast_image_generated_description'),
@@ -286,29 +283,6 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                                     <FormMessage />
                                 </FormItem>
                             )} />
-                             <div className="space-y-2 pt-4 border-t">
-                                <Label htmlFor="image-prompt">{t('activityEditor.generate_image_label')}</Label>
-                                <div className="flex items-center gap-2">
-                                    <Input
-                                        id="image-prompt"
-                                        placeholder={t('activityEditor.generate_image_placeholder')}
-                                        value={imagePrompt}
-                                        onChange={(e) => setImagePrompt(e.target.value)}
-                                        disabled={isGeneratingImage}
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={handleGenerateImage}
-                                        disabled={isGeneratingImage || !imagePrompt}
-                                        className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0"
-                                    >
-                                        {isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                                        <span className="sr-only">{t('activityEditor.generate_image_button')}</span>
-                                    </Button>
-                                </div>
-                            </div>
                         </TabsContent>
 
                         <TabsContent value="image-annotation" forceMount={true} className={watchedType !== 'image-annotation' ? 'hidden' : 'space-y-6'}>
@@ -360,3 +334,5 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         </Form>
     );
 }
+
+    
