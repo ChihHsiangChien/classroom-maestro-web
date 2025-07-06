@@ -51,28 +51,26 @@ interface ResultsProps {
     submissions: Submission[];
 }
 
-function MultipleChoiceResults({ question, submissions, students }: { question: (MultipleChoiceQuestion | (QuestionData & { type: 'true-false' })) & { options: { value: string }[], allowMultipleAnswers?: boolean }, submissions: Submission[], students: Student[] }) {
+function MultipleChoiceResults({ question, submissions, students }: { question: (MultipleChoiceQuestion | (QuestionData & { type: 'true-false' })) & { options: { value: string }[], allowMultipleAnswers?: boolean, answer: number[] }, submissions: Submission[], students: Student[] }) {
   const { t } = useI18n();
   const [isResponsesOpen, setIsResponsesOpen] = useState(true);
   const isTrueFalse = question.type === 'true-false';
   
   const [sortBy, setSortBy] = useState<'name' | 'time' | 'option'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [optionSortKey, setOptionSortKey] = useState<string | null>(null);
+  const [optionSortKey, setOptionSortKey] = useState<number | null>(null);
   
   const results = useMemo(() => {
-    const voteCounts = new Map<string, number>();
-    question.options.forEach((option, index) => {
-        const letter = String.fromCharCode(65 + index);
-        const optionIdentifier = option.value || letter;
-        voteCounts.set(optionIdentifier, 0);
+    const voteCounts = new Map<number, number>();
+    question.options.forEach((_, index) => {
+        voteCounts.set(index, 0);
     });
     
     submissions.forEach(sub => {
       const answers = Array.isArray(sub.answer) ? sub.answer : [sub.answer];
-      answers.forEach(answer => {
-        if (voteCounts.has(answer)) {
-          voteCounts.set(answer, (voteCounts.get(answer) || 0) + 1);
+      answers.forEach(answerIndex => {
+        if (typeof answerIndex === 'number' && voteCounts.has(answerIndex)) {
+          voteCounts.set(answerIndex, (voteCounts.get(answerIndex) || 0) + 1);
         }
       });
     });
@@ -83,14 +81,13 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
 
     return question.options.map((option, index) => {
       const letter = String.fromCharCode(65 + index);
-      const optionIdentifier = option.value || letter;
-      const votes = voteCounts.get(optionIdentifier) || 0;
       const displayValue = isTrueFalse ? (option.value === 'O' ? 'O' : 'X') : (option.value ? `${letter}. ${option.value}` : letter);
-      const isCorrect = !!(question.showAnswer && question.answer?.includes(optionIdentifier));
+      const votes = voteCounts.get(index) || 0;
+      const isCorrect = !!(question.showAnswer && question.answer?.includes(index));
 
       return {
         option: displayValue,
-        optionIdentifier,
+        index,
         votes,
         percentage: totalVotes > 0 ? (votes / (question.allowMultipleAnswers ? submissions.length : totalVotes)) * 100 : 0,
         isCorrect,
@@ -99,9 +96,11 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
   }, [submissions, question, isTrueFalse]);
 
   const studentAnswers = useMemo(() => {
-    const answerMap = new Map<string, string | string[]>();
+    const answerMap = new Map<string, number | number[]>();
     submissions.forEach(sub => {
+      if (typeof sub.answer === 'number' || Array.isArray(sub.answer)) {
         answerMap.set(sub.studentId, sub.answer);
+      }
     });
     return answerMap;
   }, [submissions]);
@@ -112,12 +111,12 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
     return submissionMap;
   }, [submissions]);
 
-  const handleOptionSort = (optionValue: string) => {
-    if (sortBy === 'option' && optionSortKey === optionValue) {
+  const handleOptionSort = (optionIndex: number) => {
+    if (sortBy === 'option' && optionSortKey === optionIndex) {
       setSortOrder(current => current === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy('option');
-      setOptionSortKey(optionValue);
+      setOptionSortKey(optionIndex);
       setSortOrder('asc');
     }
   };
@@ -141,11 +140,11 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
           }
           break;
         case 'option':
-          if (optionSortKey) {
+          if (optionSortKey !== null) {
             const aHasAnswer = studentAnswers.get(a.id);
             const bHasAnswer = studentAnswers.get(b.id);
-            const aSelected = aHasAnswer && (Array.isArray(aHasAnswer) ? aHasAnswer.includes(optionSortKey) : aHasAnswer === optionSortKey);
-            const bSelected = bHasAnswer && (Array.isArray(bHasAnswer) ? bHasAnswer.includes(optionSortKey) : bHasAnswer === optionSortKey);
+            const aSelected = aHasAnswer !== undefined && (Array.isArray(aHasAnswer) ? aHasAnswer.includes(optionSortKey) : aHasAnswer === optionSortKey);
+            const bSelected = bHasAnswer !== undefined && (Array.isArray(bHasAnswer) ? bHasAnswer.includes(optionSortKey) : bHasAnswer === optionSortKey);
             if (aSelected !== bSelected) {
               compare = aSelected ? -1 : 1;
             } else {
@@ -168,8 +167,8 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
           <BarChartIcon className="mr-2 h-5 w-5" /> {t('activePoll.live_results_title')}
         </h3>
         <div className="space-y-4">
-          {results.map((result, index) => (
-            <div key={`${result.option}-${index}`}>
+          {results.map((result) => (
+            <div key={result.index}>
               <div className="mb-1 flex items-center justify-between">
                 <p className={cn("font-medium flex items-center gap-2", result.isCorrect && "text-green-600")}>
                   {result.isCorrect && <Check className="h-5 w-5" />}
@@ -229,15 +228,15 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
                   <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
                     <TableRow>
                       <TableHead className="w-[150px]">{t('activePoll.student_table_header')}</TableHead>
-                      {results.map((result, index) => {
-                         const headerText = isTrueFalse ? result.option : String.fromCharCode(65 + index);
-                         const isSortActive = sortBy === 'option' && optionSortKey === result.optionIdentifier;
+                      {results.map((result) => {
+                         const headerText = isTrueFalse ? result.option : String.fromCharCode(65 + result.index);
+                         const isSortActive = sortBy === 'option' && optionSortKey === result.index;
                          return (
-                            <TableHead key={`${result.optionIdentifier}-${index}`} className="text-center p-1">
+                            <TableHead key={result.index} className="text-center p-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleOptionSort(result.optionIdentifier)}
+                                onClick={() => handleOptionSort(result.index)}
                                 className={cn("w-full justify-center", result.isCorrect && "font-bold text-green-600")}
                               >
                                 {result.isCorrect && <Check className="h-4 w-4 mr-1" />}
@@ -255,12 +254,12 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
                     {sortedStudents.map(student => {
                       const answer = studentAnswers.get(student.id);
                       return (
-                        <TableRow key={student.id} data-answered={!!answer} className="data-[answered=true]:bg-green-500/10">
+                        <TableRow key={student.id} data-answered={answer !== undefined} className="data-[answered=true]:bg-green-500/10">
                           <TableCell className="font-medium">{student.name}</TableCell>
-                          {results.map((result, index) => {
+                          {results.map((result) => {
                             return (
-                                <TableCell key={`${result.optionIdentifier}-${index}`} className="text-center">
-                                {answer && (Array.isArray(answer) ? answer.includes(result.optionIdentifier) : answer === result.optionIdentifier) && (
+                                <TableCell key={result.index} className="text-center">
+                                {answer !== undefined && (Array.isArray(answer) ? answer.includes(result.index) : answer === result.index) && (
                                     <div className="flex justify-center">
                                     <CheckCircle className="h-5 w-5 text-green-600" />
                                     </div>
@@ -603,7 +602,13 @@ export function ActiveQuestion({ question, onEndQuestion, onRevealAnswer, studen
             case 'multiple-choice':
                 return <MultipleChoiceResults question={question} students={students} {...props} />;
             case 'true-false':
-                const trueFalseAsMc = { ...question, options: [{ value: "O" }, { value: "X" }] };
+                const trueFalseAsMc: MultipleChoiceQuestion & { answer: number[] } = {
+                  ...question,
+                  type: 'multiple-choice',
+                  options: [{ value: "O" }, { value: "X" }],
+                  allowMultipleAnswers: false,
+                  answer: 'answer' in question && question.answer === 'O' ? [0] : (question.answer === 'X' ? [1] : []),
+                };
                 return <MultipleChoiceResults question={trueFalseAsMc} students={students} {...props} />;
             case 'short-answer':
                 return <TextResponseResults {...props} />;
@@ -618,7 +623,7 @@ export function ActiveQuestion({ question, onEndQuestion, onRevealAnswer, studen
     
     const hasAnswer = 'answer' in question && 
       question.answer && 
-      (Array.isArray(question.answer) ? question.answer.length > 0 : !!question.answer);
+      (Array.isArray(question.answer) ? question.answer.length > 0 : (typeof question.answer === 'string' && !!question.answer));
 
     const isAnswerRevealed = question.showAnswer;
 

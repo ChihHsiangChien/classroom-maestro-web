@@ -39,22 +39,22 @@ const DrawingEditor = dynamic(
 // --- Question Answering Forms ---
 interface StudentQuestionFormProps {
   question: QuestionData;
-  onVoteSubmit: (answer: string | string[]) => void;
+  onVoteSubmit: (answer: string | string[] | number | number[]) => void;
 }
 
 const shortAnswerSchema = z.object({ answer: z.string().min(1, { message: "Your answer cannot be empty." }) });
 
-function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQuestion, onSubmit: (answer: string | string[]) => void }) {
+function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQuestion, onSubmit: (answer: number | number[]) => void }) {
     const { t } = useI18n();
     const formSchema = z.object({
         answers: question.allowMultipleAnswers
-            ? z.array(z.string()).nonempty("Please select at least one option.")
-            : z.string().min(1, "Please select an answer."),
+            ? z.array(z.number()).nonempty("Please select at least one option.")
+            : z.number({ required_error: "Please select an answer." }),
     });
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: { answers: question.allowMultipleAnswers ? [] : "" },
+        defaultValues: { answers: question.allowMultipleAnswers ? [] : undefined },
     });
 
     const handleSubmit = (data: z.infer<typeof formSchema>) => {
@@ -76,18 +76,17 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
                                         {question.options.map((option, index) => {
                                             const letter = String.fromCharCode(65 + index);
                                             const displayValue = option.value ? `${letter}. ${option.value}` : letter;
-                                            const submittedValue = option.value || letter;
                                             return (
-                                                <Label key={`${submittedValue}-${index}`} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[button[data-state=checked]]:bg-primary/10 has-[button[data-state=checked]]:border-primary">
+                                                <Label key={index} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[button[data-state=checked]]:bg-primary/10 has-[button[data-state=checked]]:border-primary">
                                                     <Checkbox
-                                                        checked={(field.value as string[]).includes(submittedValue)}
+                                                        checked={(field.value as number[]).includes(index)}
                                                         onCheckedChange={(checked) => {
-                                                            const currentAnswers = (field.value as string[]) || [];
+                                                            const currentAnswers = (field.value as number[]) || [];
                                                             if (checked) {
-                                                                field.onChange([...currentAnswers, submittedValue]);
+                                                                field.onChange([...currentAnswers, index]);
                                                             } else {
                                                                 field.onChange(
-                                                                    currentAnswers.filter((value) => value !== submittedValue)
+                                                                    currentAnswers.filter((value) => value !== index)
                                                                 );
                                                             }
                                                         }}
@@ -99,17 +98,16 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
                                     </div>
                                 ) : (
                                     <RadioGroup
-                                        onValueChange={field.onChange}
-                                        defaultValue={field.value as string}
+                                        onValueChange={(val) => field.onChange(parseInt(val))}
+                                        defaultValue={field.value?.toString()}
                                         className="w-full space-y-2"
                                     >
                                         {question.options.map((option, index) => {
                                             const letter = String.fromCharCode(65 + index);
                                             const displayValue = option.value ? `${letter}. ${option.value}` : letter;
-                                            const submittedValue = option.value || letter;
                                             return (
-                                                <Label key={`${submittedValue}-${index}`} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
-                                                    <RadioGroupItem value={submittedValue} />
+                                                <Label key={index} className="flex cursor-pointer items-center space-x-3 space-y-0 rounded-md border p-4 font-normal hover:bg-muted/50 has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
+                                                    <RadioGroupItem value={index.toString()} />
                                                     <span>{displayValue}</span>
                                                 </Label>
                                             );
@@ -130,13 +128,13 @@ function MultipleChoiceForm({ question, onSubmit }: { question: MultipleChoiceQu
     );
 }
 
-function TrueFalseForm({ onSubmit }: { onSubmit: (answer: string) => void }) {
+function TrueFalseForm({ onSubmit }: { onSubmit: (answer: number) => void }) {
     return (
         <div className="flex justify-around gap-4 pt-4">
-            <Button onClick={() => onSubmit("O")} className="w-1/2 h-24 text-6xl font-bold" variant="outline">
+            <Button onClick={() => onSubmit(0)} className="w-1/2 h-24 text-6xl font-bold" variant="outline">
                 O
             </Button>
-            <Button onClick={() => onSubmit("X")} className="w-1/2 h-24 text-6xl font-bold" variant="destructive">
+            <Button onClick={() => onSubmit(1)} className="w-1/2 h-24 text-6xl font-bold" variant="destructive">
                 X
             </Button>
         </div>
@@ -196,7 +194,7 @@ export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionF
   };
   const translatedQuestionType = getTranslatedQuestionType(question.type);
 
-  function handleSubmit(answer: string | string[]) {
+  function handleSubmit(answer: string | string[] | number | number[]) {
     onVoteSubmit(answer);
   }
 

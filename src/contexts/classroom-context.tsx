@@ -41,7 +41,7 @@ export interface Submission {
   id: string;
   studentId: string;
   studentName: string;
-  answer: string | string[];
+  answer: string | string[] | number | number[];
   questionId: string;
   questionText: string;
   questionType: string;
@@ -85,7 +85,7 @@ interface ClassroomContextType {
   reorderClassrooms: (reorderedClassrooms: Classroom[]) => Promise<void>;
   setActiveQuestionInDB: (classroomId: string, question: any | null) => Promise<void>;
   revealAnswer: (classroomId: string) => Promise<void>;
-  addSubmission: (classroomId: string, questionId: string, questionText: string, questionType: string, studentId: string, studentName: string, answer: string | string[]) => Promise<void>;
+  addSubmission: (classroomId: string, questionId: string, questionText: string, questionType: string, studentId: string, studentName: string, answer: string | string[] | number | number[]) => Promise<void>;
   listenForSubmissions: (classroomId: string, questionId: string, callback: (submissions: Submission[]) => void) => () => void;
   listenForClassroom: (classroomId: string, callback: (classroom: Classroom | null) => void) => () => void;
   listenForStudentPresence: (classroomId: string, studentId: string, callback: (presence: PresenceData | null) => void) => () => void;
@@ -366,7 +366,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     questionType: string,
     studentId: string, 
     studentName: string, 
-    answer: string | string[]
+    answer: string | string[] | number | number[]
   ) => {
     if (!db) return;
     try {

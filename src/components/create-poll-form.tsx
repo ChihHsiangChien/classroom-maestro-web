@@ -52,7 +52,7 @@ export interface MultipleChoiceQuestion {
   question: string;
   options: { value: string }[];
   allowMultipleAnswers: boolean;
-  answer: string[];
+  answer: number[];
   showAnswer?: boolean;
 }
 export interface TrueFalseQuestion {
@@ -90,6 +90,7 @@ interface QuestionFormProps {
 
 function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
     const { t } = useI18n();
+    const { logAiUsage } = useUsage();
     const [isGenerating, startTransition] = useTransition();
     const [topic, setTopic] = useState("");
     const { toast } = useToast();
@@ -98,7 +99,7 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
         question: z.string().optional(),
         options: z.array(z.object({ value: z.string().optional() })).optional(),
         allowMultipleAnswers: z.boolean().optional(),
-        answer: z.array(z.string()).optional(),
+        answer: z.array(z.number()).optional(),
     });
 
     const form = useForm<z.infer<typeof multipleChoiceSchema>>({
@@ -116,6 +117,7 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
                 replace(result.poll.options);
                 form.setValue("answer", result.poll.answer, { shouldValidate: true });
                 form.clearErrors();
+                logAiUsage('generatePoll');
             } else {
                 toast({ variant: "destructive", title: t('common.error'), description: result.error });
             }
@@ -152,23 +154,21 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
                              <FormControl>
                                 {allowMultipleAnswers ? (
                                     <Checkbox
-                                        checked={(field.value || []).includes(form.getValues(`options.${index}.value`))}
+                                        checked={(field.value || []).includes(index)}
                                         onCheckedChange={(checked) => {
-                                            const optionValue = form.getValues(`options.${index}.value`);
-                                            if (!optionValue) return;
-                                            const currentAnswers = field.value || [];
+                                            const currentAnswers = (field.value || []);
                                             const newAnswers = checked
-                                                ? [...currentAnswers, optionValue]
-                                                : currentAnswers.filter((value) => value !== optionValue);
+                                                ? [...currentAnswers, index]
+                                                : currentAnswers.filter((value) => value !== index);
                                             field.onChange(newAnswers);
                                         }}
                                     />
                                 ) : (
                                     <RadioGroup
-                                        onValueChange={(val) => field.onChange([val])}
-                                        value={field.value?.[0]}
+                                        onValueChange={(val) => field.onChange([parseInt(val)])}
+                                        value={field.value?.[0]?.toString()}
                                     >
-                                        <RadioGroupItem value={form.getValues(`options.${index}.value`)} />
+                                        <RadioGroupItem value={index.toString()} />
                                     </RadioGroup>
                                 )}
                             </FormControl>
@@ -361,35 +361,8 @@ function ImageAnnotationForm({ onQuestionCreate }: QuestionFormProps) {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-                <Label htmlFor="image-prompt">{t('activityEditor.generate_image_label')}</Label>
-                <div className="flex items-center gap-2">
-                    <Input
-                        id="image-prompt"
-                        placeholder={t('activityEditor.generate_image_placeholder')}
-                        value={imagePrompt}
-                        onChange={(e) => setImagePrompt(e.target.value)}
-                        disabled={isGeneratingImage}
-                    />
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={handleGenerateImage}
-                        disabled={isGeneratingImage || !imagePrompt}
-                        className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0"
-                    >
-                        {isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                        <span className="sr-only">{t('activityEditor.generate_image_button')}</span>
-                    </Button>
-                </div>
-            </div>
-
-            <div className="relative">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">{t('common.or_create_manually')}</span></div>
-            </div>
-
+            <div className="space-y-2"><Label htmlFor="topic">{t('activityEditor.generate_image_label')}</Label><div className="flex items-center gap-2"><Input id="topic" placeholder={t('activityEditor.generate_image_placeholder')} value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} disabled={isGeneratingImage} /><Button type="button" variant="outline" size="icon" onClick={handleGenerateImage} disabled={isGeneratingImage || !imagePrompt} className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0">{isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}<span className="sr-only">{t('activityEditor.generate_image_button')}</span></Button></div></div>
+            <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">{t('common.or_create_manually')}</span></div></div>
             <div className="space-y-2">
                 <Label htmlFor="annotation-prompt">{t('createQuestionForm.annotation_prompt_label')}</Label>
                 <Textarea 

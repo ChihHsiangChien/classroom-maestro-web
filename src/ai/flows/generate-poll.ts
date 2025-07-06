@@ -23,10 +23,10 @@ const GeneratePollOutputSchema = z.object({
     .max(4)
     .describe('A list of exactly 4 plausible options for the poll.'),
   answer: z
-    .array(z.string())
+    .array(z.number().int())
     .min(1)
     .max(1)
-    .describe('An array containing the single correct option value.'),
+    .describe("An array containing the single 0-based index of the correct option."),
 });
 export type GeneratePollOutput = z.infer<typeof GeneratePollOutputSchema>;
 
@@ -45,9 +45,9 @@ const prompt = ai.definePrompt({
       Generate a single-choice poll question about the following topic: {{{topic}}}.
       The question should be interesting and suitable for a classroom setting.
       You must provide exactly 4 plausible options. One option must be clearly correct, and the others should be thought-provoking distractors.
-      You must also specify the correct answer in the 'answer' field. The answer must be one of the provided option values.
+      You must also specify the 0-based index of the correct option in the 'answer' field. For example, if the first option is correct, the value should be [0].
       
-      The entire output, including the question, all options, and the answer, must be in Traditional Chinese (繁體中文).
+      The entire output, including the question and all options, must be in Traditional Chinese (繁體中文).
       
       Return the question, options, and answer in the specified JSON format.
       `,
