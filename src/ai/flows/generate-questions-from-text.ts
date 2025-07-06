@@ -17,14 +17,14 @@ const GenerateQuestionsFromTextInputSchema = z.object({
 export type GenerateQuestionsFromTextInput = z.infer<typeof GenerateQuestionsFromTextInputSchema>;
 
 const MultipleChoiceQuestionSchema = z.object({
-  type: z.literal('multiple-choice'),
+  type: z.enum(['multiple-choice']),
   question: z.string().describe('The multiple-choice question.'),
   options: z.array(z.object({ value: z.string() })).min(2).max(4).describe('A list of 2 to 4 plausible options.'),
   allowMultipleAnswers: z.boolean().default(false).describe('Whether multiple answers are allowed.'),
 });
 
 const TrueFalseQuestionSchema = z.object({
-  type: z.literal('true-false'),
+  type: z.enum(['true-false']),
   question: z.string().describe('The true/false question.'),
 });
 
