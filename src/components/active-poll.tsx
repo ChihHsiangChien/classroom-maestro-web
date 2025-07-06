@@ -1,7 +1,7 @@
 
 "use client";
 
-import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, ChevronDown, Wand2, Loader2, BrainCircuit, ArrowDownUp, ArrowDown, ArrowUp, Check } from "lucide-react";
+import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCircle, PencilRuler, ChevronDown, Wand2, Loader2, BrainCircuit, ArrowDownUp, ArrowDown, ArrowUp, Check, CheckCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
