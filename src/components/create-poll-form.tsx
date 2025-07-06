@@ -94,10 +94,10 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
     const { toast } = useToast();
 
     const multipleChoiceSchema = z.object({
-        question: z.string(),
-        options: z.array(z.object({ value: z.string() })).max(10),
-        allowMultipleAnswers: z.boolean().default(false),
-        answer: z.array(z.string()),
+        question: z.string().optional(),
+        options: z.array(z.object({ value: z.string().optional() })).optional(),
+        allowMultipleAnswers: z.boolean().optional(),
+        answer: z.array(z.string()).optional(),
     });
 
     const form = useForm<z.infer<typeof multipleChoiceSchema>>({
@@ -122,8 +122,15 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
     }
 
     function onSubmit(data: z.infer<typeof multipleChoiceSchema>) {
-        const finalQuestion = data.question.trim() || t('createQuestionForm.untitled_question');
-        onQuestionCreate({ type: 'multiple-choice', ...data, question: finalQuestion });
+        const finalQuestion = data.question?.trim() || t('createQuestionForm.untitled_question');
+        const payload: MultipleChoiceQuestion = {
+            type: 'multiple-choice',
+            question: finalQuestion,
+            options: data.options || [],
+            allowMultipleAnswers: data.allowMultipleAnswers || false,
+            answer: data.answer || [], // Ensure it's always an array
+        };
+        onQuestionCreate(payload);
     }
     
     return (<Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"><div className="space-y-2"><Label htmlFor="topic">{t('createQuestionForm.generate_with_ai_label')}</Label><div className="flex items-center gap-2"><Input id="topic" placeholder={t('createQuestionForm.generate_with_ai_placeholder')} value={topic} onChange={(e) => setTopic(e.target.value)} disabled={isGenerating} /><Button type="button" variant="outline" size="icon" onClick={handleGeneratePoll} disabled={isGenerating || !topic} className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0">{isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}<span className="sr-only">Generate Poll</span></Button></div><p className="text-xs text-muted-foreground">{t('createQuestionForm.generate_with_ai_description')}</p></div><div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">{t('common.or_create_manually')}</span></div></div><div className="space-y-8"><FormField control={form.control} name="question" render={({ field }) => (<FormItem><FormLabel>{t('createQuestionForm.poll_question_label')}</FormLabel><FormControl><Textarea placeholder={t('createQuestionForm.poll_question_placeholder')} {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -144,13 +151,14 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
                              <FormControl>
                                 {allowMultipleAnswers ? (
                                     <Checkbox
-                                        checked={field.value.includes(form.getValues(`options.${index}.value`))}
+                                        checked={(field.value || []).includes(form.getValues(`options.${index}.value`))}
                                         onCheckedChange={(checked) => {
                                             const optionValue = form.getValues(`options.${index}.value`);
                                             if (!optionValue) return;
+                                            const currentAnswers = field.value || [];
                                             const newAnswers = checked
-                                                ? [...field.value, optionValue]
-                                                : field.value.filter((value) => value !== optionValue);
+                                                ? [...currentAnswers, optionValue]
+                                                : currentAnswers.filter((value) => value !== optionValue);
                                             field.onChange(newAnswers);
                                         }}
                                     />
@@ -225,7 +233,7 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
 function TrueFalseForm({ onQuestionCreate }: QuestionFormProps) {
     const { t } = useI18n();
     const trueFalseSchema = z.object({
-        question: z.string(),
+        question: z.string().optional(),
         answer: z.enum(['O', 'X']).optional(),
     });
 
@@ -235,7 +243,14 @@ function TrueFalseForm({ onQuestionCreate }: QuestionFormProps) {
     });
 
     function onSubmit(data: z.infer<typeof trueFalseSchema>) {
-        onQuestionCreate({ type: 'true-false', ...data });
+        const payload: TrueFalseQuestion = {
+            type: 'true-false',
+            question: data.question || t('createQuestionForm.untitled_question'),
+        };
+        if (data.answer) {
+            payload.answer = data.answer;
+        }
+        onQuestionCreate(payload);
     }
 
     return (
@@ -279,7 +294,7 @@ function TrueFalseForm({ onQuestionCreate }: QuestionFormProps) {
 function SimpleQuestionForm({ type, onQuestionCreate, placeholder, label }: QuestionFormProps & { type: 'short-answer' | 'drawing', placeholder: string, label: string }) {
     const { t } = useI18n();
     const simpleQuestionSchema = z.object({
-        question: z.string(),
+        question: z.string().optional(),
     });
     const form = useForm<z.infer<typeof simpleQuestionSchema>>({
         resolver: zodResolver(simpleQuestionSchema),
@@ -287,8 +302,8 @@ function SimpleQuestionForm({ type, onQuestionCreate, placeholder, label }: Ques
     });
 
     function onSubmit(data: z.infer<typeof simpleQuestionSchema>) {
-        const finalQuestion = data.question.trim() || t('createQuestionForm.untitled_question');
-        onQuestionCreate({ type, ...data, question: finalQuestion });
+        const finalQuestion = data.question?.trim() || t('createQuestionForm.untitled_question');
+        onQuestionCreate({ type, question: finalQuestion });
     }
 
     return (

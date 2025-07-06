@@ -26,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import type { DrawingEditorRef } from "./drawing-editor";
 import { useI18n } from "@/lib/i18n/provider";
-import type { QuestionData } from "./create-poll-form";
+import type { QuestionData, TrueFalseQuestion, MultipleChoiceQuestion } from "./create-poll-form";
 import { generatePollAction, generateImageAction } from "@/app/actions";
 import { useUsage } from "@/hooks/use-usage";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
@@ -91,6 +91,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
             question: "",
             options: [{ value: "" }, { value: "" }, { value: "" }, { value: "" }],
             allowMultipleAnswers: false,
+            answer: [],
         },
     });
 
@@ -159,16 +160,21 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
 
         switch (data.type) {
             case 'true-false':
-                finalData = { type: 'true-false', question: question, answer: data.answer };
+                const tfData: TrueFalseQuestion = { type: 'true-false', question: question };
+                if (data.answer) {
+                    tfData.answer = data.answer;
+                }
+                finalData = tfData;
                 break;
             case 'multiple-choice':
-                finalData = { 
+                const mcData: MultipleChoiceQuestion = { 
                     type: 'multiple-choice', 
                     question: question, 
                     options: data.options?.map(o => ({ value: o.value || '' })) || [],
                     allowMultipleAnswers: data.allowMultipleAnswers || false,
                     answer: data.answer || [],
                 };
+                finalData = mcData;
                 break;
             case 'drawing':
                 finalData = { type: 'drawing', question: question };
@@ -281,7 +287,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                                                     <FormControl>
                                                         {allowMultipleAnswers ? (
                                                             <Checkbox
-                                                                checked={field.value?.includes(form.getValues(`options.${index}.value`))}
+                                                                checked={(field.value || []).includes(form.getValues(`options.${index}.value`))}
                                                                 onCheckedChange={(checked) => {
                                                                     const optionValue = form.getValues(`options.${index}.value`);
                                                                     if (!optionValue) return;
