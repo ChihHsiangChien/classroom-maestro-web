@@ -48,6 +48,7 @@ interface CoursewareContextType {
   reorderActivities: (coursewareId: string, activities: Activity[]) => Promise<void>;
   reorderCoursewares: (reorderedCoursewares: Courseware[]) => Promise<void>;
   addCoursewareFromActivities: (name: string, activities: QuestionData[]) => Promise<void>;
+  addMultipleActivities: (coursewareId: string, activitiesData: QuestionData[]) => Promise<void>;
   duplicateCourseware: (coursewareId: string) => Promise<void>;
   duplicateActivity: (coursewareId: string, activityId: string) => Promise<void>;
   moveActivity: (sourceCoursewareId: string, destinationCoursewareId: string, activityId: string) => Promise<void>;
@@ -151,6 +152,25 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
             await updateDoc(doc(db, 'courseware', coursewareId), { activities: updatedActivities });
         } catch (error) {
             handleFirestoreError(error, 'add-activity');
+        }
+    }, [findCourseware, handleFirestoreError]);
+
+    const addMultipleActivities = useCallback(async (coursewareId: string, activitiesData: QuestionData[]) => {
+        if (!db) return;
+        const courseware = findCourseware(coursewareId);
+        if (!courseware) return;
+        
+        const newActivities: Activity[] = activitiesData.map(activity => ({
+            ...activity,
+            id: generateId()
+        }));
+        
+        const updatedActivities = [...(courseware.activities || []), ...newActivities];
+
+        try {
+            await updateDoc(doc(db, 'courseware', coursewareId), { activities: updatedActivities });
+        } catch (error) {
+            handleFirestoreError(error, 'add-multiple-activities');
         }
     }, [findCourseware, handleFirestoreError]);
     
@@ -329,6 +349,7 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         reorderActivities,
         reorderCoursewares,
         addCoursewareFromActivities,
+        addMultipleActivities,
         duplicateCourseware,
         duplicateActivity,
         moveActivity,
@@ -344,6 +365,7 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         reorderActivities,
         reorderCoursewares,
         addCoursewareFromActivities,
+        addMultipleActivities,
         duplicateCourseware,
         duplicateActivity,
         moveActivity,

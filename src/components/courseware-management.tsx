@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Edit, Trash2, GripVertical, FileText, CheckSquareIcon, Vote, ImageIcon, PencilRuler, Loader2, MoreVertical, Copy, ArrowRightLeft } from 'lucide-react';
+import { Plus, Edit, Trash2, GripVertical, FileText, CheckSquareIcon, Vote, ImageIcon, PencilRuler, Loader2, MoreVertical, Copy, ArrowRightLeft, Wand2 } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -71,6 +71,9 @@ import type { QuestionData } from './create-poll-form';
 import { useI18n } from '@/lib/i18n/provider';
 import { ActivityEditor } from './activity-editor';
 import { cn } from '@/lib/utils';
+import { Textarea } from './ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { generateQuestionsFromTextAction } from '@/app/actions';
 
 
 function SortableActivityItem({
@@ -285,7 +288,7 @@ function SortableCoursewareItem({
 // Main Component
 export function CoursewareManagement() {
   const { t } = useI18n();
-  const { coursewares, addCourseware, deleteCourseware, updateCourseware, reorderActivities, addActivity, updateActivity, deleteActivity, loading, reorderCoursewares, duplicateCourseware, duplicateActivity, moveActivity } = useCourseware();
+  const { coursewares, addCourseware, deleteCourseware, updateCourseware, reorderActivities, addActivity, updateActivity, deleteActivity, loading, reorderCoursewares, duplicateCourseware, duplicateActivity, moveActivity, addMultipleActivities } = useCourseware();
   const { toast } = useToast();
 
   const [isCoursewareDialogOpen, setCoursewareDialogOpen] = useState(false);
@@ -295,6 +298,11 @@ export function CoursewareManagement() {
   const [isActivityEditorOpen, setActivityEditorOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [currentCoursewareId, setCurrentCoursewareId] = useState<string | null>(null);
+  
+  const [isGenerateQuestionsDialogOpen, setGenerateQuestionsDialogOpen] = useState(false);
+  const [textContext, setTextContext] = useState("");
+  const [targetCoursewareId, setTargetCoursewareId] = useState<string | null>(null);
+  const [isGeneratingQuestions, startQuestionGenTransition] = useTransition();
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -375,6 +383,29 @@ export function CoursewareManagement() {
     }
   };
 
+  const handleGenerateQuestions = async () => {
+    if (!targetCoursewareId) {
+        toast({ variant: "destructive", title: t('common.error'), description: t('courseware.toast_no_courseware_selected') });
+        return;
+    }
+    startQuestionGenTransition(async () => {
+        const result = await generateQuestionsFromTextAction({ context: textContext });
+        if (result.questions && result.questions.length > 0) {
+            await addMultipleActivities(targetCoursewareId, result.questions);
+            const targetCoursewareName = coursewares.find(c => c.id === targetCoursewareId)?.name || '';
+            toast({ 
+                title: t('courseware.toast_questions_generated_title'),
+                description: t('courseware.toast_questions_generated_description', { count: result.questions.length, name: targetCoursewareName }) 
+            });
+            setGenerateQuestionsDialogOpen(false);
+            setTextContext('');
+            setTargetCoursewareId(null);
+        } else {
+            toast({ variant: "destructive", title: t('common.error'), description: result.error || 'Failed to generate questions.' });
+        }
+    });
+  };
+
   if (loading) {
       return (
           <div className="flex h-64 items-center justify-center">
@@ -386,15 +417,21 @@ export function CoursewareManagement() {
   return (
     <>
       <div className="container mx-auto max-w-5xl py-8">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex items-center justify-between gap-2 flex-wrap">
             <div>
                 <h1 className="text-3xl font-bold">{t('courseware.title')}</h1>
                 <p className="text-muted-foreground">{t('courseware.description')}</p>
             </div>
-            <Button onClick={() => handleOpenCoursewareDialog()}>
-                <Plus className="mr-2 h-4 w-4" />
-                {t('courseware.create_package')}
-            </Button>
+            <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => setGenerateQuestionsDialogOpen(true)}>
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    {t('courseware.generate_from_text')}
+                </Button>
+                <Button onClick={() => handleOpenCoursewareDialog()}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    {t('courseware.create_package')}
+                </Button>
+            </div>
         </div>
         <Card>
             <CardHeader className="flex-row items-center justify-between">
@@ -466,6 +503,47 @@ export function CoursewareManagement() {
                   />
               </div>
           </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isGenerateQuestionsDialogOpen} onOpenChange={setGenerateQuestionsDialogOpen}>
+        <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+                <DialogTitle>{t('courseware.generate_from_text')}</DialogTitle>
+                <DialogDescription>{t('courseware.generate_from_text_description')}</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="text-context">{t('courseware.paste_content_label')}</Label>
+                    <Textarea 
+                        id="text-context" 
+                        placeholder={t('courseware.paste_content_placeholder')}
+                        value={textContext}
+                        onChange={(e) => setTextContext(e.target.value)}
+                        rows={10}
+                    />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="target-courseware">{t('courseware.add_to_courseware_label')}</Label>
+                    <Select onValueChange={setTargetCoursewareId} disabled={coursewares.length === 0}>
+                        <SelectTrigger id="target-courseware">
+                            <SelectValue placeholder={t('courseware.select_courseware_placeholder')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {coursewares.map(cw => (
+                                <SelectItem key={cw.id} value={cw.id}>{cw.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="ghost" onClick={() => setGenerateQuestionsDialogOpen(false)}>{t('common.cancel')}</Button>
+                <Button onClick={handleGenerateQuestions} disabled={isGeneratingQuestions || !textContext || !targetCoursewareId}>
+                  {isGeneratingQuestions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                  {isGeneratingQuestions ? t('courseware.generating_questions') : t('courseware.generate_questions_button')}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
       </Dialog>
     </>
   );

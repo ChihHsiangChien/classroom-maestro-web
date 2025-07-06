@@ -190,6 +190,14 @@ export const dictionaries = {
       options_min_error: '選擇題至少需要 2 個選項。',
       untitled_question: '(無標題問題)',
     },
+    activityEditor: {
+      generate_image_label: '使用 AI 生成圖片',
+      generate_image_placeholder: '例如：「一個簡單的植物細胞圖」',
+      generate_image_button: '生成圖片',
+      generating_image: '正在生成圖片...',
+      toast_image_generated_title: '圖片已生成',
+      toast_image_generated_description: '新圖片已設定為活動背景。',
+    },
     activePoll: {
       live_results_title: '即時結果',
       votes_count: '{count} 票',
@@ -386,6 +394,17 @@ export const dictionaries = {
       toast_activity_duplicated: '活動已複製',
       toast_activity_moved: '活動已移動',
       no_other_packages: '沒有其他教材可供移動',
+      generate_from_text: '從內文生成問題',
+      generate_from_text_description: '貼上一段課文，讓 AI 自動生成相關問題。',
+      paste_content_label: '貼上課文內容',
+      paste_content_placeholder: '在此貼上您的課文...',
+      add_to_courseware_label: '新增至教材',
+      select_courseware_placeholder: '請選擇一個教材',
+      generate_questions_button: '生成問題',
+      generating_questions: '正在生成問題...',
+      toast_questions_generated_title: '問題已生成',
+      toast_questions_generated_description: '{count} 個新問題已新增至「{name}」。',
+      toast_no_courseware_selected: '請先選擇一個教材',
     },
     language_switcher: {
       title: '語言',
@@ -576,6 +595,14 @@ export const dictionaries = {
       option_empty_error: 'Option cannot be empty.',
       options_min_error: 'Multiple choice questions must have at least 2 options.',
       untitled_question: '(Untitled Question)',
+    },
+    activityEditor: {
+        generate_image_label: 'Generate Image with AI',
+        generate_image_placeholder: `e.g., 'A simple diagram of a plant cell'`,
+        generate_image_button: 'Generate Image',
+        generating_image: 'Generating image...',
+        toast_image_generated_title: 'Image Generated',
+        toast_image_generated_description: 'The new image has been set as the activity background.',
     },
     activePoll: {
       live_results_title: 'Live Results',
@@ -773,6 +800,17 @@ export const dictionaries = {
       toast_activity_duplicated: 'Activity duplicated.',
       toast_activity_moved: 'Activity moved.',
       no_other_packages: 'No other courseware to move to.',
+      generate_from_text: 'Generate from Text',
+      generate_from_text_description: 'Paste a text passage and let AI generate relevant questions automatically.',
+      paste_content_label: 'Paste Text Content',
+      paste_content_placeholder: 'Paste your text here...',
+      add_to_courseware_label: 'Add to Courseware',
+      select_courseware_placeholder: 'Please select a courseware',
+      generate_questions_button: 'Generate Questions',
+      generating_questions: 'Generating questions...',
+      toast_questions_generated_title: 'Questions Generated',
+      toast_questions_generated_description: '{count} new questions have been added to "{name}".',
+      toast_no_courseware_selected: 'Please select a courseware first',
     },
     language_switcher: {
       title: 'Language',
@@ -789,5 +827,3 @@ export const formatString = (str: string, values: Record<string, string | number
     return values[placeholder] !== undefined ? String(values[placeholder]) : placeholderWithBraces;
   });
 };
-
-    

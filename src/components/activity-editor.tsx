@@ -27,7 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import type { DrawingEditorRef } from "./drawing-editor";
 import { useI18n } from "@/lib/i18n/provider";
 import type { QuestionData } from "./create-poll-form";
-import { generatePollAction } from "@/app/actions";
+import { generatePollAction, generateImageAction } from "@/app/actions";
 
 const DrawingEditor = dynamic(
   () => import('./drawing-editor').then((mod) => mod.DrawingEditor),
@@ -55,25 +55,19 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
     const editorRef = React.useRef<DrawingEditorRef>(null);
 
     // AI poll generation state
-    const [isGenerating, startTransition] = useTransition();
-    const [topic, setTopic] = useState("");
+    const [isGeneratingPoll, startPollTransition] = useTransition();
+    const [pollTopic, setPollTopic] = useState("");
+    
+    // AI image generation state
+    const [isGeneratingImage, startImageTransition] = useTransition();
+    const [imagePrompt, setImagePrompt] = useState("");
 
     const activityFormSchema = z.object({
         type: z.enum(['multiple-choice', 'true-false', 'short-answer', 'drawing', 'image-annotation']),
-        question: z.string(),
-        options: z.array(z.object({ value: z.string() })).optional(),
+        question: z.string().optional(),
+        options: z.array(z.object({ value: z.string().optional() })).optional(),
         allowMultipleAnswers: z.boolean().optional(),
         imageUrl: z.string().optional(),
-    }).superRefine((data, ctx) => {
-        if (data.type === 'multiple-choice') {
-            if (!data.options || data.options.length < 2) {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    message: t('createQuestionForm.options_min_error'),
-                    path: ['options']
-                });
-            }
-        }
     });
 
     type ActivityFormData = z.infer<typeof activityFormSchema>;
@@ -91,11 +85,12 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
 
     const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "options" });
     const watchedType = useWatch({ control: form.control, name: "type" });
+    const watchedImageUrl = useWatch({ control: form.control, name: "imageUrl" });
 
     // AI poll generation handler
     async function handleGeneratePoll() {
-        startTransition(async () => {
-            const result = await generatePollAction({ topic });
+        startPollTransition(async () => {
+            const result = await generatePollAction({ topic: pollTopic });
             if (result.poll) {
                 form.setValue("question", result.poll.question, { shouldValidate: true });
                 if (result.poll.options) {
@@ -107,6 +102,25 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
             }
         });
     }
+    
+    // AI image generation handler
+    const handleGenerateImage = async () => {
+        startImageTransition(async () => {
+            const result = await generateImageAction({ prompt: imagePrompt });
+            if (result.imageUrl) {
+                form.setValue('imageUrl', result.imageUrl, { shouldValidate: true });
+                if (form.getValues('type') === 'drawing') {
+                    form.setValue('type', 'image-annotation', { shouldValidate: true });
+                }
+                toast({
+                    title: t('activityEditor.toast_image_generated_title'),
+                    description: t('activityEditor.toast_image_generated_description'),
+                });
+            } else {
+                toast({ variant: "destructive", title: t('common.error'), description: result.error });
+            }
+        });
+    };
 
     // Sync tabs with form state
     const onTabChange = (value: string) => {
@@ -127,7 +141,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
 
     function onSubmit(data: ActivityFormData) {
         let finalData: QuestionData;
-        const question = data.question.trim() || t('createQuestionForm.untitled_question');
+        const question = data.question?.trim() || t('createQuestionForm.untitled_question');
 
         switch (data.type) {
             case 'true-false':
@@ -136,19 +150,15 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                 finalData = { type: data.type, question: question };
                 break;
             case 'multiple-choice':
-                if (!data.options) { // Should be caught by validation, but as a safeguard.
-                    toast({ variant: "destructive", title: "Validation Error", description: "Options are missing."});
-                    return;
-                }
                 finalData = { 
                     type: 'multiple-choice', 
                     question: question, 
-                    options: data.options,
+                    options: data.options || [],
                     allowMultipleAnswers: data.allowMultipleAnswers || false,
                 };
                 break;
             case 'image-annotation':
-                const imageUrl = editorRef.current?.getCanvasDataUrl();
+                const imageUrl = editorRef.current?.getCanvasDataUrl() || data.imageUrl;
                 if (!imageUrl) {
                     toast({ variant: "destructive", title: t('common.error'), description: t('createQuestionForm.toast_get_image_error') });
                     return;
@@ -179,7 +189,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                     </TabsList>
                     
                     <div className="mt-6">
-                        <TabsContent value="true-false" forceMount={true} className={watchedType !== 'true-false' ? 'hidden' : ''}>
+                        <TabsContent value="true-false" forceMount={true} className={watchedType !== 'true-false' ? 'hidden' : 'space-y-6'}>
                              <FormField control={form.control} name="question" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>{t('createQuestionForm.tf_question_label')}</FormLabel>
@@ -195,9 +205,9 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                             <div className="space-y-2">
                                 <Label htmlFor="topic">{t('createQuestionForm.generate_with_ai_label')}</Label>
                                 <div className="flex items-center gap-2">
-                                    <Input id="topic" placeholder={t('createQuestionForm.generate_with_ai_placeholder')} value={topic} onChange={(e) => setTopic(e.target.value)} disabled={isGenerating} />
-                                    <Button type="button" variant="outline" size="icon" onClick={handleGeneratePoll} disabled={isGenerating || !topic} className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0">
-                                        {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                                    <Input id="topic" placeholder={t('createQuestionForm.generate_with_ai_placeholder')} value={pollTopic} onChange={(e) => setPollTopic(e.target.value)} disabled={isGeneratingPoll} />
+                                    <Button type="button" variant="outline" size="icon" onClick={handleGeneratePoll} disabled={isGeneratingPoll || !pollTopic} className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0">
+                                        {isGeneratingPoll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
                                         <span className="sr-only">Generate Poll</span>
                                     </Button>
                                 </div>
@@ -250,7 +260,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                             )} />
                         </TabsContent>
 
-                        <TabsContent value="short-answer" forceMount={true} className={watchedType !== 'short-answer' ? 'hidden' : ''}>
+                        <TabsContent value="short-answer" forceMount={true} className={watchedType !== 'short-answer' ? 'hidden' : 'space-y-6'}>
                             <FormField control={form.control} name="question" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>{t('createQuestionForm.sa_question_label')}</FormLabel>
@@ -262,7 +272,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                             )} />
                         </TabsContent>
                         
-                        <TabsContent value="drawing" forceMount={true} className={watchedType !== 'drawing' ? 'hidden' : ''}>
+                        <TabsContent value="drawing" forceMount={true} className={watchedType !== 'drawing' ? 'hidden' : 'space-y-6'}>
                              <FormField control={form.control} name="question" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>{t('createQuestionForm.drawing_prompt_label')}</FormLabel>
@@ -272,9 +282,32 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                                     <FormMessage />
                                 </FormItem>
                             )} />
+                             <div className="space-y-2 pt-4 border-t">
+                                <Label htmlFor="image-prompt">{t('activityEditor.generate_image_label')}</Label>
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        id="image-prompt"
+                                        placeholder={t('activityEditor.generate_image_placeholder')}
+                                        value={imagePrompt}
+                                        onChange={(e) => setImagePrompt(e.target.value)}
+                                        disabled={isGeneratingImage}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={handleGenerateImage}
+                                        disabled={isGeneratingImage || !imagePrompt}
+                                        className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0"
+                                    >
+                                        {isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                                        <span className="sr-only">{t('activityEditor.generate_image_button')}</span>
+                                    </Button>
+                                </div>
+                            </div>
                         </TabsContent>
 
-                        <TabsContent value="image-annotation" forceMount={true} className={watchedType !== 'image-annotation' ? 'hidden' : 'space-y-4'}>
+                        <TabsContent value="image-annotation" forceMount={true} className={watchedType !== 'image-annotation' ? 'hidden' : 'space-y-6'}>
                             <FormField control={form.control} name="question" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>{t('createQuestionForm.annotation_prompt_label')}</FormLabel>
@@ -284,9 +317,32 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                                     <FormMessage />
                                 </FormItem>
                             )} />
+                             <div className="space-y-2 pt-4 border-t">
+                                <Label htmlFor="image-prompt-2">{t('activityEditor.generate_image_label')}</Label>
+                                <div className="flex items-center gap-2">
+                                     <Input
+                                        id="image-prompt-2"
+                                        placeholder={t('activityEditor.generate_image_placeholder')}
+                                        value={imagePrompt}
+                                        onChange={(e) => setImagePrompt(e.target.value)}
+                                        disabled={isGeneratingImage}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={handleGenerateImage}
+                                        disabled={isGeneratingImage || !imagePrompt}
+                                        className="border-accent text-accent-foreground hover:bg-accent/90 bg-accent shrink-0"
+                                    >
+                                        {isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                                        <span className="sr-only">{t('activityEditor.generate_image_button')}</span>
+                                    </Button>
+                                </div>
+                            </div>
                             <div>
                                 <p className="text-sm text-muted-foreground">{t('createQuestionForm.canvas_description')}</p>
-                                <DrawingEditor ref={editorRef} backgroundImageUrl={form.getValues('imageUrl')} />
+                                <DrawingEditor ref={editorRef} backgroundImageUrl={watchedImageUrl} />
                             </div>
                         </TabsContent>
                     </div>

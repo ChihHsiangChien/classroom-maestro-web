@@ -9,6 +9,14 @@ import {
   analyzeShortAnswers,
   type AnalyzeShortAnswersInput,
 } from "@/ai/flows/analyze-short-answers";
+import {
+  generateImage,
+  type GenerateImageInput,
+} from "@/ai/flows/generate-image";
+import {
+  generateQuestionsFromText,
+  type GenerateQuestionsFromTextInput,
+} from "@/ai/flows/generate-questions-from-text";
 import { db } from "@/lib/firebase";
 import { doc, runTransaction, type Timestamp } from "firebase/firestore";
 import type { Classroom, RaceData } from "@/contexts/classroom-context";
@@ -91,5 +99,38 @@ export async function claimRaceAction(input: ClaimRaceInput): Promise<{ success:
     // This will catch errors from the transaction, including our explicit `throw new Error` checks.
     console.log(`Claim race failed inside action: ${error.message}`);
     return { success: false, error: error.message };
+  }
+}
+
+
+export async function generateImageAction(input: GenerateImageInput) {
+  try {
+    const result = await generateImage(input);
+    if (!result || !result.imageUrl) {
+      throw new Error("AI did not return a valid image.");
+    }
+    return { imageUrl: result.imageUrl, error: null };
+  } catch (error) {
+    console.error("Error generating image:", error);
+    return {
+      imageUrl: null,
+      error: "Could not generate an image. Please try again.",
+    };
+  }
+}
+
+export async function generateQuestionsFromTextAction(input: GenerateQuestionsFromTextInput) {
+  try {
+    const result = await generateQuestionsFromText(input);
+    if (!result || !result.questions) {
+      throw new Error("AI did not return valid questions.");
+    }
+    return { questions: result.questions, error: null };
+  } catch (error) {
+    console.error("Error generating questions:", error);
+    return {
+      questions: null,
+      error: "Could not generate questions. Please try again.",
+    };
   }
 }
