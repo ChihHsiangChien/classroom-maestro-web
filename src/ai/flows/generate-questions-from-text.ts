@@ -73,15 +73,34 @@ const generateQuestionsFromTextFlow = ai.defineFlow(
   },
   async input => {
     const response = await prompt(input);
-    const output = response.output;
+    const rawText = response.text;
 
-    if (!output) {
-      console.error("AI output failed parsing. Raw text response from model:", response.text);
-      throw new Error("AI output validation failed.");
+    if (!rawText) {
+      throw new Error("AI returned an empty response.");
     }
-    
-    console.log("Successfully parsed AI output:", JSON.stringify(output, null, 2));
 
-    return output;
+    // Attempt to find and parse the JSON block from the raw text
+    try {
+      const jsonStart = rawText.indexOf('{');
+      const jsonEnd = rawText.lastIndexOf('}');
+
+      if (jsonStart === -1 || jsonEnd === -1) {
+        throw new Error("Could not find a JSON object in the AI response.");
+      }
+
+      const jsonString = rawText.substring(jsonStart, jsonEnd + 1);
+      
+      const parsedJson = JSON.parse(jsonString);
+      const validationResult = GenerateQuestionsFromTextOutputSchema.safeParse(parsedJson);
+
+      if (!validationResult.success) {
+        throw new Error("AI output failed validation after parsing.");
+      }
+
+      return validationResult.data;
+
+    } catch (e) {
+      throw new Error("Failed to parse AI response as valid JSON.");
+    }
   }
 );
