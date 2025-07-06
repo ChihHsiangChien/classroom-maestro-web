@@ -355,6 +355,7 @@ export const dictionaries = {
       error_not_logged_in: "您必須登入才能執行此操作。",
       table_header_last_activity: '上次使用',
       last_activity_never: '從未使用',
+      ai_usage_dashboard: 'AI 用量',
     },
     courseware: {
       title: '教材',
@@ -409,6 +410,21 @@ export const dictionaries = {
     language_switcher: {
       title: '語言',
     },
+    ai_usage: {
+      title: "AI 用量儀表板",
+      description: "查看平台中各項 AI 功能的使用情況。",
+      usage_by_feature_chart_title: "各功能使用次數",
+      usage_over_time_chart_title: "每日使用趨勢",
+      raw_logs_table_title: "詳細使用紀錄",
+      table_header_feature: "功能",
+      table_header_user: "使用者",
+      table_header_timestamp: "時間",
+      feature_name_generatePoll: "生成選擇題",
+      feature_name_generateImage: "生成圖片",
+      feature_name_analyzeShortAnswers: "分析簡答題",
+      feature_name_generateQuestionsFromText: "從內文生成問題",
+      no_data: '尚無資料',
+    }
   },
   en: {
     common: {
@@ -761,6 +777,7 @@ export const dictionaries = {
       error_not_logged_in: "You must be logged in to perform this action.",
       table_header_last_activity: 'Last Used',
       last_activity_never: 'Never',
+      ai_usage_dashboard: 'AI Usage',
     },
     courseware: {
       title: 'Courseware',
@@ -815,6 +832,21 @@ export const dictionaries = {
     language_switcher: {
       title: 'Language',
     },
+    ai_usage: {
+      title: "AI Usage Dashboard",
+      description: "Review the usage of AI features across the platform.",
+      usage_by_feature_chart_title: "Usage by Feature",
+      usage_over_time_chart_title: "Daily Usage Trend",
+      raw_logs_table_title: "Detailed Usage Logs",
+      table_header_feature: "Feature",
+      table_header_user: "User",
+      table_header_timestamp: "Timestamp",
+      feature_name_generatePoll: "Generate Poll",
+      feature_name_generateImage: "Generate Image",
+      feature_name_analyzeShortAnswers: "Analyze Short Answers",
+      feature_name_generateQuestionsFromText: "Generate Questions from Text",
+      no_data: 'No data yet',
+    }
   },
 };
 

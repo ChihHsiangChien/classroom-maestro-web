@@ -28,6 +28,7 @@ import type { DrawingEditorRef } from "./drawing-editor";
 import { useI18n } from "@/lib/i18n/provider";
 import type { QuestionData } from "./create-poll-form";
 import { generatePollAction, generateImageAction } from "@/app/actions";
+import { useUsage } from "@/contexts/usage-context";
 
 const DrawingEditor = dynamic(
   () => import('./drawing-editor').then((mod) => mod.DrawingEditor),
@@ -53,6 +54,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
     const { t } = useI18n();
     const { toast } = useToast();
     const editorRef = React.useRef<DrawingEditorRef>(null);
+    const { logAiUsage } = useUsage();
 
     // AI poll generation state
     const [isGeneratingPoll, startPollTransition] = useTransition();
@@ -97,6 +99,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                     replace(result.poll.options);
                 }
                 form.clearErrors();
+                logAiUsage('generatePoll');
             } else {
                 toast({ variant: "destructive", title: t('common.error'), description: result.error });
             }
@@ -116,6 +119,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                     title: t('activityEditor.toast_image_generated_title'),
                     description: t('activityEditor.toast_image_generated_description'),
                 });
+                logAiUsage('generateImage');
             } else {
                 toast({ variant: "destructive", title: t('common.error'), description: result.error });
             }

@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
-import { School, LogOut, User as UserIcon, Shield, BookCopy, Users, Globe } from "lucide-react";
+import { School, LogOut, User as UserIcon, Shield, BookCopy, Users, Globe, BrainCircuit } from "lucide-react";
 import Image from "next/image";
 import { useI18n } from "@/lib/i18n/provider";
 import Link from 'next/link';
@@ -67,12 +67,20 @@ export default function DashboardLayout({
               </Link>
             </Button>
           {isAdmin && (
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/dashboard/admin">
-                <Shield className="mr-2 h-4 w-4" />
-                {t('admin.title')}
-              </Link>
-            </Button>
+            <>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/admin">
+                  <Shield className="mr-2 h-4 w-4" />
+                  {t('admin.title')}
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/ai-usage">
+                  <BrainCircuit className="mr-2 h-4 w-4" />
+                  {t('admin.ai_usage_dashboard')}
+                </Link>
+              </Button>
+            </>
           )}
 
           <DropdownMenu>

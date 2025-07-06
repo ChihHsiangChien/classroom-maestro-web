@@ -1,5 +1,5 @@
 
-'use client';
+"use client";
 
 import React, { useState, useTransition } from 'react';
 import {
@@ -74,6 +74,7 @@ import { cn } from '@/lib/utils';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { generateQuestionsFromTextAction } from '@/app/actions';
+import { useUsage } from '@/contexts/usage-context';
 
 
 function SortableActivityItem({
@@ -290,6 +291,7 @@ export function CoursewareManagement() {
   const { t } = useI18n();
   const { coursewares, addCourseware, deleteCourseware, updateCourseware, reorderActivities, addActivity, updateActivity, deleteActivity, loading, reorderCoursewares, duplicateCourseware, duplicateActivity, moveActivity, addMultipleActivities } = useCourseware();
   const { toast } = useToast();
+  const { logAiUsage } = useUsage();
 
   const [isCoursewareDialogOpen, setCoursewareDialogOpen] = useState(false);
   const [editingCourseware, setEditingCourseware] = useState<Courseware | null>(null);
@@ -400,6 +402,7 @@ export function CoursewareManagement() {
             setGenerateQuestionsDialogOpen(false);
             setTextContext('');
             setTargetCoursewareId(null);
+            logAiUsage('generateQuestionsFromText');
         } else {
             toast({ variant: "destructive", title: t('common.error'), description: result.error || 'Failed to generate questions.' });
         }

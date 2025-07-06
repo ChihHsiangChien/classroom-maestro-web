@@ -36,6 +36,7 @@ import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/provider";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { useUsage } from "@/contexts/usage-context";
 
 
 interface ActiveQuestionProps {
@@ -279,6 +280,7 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
 
 function TextResponseResults({ submissions }: ResultsProps) {
     const { t } = useI18n();
+    const { logAiUsage } = useUsage();
     const [isResponsesOpen, setIsResponsesOpen] = useState(true);
     const [isAnalyzing, startTransition] = useTransition();
     const [analysis, setAnalysis] = useState<AnalyzeShortAnswersOutput | null>(null);
@@ -316,6 +318,7 @@ function TextResponseResults({ submissions }: ResultsProps) {
             const result = await analyzeShortAnswersAction({ answers });
             if (result.analysis) {
                 setAnalysis(result.analysis);
+                logAiUsage('analyzeShortAnswers');
             } else {
                 toast({
                     variant: "destructive",

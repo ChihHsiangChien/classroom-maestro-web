@@ -4,6 +4,7 @@
 import { AuthProvider } from '@/contexts/auth-context';
 import { ClassroomProvider } from '@/contexts/classroom-context';
 import { CoursewareProvider } from '@/contexts/courseware-context';
+import { UsageProvider } from './usage-context';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // All pages are now wrapped by the providers.
@@ -12,11 +13,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
   // for protecting routes.
   return (
     <AuthProvider>
-      <ClassroomProvider>
-        <CoursewareProvider>
-          {children}
-        </CoursewareProvider>
-      </ClassroomProvider>
+      <UsageProvider>
+        <ClassroomProvider>
+          <CoursewareProvider>
+            {children}
+          </CoursewareProvider>
+        </ClassroomProvider>
+      </UsageProvider>
     </AuthProvider>
   );
 }
