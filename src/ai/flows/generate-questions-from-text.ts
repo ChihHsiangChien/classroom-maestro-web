@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Generates questions from a given text context.
@@ -18,7 +19,7 @@ export type GenerateQuestionsFromTextInput = z.infer<typeof GenerateQuestionsFro
 const MultipleChoiceQuestionSchema = z.object({
   type: z.literal('multiple-choice'),
   question: z.string().describe('The multiple-choice question.'),
-  options: z.array(z.object({ value: z.string() })).min(2).describe('A list of at least 2 plausible options.'),
+  options: z.array(z.object({ value: z.string() })).min(2).max(4).describe('A list of 2 to 4 plausible options.'),
   allowMultipleAnswers: z.boolean().default(false).describe('Whether multiple answers are allowed.'),
 });
 
@@ -49,9 +50,11 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateQuestionsFromTextOutputSchema},
   prompt: `You are an expert educator creating classroom materials. Based on the following text context, please generate a mix of 3 to 5 multiple-choice and true/false questions.
 
-For multiple-choice questions, provide exactly 4 options: one clearly correct answer and three plausible but incorrect distractors. For true/false questions, create a clear statement that is definitively true or false based on the text.
+For multiple-choice questions, provide between 2 to 4 plausible options. One option must be the correct answer, and the others should be plausible but incorrect distractors. For true/false questions, create a clear statement that is definitively true or false based on the text.
 
-The entire output, including questions and options, must be in Traditional Chinese (繁體中文).
+The entire output, including questions and all options, must be in Traditional Chinese (繁體中文).
+
+It is crucial that your output is a single, valid JSON object that strictly adheres to the requested schema. Do not add any extra text, explanations, or markdown formatting outside of the JSON structure.
 
 Context:
 ---
