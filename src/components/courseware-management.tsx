@@ -112,15 +112,17 @@ function SortableActivityItem({
 
   return (
     <div ref={setNodeRef} style={style} className="group flex items-center gap-2 rounded-md bg-muted/50 p-2">
-      <Button variant="ghost" size="icon" className="h-7 w-7 cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
+      <Button variant="ghost" size="icon" className="h-7 w-7 cursor-grab active:cursor-grabbing flex-shrink-0" {...attributes} {...listeners}>
         <GripVertical className="h-4 w-4" />
       </Button>
-      <Icon className="h-4 w-4 text-muted-foreground" />
-      <p className="flex-grow truncate text-sm font-medium">{activity.question}</p>
+      <div role="button" onClick={onEdit} className="flex flex-grow items-center gap-2 cursor-pointer overflow-hidden">
+        <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <p className="truncate text-sm font-medium">{activity.question}</p>
+      </div>
       
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 focus:opacity-100">
+          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0">
             <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -357,8 +359,10 @@ export function CoursewareManagement() {
             await updateCourseware(editingCourseware.id, newCoursewareName.trim());
             toast({ title: t('courseware.toast_package_updated')});
         } else {
-            await addCourseware(newCoursewareName.trim());
-            toast({ title: t('courseware.toast_package_created') });
+            const newId = await addCourseware(newCoursewareName.trim());
+            if (newId) {
+                toast({ title: t('courseware.toast_package_created') });
+            }
         }
         setCoursewareDialogOpen(false);
     } finally {
