@@ -5,7 +5,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CheckCircle, XCircle } from "lucide-react";
 import { useI18n } from '@/lib/i18n/provider';
-import type { QuestionData, TrueFalseQuestion, MultipleChoiceQuestion } from './create-poll-form';
+import type { QuestionData } from './create-poll-form';
 
 interface StudentAnswerResultProps {
     question: QuestionData;
@@ -21,15 +21,19 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
         }
 
         if (question.type === 'true-false') {
-            const studentAnswerString = question.answer === 'O' ? '0' : '1';
-            return myAnswer.toString() === studentAnswerString;
+            if (!('answer' in question) || question.answer === undefined) {
+                return false; // Cannot be correct if no answer is defined
+            }
+            const studentAnswerIndex = Number(myAnswer);
+            const correctAnswerIndex = question.answer === 'O' ? 0 : 1;
+            return studentAnswerIndex === correctAnswerIndex;
         }
 
         if (question.type === 'multiple-choice') {
-            const correctAnswers = question.answer; // This is now number[]
+            const correctAnswers = question.answer; // is number[]
             if (!Array.isArray(correctAnswers)) return false;
 
-            const studentAnswers = Array.isArray(myAnswer) ? myAnswer : [myAnswer];
+            const studentAnswers = (Array.isArray(myAnswer) ? myAnswer : [myAnswer]).map(Number);
 
             if (correctAnswers.length !== studentAnswers.length) {
                 return false;
@@ -104,7 +108,7 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
                         <p className="text-sm font-medium text-muted-foreground">{t('studentAnswerResult.your_answer')}</p>
                         <p className="text-lg font-semibold">{renderAnswer(myAnswer || undefined, getOptions())}</p>
                     </div>
-                    {!isCorrect && 'answer' in question && question.answer && (
+                    {!isCorrect && 'answer' in question && question.answer !== undefined && (
                          <div className="p-4 bg-green-500/10 rounded-lg">
                             <p className="text-sm font-medium text-green-700">{t('studentAnswerResult.correct_answer')}</p>
                             <p className="text-lg font-semibold text-green-800">{renderAnswer(getCorrectAnswerIndices(), getOptions())}</p>

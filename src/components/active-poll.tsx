@@ -51,6 +51,24 @@ interface ResultsProps {
     submissions: Submission[];
 }
 
+// Helper function to robustly parse answers into an array of numbers.
+// Handles null, undefined, strings, and numbers, both in arrays and as single values.
+function parseAnswerIndices(answer: any): number[] {
+    if (answer === null || answer === undefined) {
+        return [];
+    }
+    const answers = Array.isArray(answer) ? answer : [answer];
+    
+    return answers
+        .map(a => {
+            if (a === null || a === undefined) return NaN;
+            const num = Number(a); 
+            return num;
+        })
+        .filter(n => !isNaN(n));
+}
+
+
 function MultipleChoiceResults({ question, submissions, students }: { question: (MultipleChoiceQuestion | (QuestionData & { type: 'true-false' })) & { options: { value: string }[], allowMultipleAnswers?: boolean, answer: number[] }, submissions: Submission[], students: Student[] }) {
   const { t } = useI18n();
   const [isResponsesOpen, setIsResponsesOpen] = useState(true);
@@ -67,18 +85,16 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
     });
     
     submissions.forEach(sub => {
-      const answers = Array.isArray(sub.answer) ? sub.answer : [sub.answer];
-      answers.forEach(rawAnswer => {
-        if (rawAnswer === null || rawAnswer === undefined) return;
-        const answerIndex = parseInt(rawAnswer.toString(), 10);
-        if (!isNaN(answerIndex) && voteCounts.has(answerIndex)) {
-            voteCounts.set(answerIndex, (voteCounts.get(answerIndex) || 0) + 1);
-        }
+      const answerIndices = parseAnswerIndices(sub.answer);
+      answerIndices.forEach(index => {
+          if (voteCounts.has(index)) {
+              voteCounts.set(index, (voteCounts.get(index) || 0) + 1);
+          }
       });
     });
 
     const totalVotes = submissions.reduce((acc, sub) => {
-        return acc + (Array.isArray(sub.answer) ? sub.answer.length : 1);
+        return acc + parseAnswerIndices(sub.answer).length;
     }, 0);
 
     return question.options.map((option, index) => {
@@ -100,22 +116,14 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
   const studentAnswers = useMemo(() => {
     const answerMap = new Map<string, number | number[]>();
     submissions.forEach(sub => {
-        if (sub.answer === null || sub.answer === undefined) return;
-
-        if (Array.isArray(sub.answer)) {
-            const parsedArray = sub.answer.map(a => parseInt(a.toString(), 10)).filter(a => !isNaN(a));
-            if (parsedArray.length > 0) {
-                answerMap.set(sub.studentId, parsedArray);
-            }
-        } else {
-            const parsedNumber = parseInt(sub.answer.toString(), 10);
-            if (!isNaN(parsedNumber)) {
-                answerMap.set(sub.studentId, parsedNumber);
-            }
+        const answerIndices = parseAnswerIndices(sub.answer);
+        if (answerIndices.length > 0) {
+            const finalAnswer = question.allowMultipleAnswers ? answerIndices : answerIndices[0];
+            answerMap.set(sub.studentId, finalAnswer);
         }
     });
     return answerMap;
-  }, [submissions]);
+  }, [submissions, question.allowMultipleAnswers]);
 
   const studentSubmissions = useMemo(() => {
     const submissionMap = new Map<string, Submission>();

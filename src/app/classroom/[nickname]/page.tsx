@@ -32,7 +32,7 @@ function ClassroomPageContent() {
     const [classroom, setClassroom] = useState<Classroom | null>(null);
     const [isLocked, setIsLocked] = useState(false);
     const [submittedQuestionId, setSubmittedQuestionId] = useState<string | null>(null);
-    const [myLastAnswer, setMyLastAnswer] = useState<string | string[] | null>(null);
+    const [myLastAnswer, setMyLastAnswer] = useState<string | string[] | number | number[] | null>(null);
     const [loading, setLoading] = useState(true);
     const [kicked, setKicked] = useState(false);
     const [lastRespondedPingId, setLastRespondedPingId] = useState<string | null>(null);
@@ -137,7 +137,7 @@ function ClassroomPageContent() {
     }, [kicked, classroomId, studentId, acknowledgeKick, router]);
 
 
-    const handleVoteSubmit = async (answer: string | string[]) => {
+    const handleVoteSubmit = async (answer: string | string[] | number | number[]) => {
         if (!classroomId || !studentId || !activeQuestion) return;
 
         await addSubmission(classroomId, activeQuestion.id, activeQuestion.question, activeQuestion.type, studentId, studentName, answer);
@@ -245,7 +245,7 @@ function ClassroomPageContent() {
         );
     }
     
-    const showScore = !loading && !sessionEnded;
+    const showScore = !loading && !sessionEnded && classroom?.scores;
 
     return (
         <>
