@@ -51,13 +51,12 @@ export async function analyzeShortAnswersAction(
 
 export interface ClaimRaceInput {
   classroomId: string;
-  raceId: string;
   studentId: string;
   studentName: string;
 }
 
 export async function claimRaceAction(input: ClaimRaceInput): Promise<{ success: boolean; error?: string }> {
-  const { classroomId, raceId, studentId, studentName } = input;
+  const { classroomId, studentId, studentName } = input;
   if (!db) {
     return { success: false, error: "Database not configured." };
   }
@@ -76,7 +75,7 @@ export async function claimRaceAction(input: ClaimRaceInput): Promise<{ success:
 
       // This is the critical check that the transaction's atomicity protects.
       // Only the first user to pass this check will succeed.
-      if (!race || race.id !== raceId || race.status !== 'pending') {
+      if (!race || race.status !== 'pending') {
         throw new Error("Race not available to be claimed.");
       }
       

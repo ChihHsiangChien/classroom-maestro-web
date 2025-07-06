@@ -141,7 +141,7 @@ function ClassroomPageContent() {
 
     const handleClaimRace = async (): Promise<boolean> => {
         if (!classroomId || !studentId || !activeRace) return false;
-        return claimRace(classroomId, activeRace.id, studentId, studentName);
+        return claimRace(classroomId, studentId, studentName);
     };
 
     const handleLogout = () => {
