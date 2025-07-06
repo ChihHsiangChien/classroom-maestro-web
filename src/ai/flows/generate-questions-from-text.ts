@@ -18,7 +18,7 @@ export type GenerateQuestionsFromTextInput = z.infer<typeof GenerateQuestionsFro
 const MultipleChoiceQuestionSchema = z.object({
   type: z.literal('multiple-choice'),
   question: z.string().describe('The multiple-choice question.'),
-  options: z.array(z.object({ value: z.string() })).min(4).max(4).describe('A list of exactly 4 plausible options.'),
+  options: z.array(z.object({ value: z.string() })).min(2).describe('A list of at least 2 plausible options.'),
   allowMultipleAnswers: z.boolean().default(false).describe('Whether multiple answers are allowed.'),
 });
 

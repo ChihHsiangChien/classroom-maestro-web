@@ -39,7 +39,7 @@ export interface Courseware {
 interface CoursewareContextType {
   coursewares: Courseware[];
   loading: boolean;
-  addCourseware: (name: string) => Promise<void>;
+  addCourseware: (name: string) => Promise<string | null>;
   updateCourseware: (coursewareId: string, name: string) => Promise<void>;
   deleteCourseware: (coursewareId: string) => Promise<void>;
   addActivity: (coursewareId: string, activityData: QuestionData) => Promise<void>;
@@ -101,19 +101,21 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         }
     }, [user, isAdmin, handleFirestoreError]);
 
-    const addCourseware = useCallback(async (name: string) => {
-        if (!user || !db) return;
+    const addCourseware = useCallback(async (name: string): Promise<string | null> => {
+        if (!user || !db) return null;
         try {
             const userCoursewares = coursewares.filter(cw => cw.ownerId === user.uid);
             const newOrder = userCoursewares.length > 0 ? Math.max(...userCoursewares.map(c => c.order || 0)) + 1 : 0;
-            await addDoc(collection(db, "courseware"), { 
+            const docRef = await addDoc(collection(db, "courseware"), { 
               name, 
               ownerId: user.uid, 
               activities: [],
               order: newOrder
             });
+            return docRef.id;
         } catch (error) {
             handleFirestoreError(error, 'add-courseware');
+            return null;
         }
     }, [user, handleFirestoreError, coursewares]);
 
@@ -157,22 +159,28 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
 
     const addMultipleActivities = useCallback(async (coursewareId: string, activitiesData: QuestionData[]) => {
         if (!db) return;
-        const courseware = findCourseware(coursewareId);
-        if (!courseware) return;
+        const courseware = coursewares.find(c => c.id === coursewareId);
+        if (!courseware) {
+            // It might be a newly created one, so we need to wait for the state update or just proceed.
+            // For now, let's assume the calling function handles creation and passes a valid ID.
+             console.error(`Courseware with ID ${coursewareId} not found in state.`);
+             // Let's try to proceed by updating directly, which is less optimal but might work for new items.
+        }
         
         const newActivities: Activity[] = activitiesData.map(activity => ({
             ...activity,
             id: generateId()
         }));
         
-        const updatedActivities = [...(courseware.activities || []), ...newActivities];
+        const existingActivities = courseware ? courseware.activities || [] : [];
+        const updatedActivities = [...existingActivities, ...newActivities];
 
         try {
             await updateDoc(doc(db, 'courseware', coursewareId), { activities: updatedActivities });
         } catch (error) {
             handleFirestoreError(error, 'add-multiple-activities');
         }
-    }, [findCourseware, handleFirestoreError]);
+    }, [coursewares, handleFirestoreError]);
     
     const updateActivity = useCallback(async (coursewareId: string, activityId: string, activityData: QuestionData) => {
         if (!db) return;

@@ -75,6 +75,7 @@ import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { generateQuestionsFromTextAction } from '@/app/actions';
 import { useUsage } from '@/contexts/usage-context';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 
 function SortableActivityItem({
@@ -305,6 +306,8 @@ export function CoursewareManagement() {
   const [textContext, setTextContext] = useState("");
   const [targetCoursewareId, setTargetCoursewareId] = useState<string | null>(null);
   const [isGeneratingQuestions, startQuestionGenTransition] = useTransition();
+  const [creationMode, setCreationMode] = useState<'existing' | 'new'>('existing');
+  const [newCoursewareNameForGen, setNewCoursewareNameForGen] = useState('');
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -386,28 +389,47 @@ export function CoursewareManagement() {
   };
 
   const handleGenerateQuestions = async () => {
-    if (!targetCoursewareId) {
+    let finalCoursewareId = targetCoursewareId;
+
+    if (creationMode === 'new') {
+        if (!newCoursewareNameForGen.trim()) {
+            toast({ variant: "destructive", title: t('common.error'), description: t('courseware.package_name_empty_error') });
+            return;
+        }
+        const newId = await addCourseware(newCoursewareNameForGen.trim());
+        if (!newId) return; // Error is handled in context
+        finalCoursewareId = newId;
+    }
+    
+    if (!finalCoursewareId) {
         toast({ variant: "destructive", title: t('common.error'), description: t('courseware.toast_no_courseware_selected') });
         return;
     }
+
     startQuestionGenTransition(async () => {
         const result = await generateQuestionsFromTextAction({ context: textContext });
         if (result.questions && result.questions.length > 0) {
-            await addMultipleActivities(targetCoursewareId, result.questions);
-            const targetCoursewareName = coursewares.find(c => c.id === targetCoursewareId)?.name || '';
+            await addMultipleActivities(finalCoursewareId!, result.questions);
+            const targetCoursewareName = coursewares.find(c => c.id === finalCoursewareId)?.name || newCoursewareNameForGen;
             toast({ 
                 title: t('courseware.toast_questions_generated_title'),
                 description: t('courseware.toast_questions_generated_description', { count: result.questions.length, name: targetCoursewareName }) 
             });
             setGenerateQuestionsDialogOpen(false);
-            setTextContext('');
-            setTargetCoursewareId(null);
             logAiUsage('generateQuestionsFromText');
         } else {
             toast({ variant: "destructive", title: t('common.error'), description: result.error || 'Failed to generate questions.' });
         }
     });
   };
+
+  const resetGenerateQuestionsDialog = () => {
+    setTextContext('');
+    setTargetCoursewareId(null);
+    setCreationMode('existing');
+    setNewCoursewareNameForGen('');
+  };
+
 
   if (loading) {
       return (
@@ -508,7 +530,10 @@ export function CoursewareManagement() {
           </DialogContent>
       </Dialog>
       
-      <Dialog open={isGenerateQuestionsDialogOpen} onOpenChange={setGenerateQuestionsDialogOpen}>
+      <Dialog open={isGenerateQuestionsDialogOpen} onOpenChange={(isOpen) => {
+          setGenerateQuestionsDialogOpen(isOpen);
+          if (!isOpen) resetGenerateQuestionsDialog();
+      }}>
         <DialogContent className="sm:max-w-xl">
             <DialogHeader>
                 <DialogTitle>{t('courseware.generate_from_text')}</DialogTitle>
@@ -525,10 +550,22 @@ export function CoursewareManagement() {
                         rows={10}
                     />
                 </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="target-courseware">{t('courseware.add_to_courseware_label')}</Label>
+                <div className="grid gap-4">
+                    <Label>{t('courseware.add_to_courseware_label')}</Label>
+                    <RadioGroup value={creationMode} onValueChange={(value) => setCreationMode(value as 'existing' | 'new')}>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="existing" id="r1" />
+                            <Label htmlFor="r1">{t('courseware.add_to_existing_option')}</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="new" id="r2" />
+                            <Label htmlFor="r2">{t('courseware.create_new_courseware_option')}</Label>
+                        </div>
+                    </RadioGroup>
+                </div>
+                {creationMode === 'existing' ? (
                     <Select onValueChange={setTargetCoursewareId} disabled={coursewares.length === 0}>
-                        <SelectTrigger id="target-courseware">
+                        <SelectTrigger>
                             <SelectValue placeholder={t('courseware.select_courseware_placeholder')} />
                         </SelectTrigger>
                         <SelectContent>
@@ -537,11 +574,20 @@ export function CoursewareManagement() {
                             ))}
                         </SelectContent>
                     </Select>
-                </div>
+                ) : (
+                    <Input 
+                        placeholder={t('courseware.new_courseware_name_label')}
+                        value={newCoursewareNameForGen}
+                        onChange={(e) => setNewCoursewareNameForGen(e.target.value)}
+                    />
+                )}
             </div>
             <DialogFooter>
                 <Button variant="ghost" onClick={() => setGenerateQuestionsDialogOpen(false)}>{t('common.cancel')}</Button>
-                <Button onClick={handleGenerateQuestions} disabled={isGeneratingQuestions || !textContext || !targetCoursewareId}>
+                <Button 
+                  onClick={handleGenerateQuestions} 
+                  disabled={isGeneratingQuestions || !textContext || (creationMode === 'existing' && !targetCoursewareId) || (creationMode === 'new' && !newCoursewareNameForGen.trim())}
+                >
                   {isGeneratingQuestions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                   {isGeneratingQuestions ? t('courseware.generating_questions') : t('courseware.generate_questions_button')}
                 </Button>
