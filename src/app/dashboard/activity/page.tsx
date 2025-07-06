@@ -77,6 +77,15 @@ export default function ActivityPage() {
     }
   }, [activeClassroom, classroomLoading, router]);
 
+  // Automatically end the active question when the teacher navigates away
+  useEffect(() => {
+    return () => {
+      if (activeClassroom?.id && activeClassroom?.activeQuestion) {
+        setActiveQuestionInDB(activeClassroom.id, null);
+      }
+    };
+  }, [activeClassroom, setActiveQuestionInDB]);
+
   useEffect(() => {
     if (typeof window !== 'undefined' && activeClassroom) {
         setJoinUrl(`${window.location.origin}/join?classId=${activeClassroom.id}`);
@@ -128,10 +137,8 @@ export default function ActivityPage() {
           type: 'multiple-choice',
           options: (question as MultipleChoiceQuestion).options,
           allowMultipleAnswers: (question as MultipleChoiceQuestion).allowMultipleAnswers,
+          answer: (question as MultipleChoiceQuestion).answer || [],
         };
-        if (question.answer) {
-          newQuestion.answer = question.answer;
-        }
         break;
       case 'image-annotation':
         newQuestion = {
