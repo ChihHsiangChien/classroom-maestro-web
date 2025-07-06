@@ -168,6 +168,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
       if (!canvas) return;
 
       canvas.isDrawingMode = tool === 'pen' || tool === 'eraser';
+
       if (tool === 'select') {
         canvas.isDrawingMode = false;
       } else if (tool === 'pen') {
@@ -175,11 +176,9 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
         canvas.freeDrawingBrush.color = brushColor;
         canvas.freeDrawingBrush.width = brushWidth;
       } else if (tool === 'eraser') {
-        // Fabric 5.x uses the PencilBrush for erasing with a different blend mode
-        canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+        // In Fabric.js 5.x, there is a dedicated EraserBrush.
+        canvas.freeDrawingBrush = new fabric.EraserBrush(canvas);
         canvas.freeDrawingBrush.width = brushWidth;
-        // This is the key change for eraser functionality
-        canvas.freeDrawingBrush.globalCompositeOperation = 'destination-out';
       }
     }, [tool, brushColor, brushWidth]);
 
@@ -502,5 +501,3 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
   }
 );
 DrawingEditor.displayName = 'DrawingEditor';
-
-    
