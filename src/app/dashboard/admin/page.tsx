@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useClassroom } from '@/contexts/classroom-context';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
-import { Loader2, Users, School, Trash2, ArrowRight } from 'lucide-react';
+import { Loader2, Users, School, Trash2, ArrowRight, BookCopy } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -44,6 +44,7 @@ interface Teacher {
   email: string;
   classCount: number;
   studentCount: number;
+  coursewareCount: number;
 }
 
 export default function AdminPage() {
@@ -80,7 +81,11 @@ export default function AdminPage() {
                 const classCount = classroomsSnapshot.size;
                 const studentCount = classroomsSnapshot.docs.reduce((acc, doc) => acc + (doc.data().students?.length || 0), 0);
                 
-                return { ...user, classCount, studentCount };
+                const coursewareQuery = query(collection(db, 'courseware'), where('ownerId', '==', user.uid));
+                const coursewareSnapshot = await getDocs(coursewareQuery);
+                const coursewareCount = coursewareSnapshot.size;
+
+                return { ...user, classCount, studentCount, coursewareCount };
             })
         );
         
@@ -132,6 +137,7 @@ export default function AdminPage() {
                     <TableHead>{t('admin.table_header_teacher')}</TableHead>
                     <TableHead>{t('admin.table_header_email')}</TableHead>
                     <TableHead className="text-center">{t('admin.table_header_class_count')}</TableHead>
+                    <TableHead className="text-center">{t('admin.table_header_courseware_count')}</TableHead>
                     <TableHead className="text-center">{t('admin.table_header_student_count')}</TableHead>
                     <TableHead className="text-right">{t('admin.table_header_actions')}</TableHead>
                 </TableRow>
@@ -142,6 +148,7 @@ export default function AdminPage() {
                         <TableCell className="font-medium">{teacher.displayName}{teacher.uid === adminUser?.uid && ` (${t('admin.you_label')})`}</TableCell>
                         <TableCell>{teacher.email}</TableCell>
                         <TableCell className="text-center">{teacher.classCount}</TableCell>
+                        <TableCell className="text-center">{teacher.coursewareCount}</TableCell>
                         <TableCell className="text-center">{teacher.studentCount}</TableCell>
                         <TableCell className="text-right">
                             <AlertDialog>
