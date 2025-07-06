@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import {
@@ -71,20 +71,32 @@ export default function ActivityPage() {
   const race = activeClassroom?.race || null;
   const activityInProgress = !!activeQuestion || !!race;
 
+  // Create a ref to hold the latest activeClassroom data. This prevents stale closures in the unmount effect.
+  const activeClassroomRef = useRef(activeClassroom);
+  useEffect(() => {
+    activeClassroomRef.current = activeClassroom;
+  });
+
+  // Automatically end the active question only when the teacher navigates away (component unmounts)
+  useEffect(() => {
+    // This function will be returned and called on unmount
+    return () => {
+      const latestClassroom = activeClassroomRef.current;
+      if (latestClassroom?.id && latestClassroom?.activeQuestion) {
+        // Use the ref to get the most up-to-date classroom state
+        setActiveQuestionInDB(latestClassroom.id, null);
+      }
+    };
+    // The dependency array only contains the stable setActiveQuestionInDB function,
+    // so this effect runs only once on mount, and the cleanup runs only on unmount.
+  }, [setActiveQuestionInDB]);
+
+
   useEffect(() => {
     if (!classroomLoading && !activeClassroom) {
       router.replace('/dashboard');
     }
   }, [activeClassroom, classroomLoading, router]);
-
-  // Automatically end the active question when the teacher navigates away
-  useEffect(() => {
-    return () => {
-      if (activeClassroom?.id && activeClassroom?.activeQuestion) {
-        setActiveQuestionInDB(activeClassroom.id, null);
-      }
-    };
-  }, [activeClassroom, setActiveQuestionInDB]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && activeClassroom) {
