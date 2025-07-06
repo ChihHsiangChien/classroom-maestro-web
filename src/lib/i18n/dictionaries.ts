@@ -18,6 +18,7 @@ export const dictionaries = {
       loading: '載入中...',
       error: '錯誤',
       success: '成功',
+      copy: '副本',
     },
     firebase: {
       config_error_title: 'Firebase 設定錯誤',
@@ -376,6 +377,12 @@ export const dictionaries = {
       send_question: '發送問題',
       loading: '正在載入教材...',
       package_name_empty_error: '教材名稱不可為空。',
+      duplicate: '複製',
+      move_to: '移動至...',
+      toast_package_duplicated: '教材已複製',
+      toast_activity_duplicated: '活動已複製',
+      toast_activity_moved: '活動已移動',
+      no_other_packages: '沒有其他教材可供移動',
     },
     language_switcher: {
       title: '語言',
@@ -395,6 +402,7 @@ export const dictionaries = {
       loading: 'Loading...',
       error: 'Error',
       success: 'Success',
+      copy: 'Copy',
     },
     firebase: {
       config_error_title: 'Firebase Configuration Error',
@@ -753,6 +761,12 @@ export const dictionaries = {
       send_question: 'Send Question',
       loading: 'Loading courseware...',
       package_name_empty_error: 'Courseware name cannot be empty.',
+      duplicate: 'Duplicate',
+      move_to: 'Move to...',
+      toast_package_duplicated: 'Courseware duplicated.',
+      toast_activity_duplicated: 'Activity duplicated.',
+      toast_activity_moved: 'Activity moved.',
+      no_other_packages: 'No other courseware to move to.',
     },
     language_switcher: {
       title: 'Language',

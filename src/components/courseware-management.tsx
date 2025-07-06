@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Edit, Trash2, GripVertical, FileText, CheckSquareIcon, Vote, ImageIcon, PencilRuler, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, GripVertical, FileText, CheckSquareIcon, Vote, ImageIcon, PencilRuler, Loader2, MoreVertical, Copy, ArrowRightLeft } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -51,6 +51,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button, buttonVariants } from './ui/button';
@@ -62,7 +73,23 @@ import { ActivityEditor } from './activity-editor';
 import { cn } from '@/lib/utils';
 
 
-function SortableActivityItem({ activity, onEdit, onDelete }: { activity: Activity; onEdit: () => void, onDelete: () => void }) {
+function SortableActivityItem({
+  activity,
+  allCoursewares,
+  currentCoursewareId,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  onMove,
+}: {
+  activity: Activity;
+  allCoursewares: Courseware[];
+  currentCoursewareId: string;
+  onEdit: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  onMove: (destinationId: string) => void;
+}) {
   const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: activity.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -75,34 +102,69 @@ function SortableActivityItem({ activity, onEdit, onDelete }: { activity: Activi
     'image-annotation': PencilRuler,
   };
   const Icon = activityIcons[activity.type];
+  const otherCoursewares = allCoursewares.filter(cw => cw.id !== currentCoursewareId);
+
 
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center gap-2 rounded-md bg-muted/50 p-2">
-      <Button variant="ghost" size="icon" className="cursor-grab active:cursor-grabbing h-7 w-7" {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} className="group flex items-center gap-2 rounded-md bg-muted/50 p-2">
+      <Button variant="ghost" size="icon" className="h-7 w-7 cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
         <GripVertical className="h-4 w-4" />
       </Button>
       <Icon className="h-4 w-4 text-muted-foreground" />
       <p className="flex-grow truncate text-sm font-medium">{activity.question}</p>
-      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}>
-        <Edit className="h-4 w-4" />
-      </Button>
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-            <Trash2 className="h-4 w-4" />
+      
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 focus:opacity-100">
+            <MoreVertical className="h-4 w-4" />
           </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('courseware.delete_activity_confirm_title')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('courseware.delete_activity_confirm_description')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={onDelete}>{t('common.delete')}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onSelect={onEdit}><Edit className="mr-2 h-4 w-4" /><span>{t('common.edit')}</span></DropdownMenuItem>
+            <DropdownMenuItem onSelect={onDuplicate}><Copy className="mr-2 h-4 w-4" /><span>{t('courseware.duplicate')}</span></DropdownMenuItem>
+            
+            <DropdownMenuSub>
+                <DropdownMenuSubTrigger disabled={otherCoursewares.length === 0}>
+                    <ArrowRightLeft className="mr-2 h-4 w-4" />
+                    <span>{t('courseware.move_to')}</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                        {otherCoursewares.length > 0 ? (
+                            otherCoursewares.map(cw => (
+                                <DropdownMenuItem key={cw.id} onSelect={() => onMove(cw.id)}>
+                                    {cw.name}
+                                </DropdownMenuItem>
+                            ))
+                        ) : (
+                            <DropdownMenuItem disabled>{t('courseware.no_other_packages')}</DropdownMenuItem>
+                        )}
+                    </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+            </DropdownMenuSub>
+
+            <DropdownMenuSeparator />
+
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>{t('common.delete')}</span>
+                    </DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('courseware.delete_activity_confirm_title')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('courseware.delete_activity_confirm_description')}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction onClick={onDelete}>{t('common.delete')}</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
@@ -110,20 +172,28 @@ function SortableActivityItem({ activity, onEdit, onDelete }: { activity: Activi
 
 function SortableCoursewareItem({ 
   courseware,
+  allCoursewares,
   onEdit,
   onDelete,
+  onDuplicate,
   onAddActivity,
   onEditActivity,
   onDeleteActivity,
-  onReorderActivities
+  onDuplicateActivity,
+  onMoveActivity,
+  onReorderActivities,
 }: {
   courseware: Courseware,
+  allCoursewares: Courseware[],
   onEdit: () => void,
   onDelete: () => void,
+  onDuplicate: () => void;
   onAddActivity: () => void,
   onEditActivity: (activity: Activity) => void,
   onDeleteActivity: (activityId: string) => void,
-  onReorderActivities: (event: DragEndEvent) => void
+  onDuplicateActivity: (coursewareId: string, activityId: string) => void;
+  onMoveActivity: (sourceId: string, destId: string, activityId: string) => void;
+  onReorderActivities: (event: DragEndEvent) => void,
 }) {
   const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: courseware.id });
@@ -146,30 +216,39 @@ function SortableCoursewareItem({
                     <span className="text-lg font-semibold">{courseware.name}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                    <div role="button" className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8")} onClick={(e) => { e.stopPropagation(); onEdit(); }}>
-                        <Edit className="h-4 w-4" />
-                    </div>
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <div role="button" onClick={(e) => e.stopPropagation()} className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8 text-destructive hover:text-destructive")}>
-                                <Trash2 className="h-4 w-4" />
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <div role="button" onClick={(e) => e.stopPropagation()} className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8")}>
+                                <MoreVertical className="h-4 w-4" />
                             </div>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>{t('courseware.delete_package_confirm_title')}</AlertDialogTitle>
-                                <AlertDialogDescription>{t('courseware.delete_package_confirm_description', { name: courseware.name })}</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                                <AlertDialogAction onClick={onDelete}>{t('common.delete')}</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onSelect={onEdit}><Edit className="mr-2 h-4 w-4" /><span>{t('common.edit')}</span></DropdownMenuItem>
+                            <DropdownMenuItem onSelect={onDuplicate}><Copy className="mr-2 h-4 w-4" /><span>{t('courseware.duplicate')}</span></DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                        <Trash2 className="mr-2 h-4 w-4" /><span>{t('common.delete')}</span>
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>{t('courseware.delete_package_confirm_title')}</AlertDialogTitle>
+                                        <AlertDialogDescription>{t('courseware.delete_package_confirm_description', { name: courseware.name })}</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                                        <AlertDialogAction onClick={onDelete}>{t('common.delete')}</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="pt-2 pl-4 pr-2 space-y-4">
+          <AccordionContent className="space-y-4 pt-2 pl-4 pr-2">
               <DndContext sensors={activitySensors} collisionDetection={closestCenter} onDragEnd={onReorderActivities}>
                 <SortableContext items={(courseware.activities || [])} strategy={verticalListSortingStrategy}>
                   <div className="space-y-2">
@@ -177,8 +256,12 @@ function SortableCoursewareItem({
                       <SortableActivityItem 
                         key={activity.id} 
                         activity={activity}
+                        allCoursewares={allCoursewares}
+                        currentCoursewareId={courseware.id}
                         onEdit={() => onEditActivity(activity)}
                         onDelete={() => onDeleteActivity(activity.id)}
+                        onDuplicate={() => onDuplicateActivity(courseware.id, activity.id)}
+                        onMove={(destinationId) => onMoveActivity(courseware.id, destinationId, activity.id)}
                       />
                     ))}
                   </div>
@@ -202,7 +285,7 @@ function SortableCoursewareItem({
 // Main Component
 export function CoursewareManagement() {
   const { t } = useI18n();
-  const { coursewares, addCourseware, deleteCourseware, updateCourseware, reorderActivities, addActivity, updateActivity, deleteActivity, loading, reorderCoursewares } = useCourseware();
+  const { coursewares, addCourseware, deleteCourseware, updateCourseware, reorderActivities, addActivity, updateActivity, deleteActivity, loading, reorderCoursewares, duplicateCourseware, duplicateActivity, moveActivity } = useCourseware();
   const { toast } = useToast();
 
   const [isCoursewareDialogOpen, setCoursewareDialogOpen] = useState(false);
@@ -270,10 +353,6 @@ export function CoursewareManagement() {
     }
   };
 
-  const handleDeleteCourseware = async (coursewareId: string) => {
-    await deleteCourseware(coursewareId);
-  }
-
   const handleOpenActivityEditor = (coursewareId: string, activity?: Activity) => {
     setCurrentCoursewareId(coursewareId);
     setEditingActivity(activity || null);
@@ -298,7 +377,7 @@ export function CoursewareManagement() {
 
   if (loading) {
       return (
-          <div className="flex justify-center items-center h-64">
+          <div className="flex h-64 items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
       )
@@ -307,7 +386,7 @@ export function CoursewareManagement() {
   return (
     <>
       <div className="container mx-auto max-w-5xl py-8">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
             <div>
                 <h1 className="text-3xl font-bold">{t('courseware.title')}</h1>
                 <p className="text-muted-foreground">{t('courseware.description')}</p>
@@ -328,14 +407,18 @@ export function CoursewareManagement() {
                     <Accordion type="single" collapsible className="w-full">
                     {coursewares.map((cw) => (
                         <SortableCoursewareItem
-                        key={cw.id}
-                        courseware={cw}
-                        onEdit={() => handleOpenCoursewareDialog(cw)}
-                        onDelete={() => handleDeleteCourseware(cw.id)}
-                        onAddActivity={() => handleOpenActivityEditor(cw.id)}
-                        onEditActivity={(activity) => handleOpenActivityEditor(cw.id, activity)}
-                        onDeleteActivity={(activityId) => deleteActivity(cw.id, activityId)}
-                        onReorderActivities={(event) => handleActivityDragEnd(event, cw)}
+                            key={cw.id}
+                            courseware={cw}
+                            allCoursewares={coursewares}
+                            onEdit={() => handleOpenCoursewareDialog(cw)}
+                            onDelete={() => deleteCourseware(cw.id)}
+                            onDuplicate={() => duplicateCourseware(cw.id)}
+                            onAddActivity={() => handleOpenActivityEditor(cw.id)}
+                            onEditActivity={(activity) => handleOpenActivityEditor(cw.id, activity)}
+                            onDeleteActivity={(activityId) => deleteActivity(cw.id, activityId)}
+                            onDuplicateActivity={duplicateActivity}
+                            onMoveActivity={moveActivity}
+                            onReorderActivities={(event) => handleActivityDragEnd(event, cw)}
                         />
                     ))}
                     </Accordion>
@@ -370,8 +453,8 @@ export function CoursewareManagement() {
       </Dialog>
       
       <Dialog open={isActivityEditorOpen} onOpenChange={(open) => { if (!open) setActivityEditorOpen(false)}}>
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
-              <DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
+          <DialogContent className="flex h-full max-h-[90vh] w-full max-w-2xl flex-col p-0">
+              <DialogHeader className="flex-shrink-0 border-b p-6 pb-4">
                 <DialogTitle>{editingActivity ? t('courseware.activity_editor_title_edit') : t('courseware.activity_editor_title_add')}</DialogTitle>
               </DialogHeader>
               <div className="flex-1 overflow-y-auto p-6">

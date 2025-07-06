@@ -15,6 +15,7 @@ import {
   onSnapshot,
   orderBy,
   writeBatch,
+  runTransaction,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/provider';
@@ -47,6 +48,9 @@ interface CoursewareContextType {
   reorderActivities: (coursewareId: string, activities: Activity[]) => Promise<void>;
   reorderCoursewares: (reorderedCoursewares: Courseware[]) => Promise<void>;
   addCoursewareFromActivities: (name: string, activities: QuestionData[]) => Promise<void>;
+  duplicateCourseware: (coursewareId: string) => Promise<void>;
+  duplicateActivity: (coursewareId: string, activityId: string) => Promise<void>;
+  moveActivity: (sourceCoursewareId: string, destinationCoursewareId: string, activityId: string) => Promise<void>;
 }
 
 const CoursewareContext = createContext<CoursewareContextType | undefined>(undefined);
@@ -227,6 +231,92 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         }
     }, [user, coursewares, handleFirestoreError]);
 
+    const duplicateCourseware = useCallback(async (coursewareId: string) => {
+        if (!user || !db) return;
+        const coursewareToDuplicate = coursewares.find(cw => cw.id === coursewareId);
+        if (!coursewareToDuplicate) {
+            handleFirestoreError(new Error("Courseware not found"), 'duplicate-courseware');
+            return;
+        }
+        
+        try {
+            const userCoursewares = coursewares.filter(cw => cw.ownerId === user.uid);
+            const newOrder = userCoursewares.length > 0 ? Math.max(...userCoursewares.map(c => c.order || 0)) + 1 : 0;
+            
+            const newActivities = (coursewareToDuplicate.activities || []).map(activity => ({
+                ...activity,
+                id: generateId()
+            }));
+
+            await addDoc(collection(db, "courseware"), { 
+              name: `${coursewareToDuplicate.name} (${t('common.copy')})`,
+              ownerId: user.uid, 
+              activities: newActivities,
+              order: newOrder
+            });
+            toast({ title: t('courseware.toast_package_duplicated') });
+        } catch (error) {
+            handleFirestoreError(error, 'duplicate-courseware');
+        }
+    }, [user, coursewares, handleFirestoreError, t, toast]);
+
+    const duplicateActivity = useCallback(async (coursewareId: string, activityId: string) => {
+        if (!db) return;
+        const courseware = findCourseware(coursewareId);
+        if (!courseware) return;
+
+        const activityToDuplicate = (courseware.activities || []).find(a => a.id === activityId);
+        if (!activityToDuplicate) return;
+
+        const newActivity: Activity = { ...activityToDuplicate, id: generateId() };
+        
+        const originalIndex = (courseware.activities || []).findIndex(a => a.id === activityId);
+        const updatedActivities = [...(courseware.activities || [])];
+        updatedActivities.splice(originalIndex + 1, 0, newActivity);
+
+        try {
+            await updateDoc(doc(db, 'courseware', coursewareId), { activities: updatedActivities });
+            toast({ title: t('courseware.toast_activity_duplicated') });
+        } catch (error) {
+            handleFirestoreError(error, 'duplicate-activity');
+        }
+    }, [findCourseware, handleFirestoreError, t, toast]);
+
+    const moveActivity = useCallback(async (sourceCoursewareId: string, destinationCoursewareId: string, activityId: string) => {
+        if (!db || sourceCoursewareId === destinationCoursewareId) return;
+
+        try {
+            await runTransaction(db, async (transaction) => {
+                const sourceRef = doc(db, 'courseware', sourceCoursewareId);
+                const destRef = doc(db, 'courseware', destinationCoursewareId);
+
+                const sourceSnap = await transaction.get(sourceRef);
+                const destSnap = await transaction.get(destRef);
+
+                if (!sourceSnap.exists() || !destSnap.exists()) {
+                    throw new Error("Source or destination courseware not found.");
+                }
+
+                const sourceData = sourceSnap.data() as Courseware;
+                const destData = destSnap.data() as Courseware;
+
+                const activityToMove = (sourceData.activities || []).find(a => a.id === activityId);
+                if (!activityToMove) {
+                    throw new Error("Activity not found in source courseware.");
+                }
+                
+                const newSourceActivities = (sourceData.activities || []).filter(a => a.id !== activityId);
+                const newDestActivities = [...(destData.activities || []), activityToMove];
+
+                transaction.update(sourceRef, { activities: newSourceActivities });
+                transaction.update(destRef, { activities: newDestActivities });
+            });
+            toast({ title: t('courseware.toast_activity_moved') });
+        } catch (error) {
+            handleFirestoreError(error, 'move-activity');
+        }
+    }, [handleFirestoreError, t, toast]);
+
     const value = useMemo(() => ({
         coursewares,
         loading,
@@ -239,6 +329,9 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         reorderActivities,
         reorderCoursewares,
         addCoursewareFromActivities,
+        duplicateCourseware,
+        duplicateActivity,
+        moveActivity,
     }), [
         coursewares,
         loading,
@@ -251,6 +344,9 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
         reorderActivities,
         reorderCoursewares,
         addCoursewareFromActivities,
+        duplicateCourseware,
+        duplicateActivity,
+        moveActivity,
     ]);
 
     return (
