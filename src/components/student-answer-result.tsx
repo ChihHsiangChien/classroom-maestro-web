@@ -24,14 +24,21 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
     const { t } = useI18n();
 
     const getIsCorrect = (): boolean => {
-        if (!myAnswer) return false;
-        if (question.type !== 'true-false' && question.type !== 'multiple-choice') return false;
-
-        const correctAnswer = question.answer;
-        if (Array.isArray(correctAnswer) && Array.isArray(myAnswer)) {
-            return areArraysEqual(correctAnswer, myAnswer);
+        if (myAnswer === null || myAnswer === undefined) return false;
+        
+        if (question.type === 'true-false') {
+            return question.answer === myAnswer;
         }
-        return correctAnswer === myAnswer;
+
+        if (question.type === 'multiple-choice') {
+            const correctAnswer = question.answer;
+            if (!Array.isArray(correctAnswer)) return false;
+
+            const studentAnswerArray = Array.isArray(myAnswer) ? myAnswer : [myAnswer];
+            return areArraysEqual(correctAnswer, studentAnswerArray);
+        }
+
+        return false;
     };
     
     const isCorrect = getIsCorrect();
@@ -76,7 +83,7 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
                         <p className="text-sm font-medium text-muted-foreground">{t('studentAnswerResult.your_answer')}</p>
                         <p className="text-lg font-semibold">{renderAnswer(myAnswer || undefined, false)}</p>
                     </div>
-                    {!isCorrect && (
+                    {!isCorrect && 'answer' in question && question.answer && (
                          <div className="p-4 bg-green-500/10 rounded-lg">
                             <p className="text-sm font-medium text-green-700">{t('studentAnswerResult.correct_answer')}</p>
                             <p className="text-lg font-semibold text-green-800">{renderAnswer(question.answer, true)}</p>

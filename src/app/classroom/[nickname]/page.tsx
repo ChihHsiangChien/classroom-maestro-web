@@ -166,17 +166,16 @@ function ClassroomPageContent() {
         setSessionEnded(false);
     };
 
+    let content;
     if (loading) {
-        return (
+        content = (
             <div className="flex flex-col items-center gap-4 text-foreground">
                 <Loader2 className="h-12 w-12 animate-spin" />
                 <p className="text-xl">{t('common.loading')}</p>
             </div>
         );
-    }
-    
-    if (sessionEnded) {
-        return (
+    } else if (sessionEnded) {
+        content = (
             <Card className="w-full max-w-lg text-center animate-in fade-in-50">
                 <CardHeader>
                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 mb-4">
@@ -193,98 +192,80 @@ function ClassroomPageContent() {
                 </CardFooter>
             </Card>
         );
-    }
+    } else if (activeRace) {
+        content = <StudentRace key={activeRace.id} race={activeRace} studentId={studentId} onClaim={handleClaimRace} />;
+    } else if (activeQuestion?.showAnswer) {
+        content = <StudentAnswerResult question={activeQuestion} myAnswer={myLastAnswer} />;
+    } else if (activeQuestion && submittedQuestionId !== activeQuestion.id) {
+        content = <StudentQuestionForm question={activeQuestion} onVoteSubmit={handleVoteSubmit} />;
+    } else {
+        const messageCardTitle = activeQuestion
+            ? t('classroomPage.submission_received_title')
+            : t('classroomPage.welcome_title', { studentName });
+        
+        const messageCardDescription = activeQuestion
+            ? t('classroomPage.submission_received_description')
+            : t('classroomPage.welcome_description');
 
-    if (activeRace) {
-        // Use the race ID as a key to force re-render on new race
-        return <StudentRace key={activeRace.id} race={activeRace} studentId={studentId} onClaim={handleClaimRace} />;
+        content = (
+            <Card className="w-full max-w-lg text-center animate-in fade-in-50">
+                <CardHeader>
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 mb-4">
+                        <PartyPopper className="h-8 w-8 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl">{messageCardTitle}</CardTitle>
+                    <CardDescription>{messageCardDescription}</CardDescription>
+                </CardHeader>
+                <CardFooter className="p-6 pt-2">
+                     <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="w-full">
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleLogout}
+                                        className="w-full"
+                                        disabled={isLocked}
+                                        style={isLocked ? { pointerEvents: 'none' } : {}}
+                                    >
+                                        <LogOut className="mr-2 h-4 w-4" />
+                                        {t('dashboard.sign_out')}
+                                    </Button>
+                                </div>
+                            </TooltipTrigger>
+                            {isLocked && (
+                                <TooltipContent>
+                                    <p>{t('classroomPage.logout_disabled_tooltip')}</p>
+                                </TooltipContent>
+                            )}
+                        </Tooltip>
+                    </TooltipProvider>
+                </CardFooter>
+            </Card>
+        );
     }
-
-    // New logic to show answer result
-    if (activeQuestion?.showAnswer) {
-        return <StudentAnswerResult question={activeQuestion} myAnswer={myLastAnswer} />;
-    }
-
-    if (activeQuestion && submittedQuestionId !== activeQuestion.id) {
-        return <StudentQuestionForm question={activeQuestion} onVoteSubmit={handleVoteSubmit} />;
-    }
-
-    const messageCardTitle = activeQuestion
-        ? t('classroomPage.submission_received_title')
-        : t('classroomPage.welcome_title', { studentName });
     
-    const messageCardDescription = activeQuestion
-        ? t('classroomPage.submission_received_description')
-        : t('classroomPage.welcome_description');
+    const showScore = !loading && !sessionEnded;
 
     return (
-        <Card className="w-full max-w-lg text-center animate-in fade-in-50">
-            <CardHeader>
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 mb-4">
-                    <PartyPopper className="h-8 w-8 text-primary" />
+        <>
+            {showScore && (
+                <div className="absolute top-4 right-4 z-10">
+                    <Badge variant="secondary" className="text-lg py-2 px-4 shadow-md border-primary/50">
+                        <Trophy className="mr-2 h-5 w-5 text-amber-500" />
+                        {t('classroomPage.your_score', { score: myScore })}
+                    </Badge>
                 </div>
-                <CardTitle className="text-2xl">{messageCardTitle}</CardTitle>
-                <CardDescription>{messageCardDescription}</CardDescription>
-            </CardHeader>
-            <CardFooter className="p-6 pt-2">
-                 <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div className="w-full">
-                                <Button
-                                    variant="outline"
-                                    onClick={handleLogout}
-                                    className="w-full"
-                                    disabled={isLocked}
-                                    style={isLocked ? { pointerEvents: 'none' } : {}}
-                                >
-                                    <LogOut className="mr-2 h-4 w-4" />
-                                    {t('dashboard.sign_out')}
-                                </Button>
-                            </div>
-                        </TooltipTrigger>
-                        {isLocked && (
-                            <TooltipContent>
-                                <p>{t('classroomPage.logout_disabled_tooltip')}</p>
-                            </TooltipContent>
-                        )}
-                    </Tooltip>
-                </TooltipProvider>
-            </CardFooter>
-        </Card>
+            )}
+            {content}
+        </>
     );
 }
 
 
 export default function ClassroomPage() {
-    const { t } = useI18n();
-    const { listenForClassroom } = useClassroom();
-    const params = useParams();
-    const searchParams = useSearchParams();
-    const classroomId = params.nickname as string;
-    const studentId = searchParams.get('studentId');
-    const [score, setScore] = useState(0);
-
-    useEffect(() => {
-        if (!classroomId || !studentId) return;
-        const unsubscribe = listenForClassroom(classroomId, (classroom) => {
-            if (classroom?.scores && classroom.scores[studentId]) {
-                setScore(classroom.scores[studentId]);
-            } else {
-                setScore(0);
-            }
-        });
-        return () => unsubscribe();
-    }, [classroomId, studentId, listenForClassroom]);
-    
     return (
         <main className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4">
-             <div className="absolute top-4 right-4">
-                <Badge variant="secondary" className="text-lg py-2 px-4 shadow-md border-primary/50">
-                    <Trophy className="mr-2 h-5 w-5 text-amber-500" />
-                    {t('classroomPage.your_score', { score })}
-                </Badge>
-            </div>
              <Suspense fallback={
                 <div className="flex flex-col items-center gap-4 text-foreground">
                     <Loader2 className="h-12 w-12 animate-spin" />
