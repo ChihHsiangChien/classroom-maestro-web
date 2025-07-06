@@ -1,3 +1,4 @@
+
 "use server";
 
 import {
@@ -8,6 +9,9 @@ import {
   analyzeShortAnswers,
   type AnalyzeShortAnswersInput,
 } from "@/ai/flows/analyze-short-answers";
+import { db } from "@/lib/firebase";
+import { doc, runTransaction, type Timestamp } from "firebase/firestore";
+import type { Classroom, RaceData } from "@/contexts/classroom-context";
 
 
 export async function generatePollAction(input: GeneratePollInput) {
@@ -42,5 +46,55 @@ export async function analyzeShortAnswersAction(
       analysis: null,
       error: "Could not analyze the answers. Please try again.",
     };
+  }
+}
+
+export interface ClaimRaceInput {
+  classroomId: string;
+  raceId: string;
+  studentId: string;
+  studentName: string;
+}
+
+export async function claimRaceAction(input: ClaimRaceInput): Promise<{ success: boolean; error?: string }> {
+  const { classroomId, raceId, studentId, studentName } = input;
+  if (!db) {
+    return { success: false, error: "Database not configured." };
+  }
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const classroomRef = doc(db, 'classrooms', classroomId);
+      const classroomSnap = await transaction.get(classroomRef);
+
+      if (!classroomSnap.exists()) {
+        throw new Error("Classroom does not exist.");
+      }
+
+      const classroomData = classroomSnap.data();
+      const race = classroomData.race as RaceData | undefined;
+
+      if (!race || race.id !== raceId || race.status !== 'pending') {
+        throw new Error("Race not available to be claimed.");
+      }
+      
+      const serverTime = Date.now();
+      const startTime = (race.startTime as Timestamp).toMillis();
+      const activationTime = startTime + 2900;
+
+      if (serverTime < activationTime) {
+        throw new Error("Race claimed too early.");
+      }
+      
+      transaction.update(classroomRef, {
+        'race.winnerName': studentName,
+        'race.winnerId': studentId,
+        'race.status': 'finished'
+      });
+    });
+    return { success: true };
+  } catch (error: any) {
+    console.log("Claim race failed inside action:", error.message);
+    return { success: false, error: error.message };
   }
 }

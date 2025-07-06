@@ -23,6 +23,7 @@ import {
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n/provider';
+import { claimRaceAction } from '@/app/actions';
 
 export interface PresenceData {
   isOnline?: boolean;
@@ -485,37 +486,19 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const claimRace = useCallback(async (classroomId: string, raceId: string, studentId: string, studentName: string): Promise<boolean> => {
-        if (!db) return false;
         try {
-            await runTransaction(db, async (transaction) => {
-                const classroomRef = doc(db, 'classrooms', classroomId);
-                const classroomSnap = await transaction.get(classroomRef);
-                if (!classroomSnap.exists()) {
-                    throw new Error("Classroom does not exist.");
-                }
-                const classroomData = classroomSnap.data() as Classroom;
-                const race = classroomData.race;
-
-                if (!race || race.id !== raceId || race.status !== 'pending') {
-                    throw new Error("Race not available to be claimed.");
-                }
-
-                // Server-side time check with a buffer to account for clock skew.
-                // This checks if the claim is made after a reasonable delay from the start time.
-                const activationTime = race.startTime.toMillis() + 2900; // 2.9 seconds buffer
-                if (Date.now() < activationTime) {
-                    throw new Error("Race claimed too early.");
-                }
-
-                transaction.update(classroomRef, {
-                    'race.winnerName': studentName,
-                    'race.winnerId': studentId,
-                    'race.status': 'finished'
-                });
-            });
-            return true;
+            const result = await claimRaceAction({ classroomId, raceId, studentId, studentName });
+            
+            if (!result.success) {
+                // This is an expected outcome if another student is faster, or the claim was too early.
+                // Log it for debugging purposes, but it's not a system error.
+                console.log(`Claim race failed: ${result.error}`);
+            }
+            
+            return result.success;
         } catch (error) {
-            console.error("Failed to claim race:", (error as Error).message);
+            // This would catch network errors or other unexpected issues when calling the server action.
+            console.error("Fatal error calling claimRaceAction:", error);
             return false;
         }
     }, []);
