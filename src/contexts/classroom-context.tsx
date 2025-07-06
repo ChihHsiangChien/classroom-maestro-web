@@ -66,6 +66,7 @@ export interface Classroom {
   isLocked?: boolean;
   race?: RaceData | null;
   pingRequest?: { id: string; timestamp: Timestamp };
+  scores?: { [studentId: string]: number };
 }
 
 interface ClassroomContextType {
@@ -99,6 +100,8 @@ interface ClassroomContextType {
   resetRace: (classroomId: string) => Promise<void>;
   deleteTeacherAndData: (ownerId: string) => Promise<void>;
   pingStudents: (classroomId: string) => Promise<void>;
+  startNewActivitySession: (classroomId: string) => Promise<void>;
+  awardPoints: (classroomId: string, studentIds: string[], points: number) => Promise<void>;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
@@ -242,7 +245,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     try {
       const userClassrooms = classroomsRef.current.filter(c => c.ownerId === user.uid);
       const newOrder = userClassrooms.length > 0 ? Math.max(...userClassrooms.map(c => c.order)) + 1 : 0;
-      await addDoc(collection(db, "classrooms"), { name, ownerId: user.uid, students: [], isLocked: false, order: newOrder });
+      await addDoc(collection(db, "classrooms"), { name, ownerId: user.uid, students: [], isLocked: false, order: newOrder, scores: {} });
     } catch (error) {
       handleFirestoreErrorRef.current?.(error, 'add-classroom');
     }
@@ -597,6 +600,37 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const startNewActivitySession = useCallback(async (classroomId: string) => {
+    if (!db) return;
+    try {
+        await updateDoc(doc(db, 'classrooms', classroomId), { scores: {} });
+    } catch (error) {
+        handleFirestoreErrorRef.current?.(error, 'start-new-activity-session');
+    }
+  }, []);
+
+  const awardPoints = useCallback(async (classroomId: string, studentIds: string[], points: number) => {
+    if (!db || studentIds.length === 0) return;
+    const classroomRef = doc(db, 'classrooms', classroomId);
+    try {
+        await runTransaction(db, async (transaction) => {
+            const classroomDoc = await transaction.get(classroomRef);
+            if (!classroomDoc.exists()) {
+                throw "Classroom does not exist!";
+            }
+            const scores = classroomDoc.data().scores || {};
+            const newScores = { ...scores };
+            studentIds.forEach(id => {
+                newScores[id] = (newScores[id] || 0) + points;
+            });
+            transaction.update(classroomRef, { scores: newScores });
+        });
+    } catch (error) {
+        handleFirestoreErrorRef.current?.(error, 'award-points');
+    }
+  }, []);
+
+
   const value = useMemo(() => ({
     classrooms,
     activeClassroom,
@@ -628,6 +662,8 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     resetRace,
     deleteTeacherAndData,
     pingStudents,
+    startNewActivitySession,
+    awardPoints,
   }), [
     classrooms,
     activeClassroom,
@@ -658,6 +694,8 @@ reorderClassrooms,
     resetRace,
     deleteTeacherAndData,
     pingStudents,
+    startNewActivitySession,
+    awardPoints,
   ]);
 
   return (

@@ -9,10 +9,11 @@ import { StudentQuestionForm } from '@/components/student-poll';
 import { StudentAnswerResult } from '@/components/student-answer-result';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, PartyPopper, LogOut, RefreshCw } from 'lucide-react';
+import { Loader2, PartyPopper, LogOut, RefreshCw, Trophy } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { StudentRace } from '@/components/student-race';
+import { Badge } from '@/components/ui/badge';
 import { Timestamp } from 'firebase/firestore';
 
 
@@ -39,6 +40,7 @@ function ClassroomPageContent() {
 
     const activeQuestion = classroom?.activeQuestion;
     const activeRace = classroom?.race;
+    const myScore = (studentId && classroom?.scores?.[studentId]) || 0;
 
     // This effect handles student presence: login session and attention tracking.
     useEffect(() => {
@@ -255,8 +257,34 @@ function ClassroomPageContent() {
 
 
 export default function ClassroomPage() {
+    const { t } = useI18n();
+    const { listenForClassroom } = useClassroom();
+    const params = useParams();
+    const searchParams = useSearchParams();
+    const classroomId = params.nickname as string;
+    const studentId = searchParams.get('studentId');
+    const [score, setScore] = useState(0);
+
+    useEffect(() => {
+        if (!classroomId || !studentId) return;
+        const unsubscribe = listenForClassroom(classroomId, (classroom) => {
+            if (classroom?.scores && classroom.scores[studentId]) {
+                setScore(classroom.scores[studentId]);
+            } else {
+                setScore(0);
+            }
+        });
+        return () => unsubscribe();
+    }, [classroomId, studentId, listenForClassroom]);
+    
     return (
         <main className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4">
+             <div className="absolute top-4 right-4">
+                <Badge variant="secondary" className="text-lg py-2 px-4 shadow-md border-primary/50">
+                    <Trophy className="mr-2 h-5 w-5 text-amber-500" />
+                    {t('classroomPage.your_score', { score })}
+                </Badge>
+            </div>
              <Suspense fallback={
                 <div className="flex flex-col items-center gap-4 text-foreground">
                     <Loader2 className="h-12 w-12 animate-spin" />

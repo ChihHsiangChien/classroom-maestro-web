@@ -134,6 +134,7 @@ export const dictionaries = {
       session_ended_title: '課程已結束',
       session_ended_description: '老師可能已離開連線。您可以嘗試重新加入。',
       rejoin_session_button: '重新加入課程',
+      your_score: '你的分數: {score}',
     },
     teacherDashboard: {
       title: '活動中心',
@@ -141,7 +142,7 @@ export const dictionaries = {
       create_question_card_title: '建立新問題',
       create_question_card_description: '透過即時問題吸引您的學生。',
       end_question_button: '結束問題',
-      reveal_answer_button: '公佈答案',
+      reveal_answer_button: '公佈答案並計分',
       lesson_status_card_title: '活動狀態',
       question_active: '問題進行中',
       question_type_active: '{questionType} 進行中',
@@ -200,7 +201,7 @@ export const dictionaries = {
       generate_image_button: '生成圖片',
       generating_image: '正在生成圖片...',
       toast_image_generated_title: '圖片已生成',
-      toast_image_generated_description: '新圖片已設定為活動背景。',
+      toast_image_generated_description: '新圖片已新增至畫布中，可供編輯。',
     },
     activePoll: {
       live_results_title: '即時結果',
@@ -423,6 +424,14 @@ export const dictionaries = {
       num_multiple_choice_label: '選擇題數量',
       num_true_false_label: '是非題數量',
     },
+    leaderboard: {
+      title: '排行榜',
+      description: '本次活動即時分數',
+      points: '分',
+      no_scores: '尚未有任何得分',
+      toast_scores_awarded_title: '分數已發放！',
+      toast_scores_awarded_description: '{count} 位答對的同學各獲得 {points} 分。'
+    },
     language_switcher: {
       title: '語言',
     },
@@ -572,6 +581,7 @@ export const dictionaries = {
       session_ended_title: 'Session Ended',
       session_ended_description: 'The teacher may have left the session. You can try to rejoin.',
       rejoin_session_button: 'Rejoin Session',
+      your_score: 'Your Score: {score}',
     },
     teacherDashboard: {
       title: 'Activity Center',
@@ -579,7 +589,7 @@ export const dictionaries = {
       create_question_card_title: 'Create a New Question',
       create_question_card_description: 'Engage your students with a real-time question.',
       end_question_button: 'End Question',
-      reveal_answer_button: 'Reveal Answer',
+      reveal_answer_button: 'Reveal Answer & Award Points',
       lesson_status_card_title: 'Activity Status',
       question_active: 'Question Active',
       question_type_active: '{questionType} Active',
@@ -638,7 +648,7 @@ export const dictionaries = {
         generate_image_button: 'Generate Image',
         generating_image: 'Generating image...',
         toast_image_generated_title: 'Image Generated',
-        toast_image_generated_description: 'The new image has been set as the activity background.',
+        toast_image_generated_description: 'The new image has been added to the canvas for editing.',
     },
     activePoll: {
       live_results_title: 'Live Results',
@@ -860,6 +870,14 @@ export const dictionaries = {
       new_courseware_name_label: 'New Courseware Name',
       num_multiple_choice_label: 'Number of Multiple-Choice',
       num_true_false_label: 'Number of True/False',
+    },
+    leaderboard: {
+      title: 'Leaderboard',
+      description: 'Live scores for this session',
+      points: 'pts',
+      no_scores: 'No scores yet.',
+      toast_scores_awarded_title: 'Points Awarded!',
+      toast_scores_awarded_description: '{count} correct students received {points} points each.',
     },
     language_switcher: {
       title: 'Language',

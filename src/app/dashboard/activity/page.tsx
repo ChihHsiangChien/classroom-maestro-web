@@ -43,10 +43,18 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 // Add a unique ID to the QuestionData type
 type QuestionDataWithId = QuestionData & { id: string; showAnswer?: boolean; };
 
+// Helper to check for correct answers
+const areArraysEqual = (arr1: string[], arr2: string[]) => {
+    if (arr1.length !== arr2.length) return false;
+    const sorted1 = [...arr1].sort();
+    const sorted2 = [...arr2].sort();
+    return sorted1.every((value, index) => value === sorted2[index]);
+};
+
 export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace, pingStudents, revealAnswer } = useClassroom();
+  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace, pingStudents, revealAnswer, startNewActivitySession, awardPoints } = useClassroom();
   const { addCoursewareFromActivities } = useCourseware();
   const { toast } = useToast();
 
@@ -79,17 +87,20 @@ export default function ActivityPage() {
 
   // Automatically end the active question only when the teacher navigates away (component unmounts)
   useEffect(() => {
-    // This function will be returned and called on unmount
     return () => {
       const latestClassroom = activeClassroomRef.current;
       if (latestClassroom?.id && latestClassroom?.activeQuestion) {
-        // Use the ref to get the most up-to-date classroom state
         setActiveQuestionInDB(latestClassroom.id, null);
       }
     };
-    // The dependency array only contains the stable setActiveQuestionInDB function,
-    // so this effect runs only once on mount, and the cleanup runs only on unmount.
   }, [setActiveQuestionInDB]);
+
+  // Start a new scoring session when the page loads
+  useEffect(() => {
+    if (activeClassroom?.id) {
+        startNewActivitySession(activeClassroom.id);
+    }
+  }, [activeClassroom?.id, startNewActivitySession]);
 
 
   useEffect(() => {
@@ -125,7 +136,29 @@ export default function ActivityPage() {
   };
 
   const handleRevealAnswer = async () => {
-    if (activeClassroom) {
+    if (activeClassroom && activeQuestion && ('answer' in activeQuestion)) {
+      const correctStudentIds: string[] = [];
+      const correctAnswer = activeQuestion.answer;
+      
+      if (correctAnswer) {
+          const answerArray = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
+          submissions.forEach(sub => {
+              const studentAnswer = Array.isArray(sub.answer) ? sub.answer : [sub.answer];
+              if (areArraysEqual(studentAnswer, answerArray)) {
+                  correctStudentIds.push(sub.studentId);
+              }
+          });
+      }
+
+      if (correctStudentIds.length > 0) {
+        const POINTS_PER_CORRECT_ANSWER = 10;
+        await awardPoints(activeClassroom.id, correctStudentIds, POINTS_PER_CORRECT_ANSWER);
+        toast({
+            title: t('leaderboard.toast_scores_awarded_title'),
+            description: t('leaderboard.toast_scores_awarded_description', { count: correctStudentIds.length, points: POINTS_PER_CORRECT_ANSWER }),
+        });
+      }
+
       await revealAnswer(activeClassroom.id);
     }
   };

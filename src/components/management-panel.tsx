@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut, GripVertical, ChevronDown, ArrowDownUp, ArrowUp, ArrowDown, RefreshCw, CheckCheck } from 'lucide-react';
+import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut, GripVertical, ChevronDown, ArrowDownUp, ArrowUp, ArrowDown, RefreshCw, CheckCheck, Trophy } from 'lucide-react';
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom, type Classroom, type Submission, type Student } from '@/contexts/classroom-context';
 import type { QuestionData } from "./create-poll-form";
@@ -151,6 +151,20 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
 
         return studentsCopy;
     }, [props.classroom.students, props.submissions, sortBy, sortOrder, props.classroom.pingRequest]);
+    
+    const leaderboard = useMemo(() => {
+        if (!props.classroom.scores || Object.keys(props.classroom.scores).length === 0) {
+            return [];
+        }
+        const studentMap = new Map(props.classroom.students.map(s => [s.id, s.name]));
+        return Object.entries(props.classroom.scores)
+            .map(([studentId, score]) => ({
+                studentId,
+                name: studentMap.get(studentId) || 'Unknown Student',
+                score,
+            }))
+            .sort((a, b) => b.score - a.score);
+    }, [props.classroom.scores, props.classroom.students]);
 
 
     const handleCopy = () => {
@@ -169,7 +183,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
     
     const renderActivityStatus = () => {
         if (props.activeQuestion) {
-            const hasAnswer = 'answer' in props.activeQuestion && props.activeQuestion.answer;
+            const hasAnswer = 'answer' in props.activeQuestion && props.activeQuestion.answer && (Array.isArray(props.activeQuestion.answer) ? props.activeQuestion.answer.length > 0 : true);
             const answerRevealed = props.activeQuestion.showAnswer;
             
             let footerContent;
@@ -400,6 +414,46 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                 </CardContent>
             )
         },
+        leaderboard: {
+            header: (
+                <div className="flex-1">
+                    <CardTitle className="text-base font-medium">
+                        {t('leaderboard.title')}
+                    </CardTitle>
+                    <CardDescription className="flex items-center gap-2 mt-1">
+                        <Trophy className="h-4 w-4 text-amber-500" />
+                        <span>{t('leaderboard.description')}</span>
+                    </CardDescription>
+                </div>
+            ),
+            content: (
+                <CardContent className="p-0">
+                    <ScrollArea className="h-48 px-4">
+                        <div className="space-y-2 py-4">
+                        {leaderboard.length > 0 ? (
+                            leaderboard.map((player, index) => (
+                                <div key={player.studentId} className="flex items-center justify-between rounded-md p-2 bg-muted/50">
+                                    <div className="flex items-center gap-3">
+                                        <span className={cn("w-6 text-center font-bold",
+                                            index === 0 && "text-amber-500",
+                                            index === 1 && "text-slate-500",
+                                            index === 2 && "text-orange-700"
+                                        )}>
+                                            {index + 1}
+                                        </span>
+                                        <p className="font-medium">{player.name}</p>
+                                    </div>
+                                    <p className="font-semibold text-primary">{player.score} {t('leaderboard.points')}</p>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-center text-sm text-muted-foreground py-10">{t('leaderboard.no_scores')}</p>
+                        )}
+                        </div>
+                    </ScrollArea>
+                </CardContent>
+            )
+        },
         lesson: {
             header: (
                 <div className="flex-1">
@@ -458,8 +512,8 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
 }
 
 export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestion, onEndQuestion, onRevealAnswer }: ManagementPanelProps) {
-  const [cardOrder, setCardOrder] = useState(['join', 'status', 'lesson']);
-  const [openStates, setOpenStates] = useState<{ [key: string]: boolean }>({ join: true, status: true, lesson: true });
+  const [cardOrder, setCardOrder] = useState(['join', 'leaderboard', 'status', 'lesson']);
+  const [openStates, setOpenStates] = useState<{ [key: string]: boolean }>({ join: true, leaderboard: true, status: true, lesson: true });
 
   // Load state from localStorage on mount
   useEffect(() => {
@@ -467,12 +521,15 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
       const savedState = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (savedState) {
         const { order, open } = JSON.parse(savedState);
+        const defaultCards = ['join', 'leaderboard', 'status', 'lesson'];
         if (Array.isArray(order) && typeof open === 'object') {
-          // Ensure all default cards are present
-          const defaultCards = ['join', 'status', 'lesson'];
-          const newOrder = defaultCards.filter(c => order.includes(c));
-          order.forEach((c: string) => {
-            if (!newOrder.includes(c) && defaultCards.includes(c)) newOrder.push(c);
+          // Ensure all default cards are present, even if new ones were added
+          const currentCards = new Set(order);
+          const newOrder = [...order];
+          defaultCards.forEach(card => {
+              if (!currentCards.has(card)) {
+                  newOrder.push(card);
+              }
           });
           
           setCardOrder(newOrder);
