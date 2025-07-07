@@ -23,14 +23,15 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
         const studentAnswers = (Array.isArray(myAnswer) ? myAnswer : [myAnswer])
             .map(val => {
                 if (val === null || val === undefined || String(val).trim() === '') return NaN;
-                return Number(val);
+                const num = Number(val);
+                return isNaN(num) ? val : num;
             })
-            .filter(n => !isNaN(n));
+            .filter(n => n !== null && n !== undefined && !Number.isNaN(n));
     
-        let correctAnswers: number[] = [];
+        let correctAnswers: (string | number)[] = [];
     
-        if (question.type === 'true-false' && 'answer' in question && question.answer !== undefined) {
-            correctAnswers = question.answer === 'O' ? [0] : [1];
+        if (question.type === 'true-false' && 'answer' in question && typeof question.answer === 'number') {
+            correctAnswers = [question.answer];
         } else if (question.type === 'multiple-choice' && 'answer' in question) {
             correctAnswers = Array.isArray(question.answer) ? question.answer : [];
         }
@@ -80,9 +81,8 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
 
     const getCorrectAnswerIndices = () => {
         if (question.type === 'multiple-choice' && 'answer' in question) return question.answer;
-        if (question.type === 'true-false' && 'answer' in question) {
-            if (question.answer === 'O') return [0];
-            if (question.answer === 'X') return [1];
+        if (question.type === 'true-false' && 'answer' in question && typeof question.answer === 'number') {
+           return [question.answer];
         }
         return [];
     }

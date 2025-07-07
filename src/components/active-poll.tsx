@@ -5,7 +5,7 @@ import { BarChart as BarChartIcon, Users, FileText, Image as ImageIcon, CheckCir
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import type { QuestionData, MultipleChoiceQuestion, ImageAnnotationQuestion } from "./create-poll-form";
+import type { QuestionData, MultipleChoiceQuestion, ImageAnnotationQuestion, TrueFalseQuestion } from "./create-poll-form";
 import React, { useMemo, useState, useTransition, useEffect } from "react";
 import type { Student, Submission } from "@/contexts/classroom-context";
 import { ScrollArea } from "./ui/scroll-area";
@@ -51,66 +51,57 @@ interface ResultsProps {
     submissions: Submission[];
 }
 
-function MultipleChoiceResults({ question, submissions, students }: { question: (MultipleChoiceQuestion | (QuestionData & { type: 'true-false' })) & { options: { value: string }[], allowMultipleAnswers?: boolean, answer: number[] }, submissions: Submission[], students: Student[] }) {
+function MultipleChoiceResults({ question, submissions, students }: { question: (MultipleChoiceQuestion | TrueFalseQuestion), submissions: Submission[], students: Student[] }) {
   const { t } = useI18n();
   const [isResponsesOpen, setIsResponsesOpen] = useState(true);
   const isTrueFalse = question.type === 'true-false';
   
+  const options = isTrueFalse ? [{ value: "O" }, { value: "X" }] : question.options;
+  const allowMultipleAnswers = !isTrueFalse && question.allowMultipleAnswers;
+  const correctAnswer = 'answer' in question ? (Array.isArray(question.answer) ? question.answer : [question.answer]) : [];
+
   const [sortBy, setSortBy] = useState<'name' | 'time' | 'option'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [optionSortKey, setOptionSortKey] = useState<number | null>(null);
   
   const { voteCounts, studentAnswerMap } = useMemo(() => {
     const counts = new Map<number, number>();
-    question.options.forEach((_, index) => counts.set(index, 0));
+    options.forEach((_, index) => counts.set(index, 0));
     const answers = new Map<string, number | number[]>();
 
     for (const sub of submissions) {
         const rawAnswer = sub.answer;
-        let indices: number[] = [];
-
-        if (rawAnswer === null || rawAnswer === undefined) {
-            continue; // Skip this submission
-        }
+        if (rawAnswer === null || rawAnswer === undefined) continue;
 
         const answerArray = Array.isArray(rawAnswer) ? rawAnswer : [rawAnswer];
-
-        indices = answerArray
-            .map(val => {
-                if (val === null || val === undefined || String(val).trim() === '') {
-                    return NaN;
-                }
-                return Number(val);
-            })
+        const indices = answerArray
+            .map(val => Number(val))
             .filter(n => !isNaN(n));
 
         if (indices.length > 0) {
-            // Populate vote counts for progress bars
             indices.forEach(index => {
                 if (counts.has(index)) {
                     counts.set(index, (counts.get(index) || 0) + 1);
                 }
             });
-
-            // Populate student answers for the table
-            const finalAnswer = question.allowMultipleAnswers ? indices : indices[0];
+            const finalAnswer = allowMultipleAnswers ? indices : indices[0];
             answers.set(sub.studentId, finalAnswer);
         }
     }
 
     return { voteCounts: counts, studentAnswerMap: answers };
-  }, [submissions, question.options, question.allowMultipleAnswers]);
+  }, [submissions, options, allowMultipleAnswers]);
 
   const results = useMemo(() => {
     const totalVotes = Array.from(voteCounts.values()).reduce((acc, count) => acc + count, 0);
 
-    return question.options.map((option, index) => {
+    return options.map((option, index) => {
       const letter = String.fromCharCode(65 + index);
       const displayValue = isTrueFalse ? (option.value === 'O' ? 'O' : 'X') : (option.value ? `${letter}. ${option.value}` : letter);
       const votes = voteCounts.get(index) || 0;
-      const isCorrect = !!(question.showAnswer && Array.isArray(question.answer) && question.answer.includes(index));
+      const isCorrect = !!(question.showAnswer && Array.isArray(correctAnswer) && correctAnswer.includes(index));
 
-      const percentageBase = question.allowMultipleAnswers ? submissions.length : totalVotes;
+      const percentageBase = allowMultipleAnswers ? submissions.length : totalVotes;
       const percentage = percentageBase > 0 ? (votes / percentageBase) * 100 : 0;
 
       return {
@@ -121,7 +112,7 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
         isCorrect,
       };
     });
-  }, [voteCounts, submissions.length, question, isTrueFalse]);
+  }, [voteCounts, submissions.length, question, isTrueFalse, options, correctAnswer, allowMultipleAnswers]);
 
 
   const studentSubmissions = useMemo(() => {
@@ -619,16 +610,8 @@ export function ActiveQuestion({ question, onEndQuestion, onRevealAnswer, studen
         const props = { submissions };
         switch (question.type) {
             case 'multiple-choice':
-                return <MultipleChoiceResults question={question} students={students} {...props} />;
             case 'true-false':
-                const trueFalseAsMc: MultipleChoiceQuestion & { answer: number[] } = {
-                  ...question,
-                  type: 'multiple-choice',
-                  options: [{ value: "O" }, { value: "X" }],
-                  allowMultipleAnswers: false,
-                  answer: 'answer' in question && question.answer === 'O' ? [0] : (question.answer === 'X' ? [1] : []),
-                };
-                return <MultipleChoiceResults question={trueFalseAsMc} students={students} {...props} />;
+                return <MultipleChoiceResults question={question} students={students} {...props} />;
             case 'short-answer':
                 return <TextResponseResults {...props} />;
             case 'drawing':
@@ -641,8 +624,8 @@ export function ActiveQuestion({ question, onEndQuestion, onRevealAnswer, studen
     };
     
     const hasAnswer = 'answer' in question && 
-      question.answer && 
-      (Array.isArray(question.answer) ? question.answer.length > 0 : (typeof question.answer === 'string' && !!question.answer));
+      question.answer !== undefined &&
+      (Array.isArray(question.answer) ? question.answer.length > 0 : true);
 
     const isAnswerRevealed = question.showAnswer;
 

@@ -32,7 +32,7 @@ const MultipleChoiceQuestionSchema = z.object({
 const TrueFalseQuestionSchema = z.object({
   type: z.enum(['true-false']),
   question: z.string().describe('The true/false question.'),
-  answer: z.enum(['O', 'X']).describe('The correct answer, either "O" for true or "X" for false.'),
+  answer: z.number().int().min(0).max(1).describe('The 0-based index of the correct answer. 0 for True (O), 1 for False (X).'),
 });
 
 const ShortAnswerQuestionSchema = z.object({
@@ -45,7 +45,7 @@ const DrawingQuestionSchema = z.object({
     question: z.string().describe('A creative prompt that requires students to draw a concept, diagram, or scene related to the text.')
 });
 
-const QuestionDataSchema = z.union([
+const QuestionDataSchema = z.discriminatedUnion("type", [
     MultipleChoiceQuestionSchema,
     TrueFalseQuestionSchema,
     ShortAnswerQuestionSchema,
@@ -70,37 +70,42 @@ const prompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-flash-latest',
   input: {schema: GenerateQuestionsFromTextInputSchema},
   output: {schema: GenerateQuestionsFromTextOutputSchema},
-  prompt: `You are an AI educator. Based on the provided text, generate a set of questions in a specific JSON format.
+  prompt: `You are an expert AI educator. Your task is to generate a precise set of questions based on the provided text and specifications.
 
-**CRITICAL INSTRUCTIONS:**
-1. You MUST generate the exact number of questions for each type as specified.
-   - True/False: {{{numTrueFalse}}}
-   - Single-Choice: {{{numSingleChoice}}}
-   - Multiple-Answer: {{{numMultipleAnswer}}}
-   - Short-Answer: {{{numShortAnswer}}}
-   - Drawing: {{{numDrawing}}}
-2. Your entire output MUST be a single, valid JSON object matching the schema. Do not output any text outside of the JSON structure.
-3. All content (questions, options, etc.) MUST be in Traditional Chinese (繁體中文).
+**ABSOLUTE, CRITICAL INSTRUCTIONS:**
+1.  **YOU MUST GENERATE EXACTLY THE SPECIFIED NUMBER OF QUESTIONS FOR EACH TYPE.** Do not substitute one type for another.
+    - True/False: {{{numTrueFalse}}}
+    - Single-Choice: {{{numSingleChoice}}}
+    - Multiple-Answer: {{{numMultipleAnswer}}}
+    - Short-Answer: {{{numShortAnswer}}}
+    - Drawing: {{{numDrawing}}}
+2.  **YOUR ENTIRE OUTPUT MUST BE A SINGLE, VALID JSON OBJECT** that strictly follows the schemas described in the examples below. Do not include any text, explanations, or markdown formatting outside of the JSON object.
+3.  All generated content (questions, options, etc.) **MUST be in Traditional Chinese (繁體中文)**.
 
-**JSON Structure and Rules with Examples:**
+**JSON FORMAT AND EXAMPLES:**
 
-Your output will be a JSON object with a single key "questions", which is an array of question objects. Each question object must have a "type" field.
+Your output will be a JSON object with a single key "questions", which is an array of question objects. Each question object **MUST** have a "type" field.
 
 1.  **True/False (\`"type": "true-false"\`)**
-    - MUST have a \`question\` (string) and an \`answer\` ('O' for true, 'X' for false).
-    - MUST NOT have \`options\` or \`allowMultipleAnswers\`.
-    - *Example:*
+    - **Keys**: \`type\`, \`question\`, \`answer\`.
+    - **Rules**: \`answer\` MUST be a NUMBER: \`0\` for True, \`1\` for False.
+    - **DO NOT** include \`options\` or \`allowMultipleAnswers\`.
+    - **Example**:
       \`\`\`json
       {
         "type": "true-false",
-        "question": "虎克是第一位觀察到細胞的科學家。",
-        "answer": "O"
+        "question": "虎克是第一位觀察到軟木塞細胞的科學家。",
+        "answer": 0
       }
       \`\`\`
 
 2.  **Single-Choice (\`"type": "multiple-choice"\`)**
-    - MUST have a \`question\` (string), \`options\` (array of 4 objects with a \`value\` string), \`allowMultipleAnswers: false\`, and \`answer\` (array with ONE number index).
-    - *Example:*
+    - **Keys**: \`type\`, \`question\`, \`options\`, \`allowMultipleAnswers\`, \`answer\`.
+    - **Rules**:
+        - \`options\` MUST be an array of EXACTLY 4 objects.
+        - \`allowMultipleAnswers\` MUST be \`false\`.
+        - \`answer\` MUST be an array with ONE number index.
+    - **Example**:
       \`\`\`json
       {
         "type": "multiple-choice",
@@ -117,8 +122,12 @@ Your output will be a JSON object with a single key "questions", which is an arr
       \`\`\`
 
 3.  **Multiple-Answer (\`"type": "multiple-choice"\`)**
-    - MUST have \`allowMultipleAnswers: true\` and an \`answer\` array with one or more number indices.
-    - *Example:*
+    - **Keys**: \`type\`, \`question\`, \`options\`, \`allowMultipleAnswers\`, \`answer\`.
+    - **Rules**:
+        - \`options\` MUST be an array of EXACTLY 4 objects.
+        - \`allowMultipleAnswers\` MUST be \`true\`.
+        - \`answer\` MUST be an array with one OR MORE number indices.
+    - **Example**:
       \`\`\`json
       {
         "type": "multiple-choice",
@@ -135,8 +144,9 @@ Your output will be a JSON object with a single key "questions", which is an arr
       \`\`\`
 
 4.  **Short-Answer (\`"type": "short-answer"\`)**
-    - MUST have a \`question\` (string).
-    - *Example:*
+    - **Keys**: \`type\`, \`question\`.
+    - **Rules**: MUST NOT include \`options\` or \`answer\`.
+    - **Example**:
       \`\`\`json
       {
         "type": "short-answer",
@@ -145,8 +155,9 @@ Your output will be a JSON object with a single key "questions", which is an arr
       \`\`\`
 
 5.  **Drawing (\`"type": "drawing"\`)**
-    - MUST have a \`question\` (string).
-    - *Example:*
+    - **Keys**: \`type\`, \`question\`.
+    - **Rules**: MUST NOT include \`options\` or \`answer\`.
+    - **Example**:
       \`\`\`json
       {
         "type": "drawing",
@@ -154,12 +165,12 @@ Your output will be a JSON object with a single key "questions", which is an arr
       }
       \`\`\`
 
-**Context Text:**
+**Context Text To Use:**
 ---
 {{{context}}}
 ---
 
-Now, generate the JSON object based on these rules and the provided context.
+Now, generate the JSON object based on these exact rules and the provided context.
 `,
 });
 

@@ -58,7 +58,7 @@ export interface MultipleChoiceQuestion {
 export interface TrueFalseQuestion {
   type: 'true-false';
   question: string;
-  answer?: 'O' | 'X';
+  answer?: number; // 0 for true, 1 for false
   showAnswer?: boolean;
 }
 export interface ShortAnswerQuestion {
@@ -113,12 +113,11 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
         startTransition(async () => {
             const result = await generatePollAction({ topic });
             if (result.poll) {
-                const currentValues = form.getValues();
                 form.reset({
-                    ...currentValues,
                     question: result.poll.question,
                     options: result.poll.options,
                     answer: result.poll.answer,
+                    allowMultipleAnswers: false,
                 });
                 form.clearErrors();
                 logAiUsage('generatePoll');
@@ -239,7 +238,7 @@ function TrueFalseForm({ onQuestionCreate }: QuestionFormProps) {
     const { t } = useI18n();
     const trueFalseSchema = z.object({
         question: z.string().optional(),
-        answer: z.enum(['O', 'X']).optional(),
+        answer: z.number().int().optional(),
     });
 
     const form = useForm<z.infer<typeof trueFalseSchema>>({
@@ -252,7 +251,7 @@ function TrueFalseForm({ onQuestionCreate }: QuestionFormProps) {
             type: 'true-false',
             question: data.question || t('createQuestionForm.untitled_question'),
         };
-        if (data.answer) {
+        if (data.answer !== undefined) {
             payload.answer = data.answer;
         }
         onQuestionCreate(payload);
@@ -272,16 +271,16 @@ function TrueFalseForm({ onQuestionCreate }: QuestionFormProps) {
                     <FormItem>
                         <FormLabel>{t('createQuestionForm.correct_answer_label')}</FormLabel>
                         <FormControl>
-                            <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
+                            <RadioGroup onValueChange={(val) => field.onChange(parseInt(val, 10))} defaultValue={field.value?.toString()} className="flex gap-4">
                                 <FormItem className="flex items-center space-x-3 space-y-0">
                                     <FormControl>
-                                        <RadioGroupItem value="O" />
+                                        <RadioGroupItem value="0" />
                                     </FormControl>
                                     <FormLabel className="font-normal text-2xl">O</FormLabel>
                                 </FormItem>
                                 <FormItem className="flex items-center space-x-3 space-y-0">
                                     <FormControl>
-                                        <RadioGroupItem value="X" />
+                                        <RadioGroupItem value="1" />
                                     </FormControl>
                                     <FormLabel className="font-normal text-2xl">X</FormLabel>
                                 </FormItem>
