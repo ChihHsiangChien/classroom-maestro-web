@@ -23,7 +23,7 @@ const MultipleChoiceQuestionSchema = z.object({
   question: z.string().describe('The multiple-choice question.'),
   options: z.array(z.object({ value: z.string() })).min(4).max(4).describe('A list of exactly 4 plausible options.'),
   allowMultipleAnswers: z.boolean().default(false).describe('Whether multiple answers are allowed.'),
-  answer: z.array(z.string()).min(1).describe("An array containing the correct option value(s). The value(s) must exactly match one or more of the 'options' values."),
+  answer: z.array(z.number().int()).min(1).describe("An array containing the 0-based index/indices of the correct option(s). For example, if the first option is correct, the value should be [0]."),
 });
 
 const TrueFalseQuestionSchema = z.object({
@@ -54,7 +54,7 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateQuestionsFromTextOutputSchema},
   prompt: `You are an expert educator creating classroom materials. Based on the following text context, please generate exactly {{{numMultipleChoice}}} multiple-choice questions and {{{numTrueFalse}}} true/false questions. If a number for a question type is 0, do not generate any questions of that type.
 
-For each multiple-choice question, you must provide exactly 4 plausible options. One or more options must be the correct answer, and the others should be plausible but incorrect distractors. You MUST provide the correct answer(s) in the 'answer' field. The values in the 'answer' array must exactly match the 'value' of the correct option(s).
+For each multiple-choice question, you must provide exactly 4 plausible options. One or more options must be the correct answer, and the others should be plausible but incorrect distractors. You MUST provide the 0-based index of the correct answer(s) in the 'answer' field. For example, if the first option is correct, the value should be [0].
 
 For each true/false question, create a clear statement that is definitively true or false based on the text. You MUST provide the correct answer ('O' for true, 'X' for false) in the 'answer' field.
 

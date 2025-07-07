@@ -3,7 +3,7 @@
 
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { useClassroom, type Classroom } from '@/contexts/classroom-context';
+import { useClassroom, type Classroom, type Submission } from '@/contexts/classroom-context';
 import type { QuestionData } from '@/components/create-poll-form';
 import { StudentQuestionForm } from '@/components/student-poll';
 import { StudentAnswerResult } from '@/components/student-answer-result';
@@ -22,7 +22,7 @@ function ClassroomPageContent() {
     const params = useParams();
     const searchParams = useSearchParams();
     const router = useRouter();
-    const { listenForClassroom, listenForStudentPresence, addSubmission, updateStudentPresence, acknowledgeKick, claimRace } = useClassroom();
+    const { listenForClassroom, listenForStudentPresence, addSubmission, updateStudentPresence, acknowledgeKick, claimRace, listenForSubmissions } = useClassroom();
     const unsubscribeRef = useRef<() => void>(() => {});
 
     const classroomId = params.nickname as string;
@@ -30,9 +30,8 @@ function ClassroomPageContent() {
     const studentName = searchParams.get('name') ? decodeURIComponent(searchParams.get('name')!) : 'Student';
 
     const [classroom, setClassroom] = useState<Classroom | null>(null);
+    const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [isLocked, setIsLocked] = useState(false);
-    const [submittedQuestionId, setSubmittedQuestionId] = useState<string | null>(null);
-    const [myLastAnswer, setMyLastAnswer] = useState<string | string[] | number | number[] | null>(null);
     const [loading, setLoading] = useState(true);
     const [kicked, setKicked] = useState(false);
     const [lastRespondedPingId, setLastRespondedPingId] = useState<string | null>(null);
@@ -99,21 +98,25 @@ function ClassroomPageContent() {
                 return;
             };
             
-            // Manage question transitions
-            const currentQuestionId = classroomData.activeQuestion?.id;
-            const previousQuestionId = classroom?.activeQuestion?.id;
-            if (currentQuestionId && currentQuestionId !== previousQuestionId) {
-                setSubmittedQuestionId(null);
-                setMyLastAnswer(null);
-            }
-            
             setClassroom(classroomData);
             setIsLocked(classroomData.isLocked || false);
             setLoading(false);
         });
 
         return () => unsubscribeRef.current();
-    }, [classroomId, listenForClassroom, classroom?.activeQuestion?.id, sessionEnded]);
+    }, [classroomId, listenForClassroom, sessionEnded]);
+
+    // New effect to listen for submissions for the active question
+    useEffect(() => {
+        if (!classroomId || !activeQuestion?.id || sessionEnded) {
+            setSubmissions([]);
+            return;
+        }
+
+        const unsubscribe = listenForSubmissions(classroomId, activeQuestion.id, setSubmissions);
+        return () => unsubscribe();
+
+    }, [classroomId, activeQuestion?.id, listenForSubmissions, sessionEnded]);
 
     // Listen for student-specific changes (like being kicked)
     useEffect(() => {
@@ -139,10 +142,7 @@ function ClassroomPageContent() {
 
     const handleVoteSubmit = async (answer: string | string[] | number | number[]) => {
         if (!classroomId || !studentId || !activeQuestion) return;
-
         await addSubmission(classroomId, activeQuestion.id, activeQuestion.question, activeQuestion.type, studentId, studentName, answer);
-        setSubmittedQuestionId(activeQuestion.id);
-        setMyLastAnswer(answer);
     };
 
     const handleClaimRace = async (): Promise<boolean> => {
@@ -194,55 +194,59 @@ function ClassroomPageContent() {
         );
     } else if (activeRace) {
         content = <StudentRace key={activeRace.id} race={activeRace} studentId={studentId} onClaim={handleClaimRace} />;
-    } else if (activeQuestion?.showAnswer) {
-        content = <StudentAnswerResult question={activeQuestion} myAnswer={myLastAnswer} />;
-    } else if (activeQuestion && submittedQuestionId !== activeQuestion.id) {
-        content = <StudentQuestionForm question={activeQuestion} onVoteSubmit={handleVoteSubmit} />;
     } else {
-        const messageCardTitle = activeQuestion
-            ? t('classroomPage.submission_received_title')
-            : t('classroomPage.welcome_title', { studentName });
+        const mySubmission = studentId ? submissions.find(sub => sub.studentId === studentId) : undefined;
         
-        const messageCardDescription = activeQuestion
-            ? t('classroomPage.submission_received_description')
-            : t('classroomPage.welcome_description');
+        if (activeQuestion?.showAnswer) {
+            content = <StudentAnswerResult question={activeQuestion} myAnswer={mySubmission?.answer ?? null} />;
+        } else if (activeQuestion && !mySubmission) {
+            content = <StudentQuestionForm question={activeQuestion} onVoteSubmit={handleVoteSubmit} />;
+        } else {
+            const messageCardTitle = activeQuestion
+                ? t('classroomPage.submission_received_title')
+                : t('classroomPage.welcome_title', { studentName });
+            
+            const messageCardDescription = activeQuestion
+                ? t('classroomPage.submission_received_description')
+                : t('classroomPage.welcome_description');
 
-        content = (
-            <Card className="w-full max-w-lg text-center animate-in fade-in-50">
-                <CardHeader>
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 mb-4">
-                        <PartyPopper className="h-8 w-8 text-primary" />
-                    </div>
-                    <CardTitle className="text-2xl">{messageCardTitle}</CardTitle>
-                    <CardDescription>{messageCardDescription}</CardDescription>
-                </CardHeader>
-                <CardFooter className="p-6 pt-2">
-                     <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="w-full">
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleLogout}
-                                        className="w-full"
-                                        disabled={isLocked}
-                                        style={isLocked ? { pointerEvents: 'none' } : {}}
-                                    >
-                                        <LogOut className="mr-2 h-4 w-4" />
-                                        {t('dashboard.sign_out')}
-                                    </Button>
-                                </div>
-                            </TooltipTrigger>
-                            {isLocked && (
-                                <TooltipContent>
-                                    <p>{t('classroomPage.logout_disabled_tooltip')}</p>
-                                </TooltipContent>
-                            )}
-                        </Tooltip>
-                    </TooltipProvider>
-                </CardFooter>
-            </Card>
-        );
+            content = (
+                <Card className="w-full max-w-lg text-center animate-in fade-in-50">
+                    <CardHeader>
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 mb-4">
+                            <PartyPopper className="h-8 w-8 text-primary" />
+                        </div>
+                        <CardTitle className="text-2xl">{messageCardTitle}</CardTitle>
+                        <CardDescription>{messageCardDescription}</CardDescription>
+                    </CardHeader>
+                    <CardFooter className="p-6 pt-2">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="w-full">
+                                        <Button
+                                            variant="outline"
+                                            onClick={handleLogout}
+                                            className="w-full"
+                                            disabled={isLocked}
+                                            style={isLocked ? { pointerEvents: 'none' } : {}}
+                                        >
+                                            <LogOut className="mr-2 h-4 w-4" />
+                                            {t('dashboard.sign_out')}
+                                        </Button>
+                                    </div>
+                                </TooltipTrigger>
+                                {isLocked && (
+                                    <TooltipContent>
+                                        <p>{t('classroomPage.logout_disabled_tooltip')}</p>
+                                    </TooltipContent>
+                                )}
+                            </Tooltip>
+                        </TooltipProvider>
+                    </CardFooter>
+                </Card>
+            );
+        }
     }
     
     const showScore = !loading && !sessionEnded && classroom?.scores;
