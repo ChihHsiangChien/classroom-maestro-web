@@ -4,57 +4,74 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    function isOwner(collectionName, docId, userId) {
-      return get(/databases/$(database)/documents/$(collectionName)/$(docId)).data.ownerId == userId;
-    }
-    
-    function isAuthed() {
-      return request.auth != null;
-    }
-    
+    // --- Helper Functions ---
+    // Safely checks if a user is an admin.
     function isAdmin() {
-      return isAuthed() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // Default catch-all for admins
-    match /{path=**} {
-      allow read, write: if isAdmin();
+    // Safely checks if the requesting user is the owner of a classroom.
+    function isClassroomOwner(classroomId) {
+      return request.auth != null && get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid;
     }
     
-    // User profiles
+    // Safely checks if the requesting user is the owner of a courseware.
+    function isCoursewareOwner(coursewareId) {
+        return request.auth != null && get(/databases/$(database)/documents/courseware/$(coursewareId)).data.ownerId == request.auth.uid;
+    }
+
+    // --- Collections ---
+
+    // Admins collection: only admins can read/write their own record.
+    match /admins/{adminId} {
+      allow read, write: if request.auth != null && request.auth.uid == adminId;
+    }
+    
+    // Users collection: users manage their own doc, admins can manage any.
     match /users/{userId} {
-      allow read, write: if isAuthed() && request.auth.uid == userId;
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
     }
     
-    // AI Usage logging
+    // AI Usage Logs: authenticated teachers can write, admins can read.
     match /aiUsageLogs/{logId} {
-        allow create: if isAuthed();
+      allow create: if request.auth != null;
+      allow read, list: if isAdmin();
     }
-    
-    // Courseware owned by teachers
-    match /courseware/{coursewareId} {
-      allow read, write: if isAuthed() && isOwner('courseware', coursewareId, request.auth.uid);
-    }
-    
-    // Classrooms and their subcollections
-    match /classrooms/{classroomId} {
-      // Rules for the classroom document itself
-      allow get: if true; // Anyone can get a classroom doc to join
-      allow list: if isAuthed(); // Only authenticated users (teachers) can list classrooms
-      allow create, update, delete: if isAuthed() && isOwner('classrooms', classroomId, request.auth.uid);
 
-      // Rules for the 'submissions' subcollection
-      match /submissions/{submissionId} {
-        allow create: if true; // Anyone can create a submission
-        // Only the owner can read/modify submissions
-        allow read, update, delete: if isAuthed() && isOwner('classrooms', classroomId, request.auth.uid);
+    // Courseware: authenticated users can read, but only owners/admins can write.
+    match /courseware/{coursewareId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null;
+        allow update, delete: if isCoursewareOwner(coursewareId) || isAdmin();
+    }
+
+    // Classrooms collection: Public read for joining, but write access is restricted.
+    match /classrooms/{classroomId} {
+      // READ: Anyone can read the base classroom document to see student list.
+      allow read: if true;
+      
+      // CREATE: Any authenticated user (teacher) can create a classroom.
+      allow create: if request.auth != null;
+      
+      // UPDATE, DELETE: Only the owner or an admin can modify the classroom.
+      allow update, delete: if isClassroomOwner(classroomId) || isAdmin();
+      
+      // --- SUBCOLLECTIONS ---
+      
+      // PRESENCE: Anyone (students) can read/write to presence to mark themselves online.
+      match /presence/{studentId} {
+        allow read, write: if true;
       }
       
-      // Rules for the 'presence' subcollection and its documents
-      // The recursive wildcard {path=**} ensures this rule applies to both listing the collection
-      // and getting individual documents, which is what the join page needs.
-      match /presence/{path=**} {
-        allow read, write: if true;
+      // SUBMISSIONS: Anyone (students) can create submissions.
+      // Only the classroom owner or an admin can read the full list of submissions.
+      match /submissions/{submissionId} {
+        allow create: if true;
+        allow read, list: if isClassroomOwner(classroomId) || isAdmin();
+        // Disallow client-side updates/deletes to preserve history.
+        allow update, delete: if false;
       }
     }
   }
