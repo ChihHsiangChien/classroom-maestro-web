@@ -1,2 +1,5 @@
-// This file is deprecated and can be safely deleted.
-// The main rules file is located at the project root: /firestore.rules
+// THIS FILE IS OBSOLETE AND CAN BE SAFELY DELETED.
+// The correct Firestore rules file is located in the project's root directory: /firestore.rules
+//
+// 這個檔案已經過時，可以安全地刪除。
+// 正確的 Firestore 規則檔案位於專案根目錄下：/firestore.rules
