@@ -159,14 +159,12 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
   
   // Effect for the main classroom list for the authenticated teacher
   useEffect(() => {
-    if (user && db) {
+    // Only run this for authenticated teachers, not for anonymous students
+    if (user && !user.isAnonymous && db) {
       setLoading(true);
       let q;
-      // The query for an admin is different from a regular user.
-      // We remove the complex ordering from the query to prevent index-related errors.
-      // Sorting will be handled client-side after data is fetched.
       if (isAdmin) {
-          q = query(collection(db, "classrooms"), orderBy("ownerId"));
+          q = query(collection(db, "classrooms"));
       } else {
           q = query(collection(db, "classrooms"), where("ownerId", "==", user.uid));
       }
@@ -177,7 +175,6 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
           ...doc.data()
         } as Classroom));
         
-        // Client-side sorting ensures consistent order without needing complex Firestore indexes.
         fetchedClassrooms.sort((a, b) => (a.order || 0) - (b.order || 0));
 
         setClassrooms(fetchedClassrooms);
