@@ -106,16 +106,20 @@ function MultipleChoiceForm({ onQuestionCreate }: QuestionFormProps) {
         resolver: zodResolver(multipleChoiceSchema),
         defaultValues: { question: "", options: [{ value: "" }, { value: "" }, { value: "" }, { value: "" }], allowMultipleAnswers: false, answer: [] },
     });
-    const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "options" });
+    const { fields, append, remove } = useFieldArray({ control: form.control, name: "options" });
     const allowMultipleAnswers = useWatch({ control: form.control, name: 'allowMultipleAnswers' });
 
     async function handleGeneratePoll() {
         startTransition(async () => {
             const result = await generatePollAction({ topic });
             if (result.poll) {
-                form.setValue("question", result.poll.question, { shouldValidate: true });
-                replace(result.poll.options);
-                form.setValue("answer", result.poll.answer, { shouldValidate: true });
+                const currentValues = form.getValues();
+                form.reset({
+                    ...currentValues,
+                    question: result.poll.question,
+                    options: result.poll.options,
+                    answer: result.poll.answer,
+                });
                 form.clearErrors();
                 logAiUsage('generatePoll');
             } else {

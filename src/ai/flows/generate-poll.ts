@@ -45,7 +45,8 @@ const prompt = ai.definePrompt({
       Generate a single-choice poll question about the following topic: {{{topic}}}.
       The question should be interesting and suitable for a classroom setting.
       You must provide exactly 4 plausible options. One option must be clearly correct, and the others should be thought-provoking distractors.
-      You must also specify the 0-based index of the correct option in the 'answer' field. For example, if the first option is correct, the value should be [0].
+      
+      It is absolutely CRITICAL that the 'answer' field is an array containing a single NUMBER, which is the 0-based index of the correct option. For example, if the first option is correct, the value must be [0]. Do NOT return the answer as a string of the correct option's text.
       
       The entire output, including the question and all options, must be in Traditional Chinese (繁體中文).
       

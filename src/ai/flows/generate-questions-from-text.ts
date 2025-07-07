@@ -54,9 +54,14 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateQuestionsFromTextOutputSchema},
   prompt: `You are an expert educator creating classroom materials. Based on the following text context, please generate exactly {{{numMultipleChoice}}} multiple-choice questions and {{{numTrueFalse}}} true/false questions. If a number for a question type is 0, do not generate any questions of that type.
 
-For each multiple-choice question, you must provide exactly 4 plausible options. One or more options must be the correct answer, and the others should be plausible but incorrect distractors. You MUST provide the 0-based index of the correct answer(s) in the 'answer' field. For example, if the first option is correct, the value should be [0].
+For each multiple-choice question:
+- You must provide exactly 4 plausible options.
+- One or more options must be the correct answer, and the others should be plausible but incorrect distractors.
+- It is absolutely CRITICAL that the 'answer' field is an array of NUMBERS representing the 0-based indices of the correct option(s). For example, if the second option is correct, the value must be [1]. Do NOT return the answer as a string of the correct option's text.
 
-For each true/false question, create a clear statement that is definitively true or false based on the text. You MUST provide the correct answer ('O' for true, 'X' for false) in the 'answer' field.
+For each true/false question:
+- Create a clear statement that is definitively true or false based on the text.
+- You MUST provide the correct answer ('O' for true, 'X' for false) in the 'answer' field.
 
 The entire output, including questions, all options, and answers, must be in Traditional Chinese (繁體中文).
 
@@ -82,43 +87,7 @@ const generateQuestionsFromTextFlow = ai.defineFlow(
       return { questions: [] };
     }
     
-    const response = await prompt(input);
-    const rawText = response.text;
-
-    // For debugging, we log the raw output from the AI.
-    console.log("Raw AI output:", rawText);
-
-    if (!rawText) {
-      // Throw a detailed error if the AI returns nothing.
-      throw new Error("AI returned an empty response. No text was received.");
-    }
-
-    try {
-      // The AI might wrap the JSON in ```json ... ```, so we extract it.
-      const jsonStart = rawText.indexOf('{');
-      const jsonEnd = rawText.lastIndexOf('}');
-      
-      if (jsonStart === -1 || jsonEnd === -1) {
-        throw new Error(`Could not find a JSON object in the AI response. Raw output:\n---\n${rawText}\n---`);
-      }
-      
-      const jsonString = rawText.substring(jsonStart, jsonEnd + 1);
-      const parsedJson = JSON.parse(jsonString);
-      
-      console.log("Successfully parsed AI output:", JSON.stringify(parsedJson, null, 2));
-
-      // Validate the parsed JSON against our schema.
-      const validationResult = GenerateQuestionsFromTextOutputSchema.safeParse(parsedJson);
-      if (!validationResult.success) {
-        // If validation fails, throw an error with details.
-        throw new Error(`AI output failed validation. Details: ${validationResult.error.message}. Raw output:\n---\n${rawText}\n---`);
-      }
-
-      return validationResult.data;
-    } catch (e: any) {
-      // If parsing or validation fails, throw a comprehensive error including the raw text.
-      // This is crucial for debugging in environments without direct terminal access.
-      throw new Error(`Failed to parse or validate AI response. Raw output:\n---\n${rawText}\n---`);
-    }
+    const {output} = await prompt(input);
+    return output!;
   }
 );

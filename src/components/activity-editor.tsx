@@ -112,7 +112,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         },
     });
 
-    const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "options" });
+    const { fields, append, remove } = useFieldArray({ control: form.control, name: "options" });
     const watchedType = useWatch({ control: form.control, name: "type" });
     const watchedImageUrl = useWatch({ control: form.control, name: "imageUrl" });
     const allowMultipleAnswers = useWatch({ control: form.control, name: "allowMultipleAnswers" });
@@ -122,11 +122,13 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         startPollTransition(async () => {
             const result = await generatePollAction({ topic: pollTopic });
             if (result.poll) {
-                form.setValue("question", result.poll.question, { shouldValidate: true });
-                if (result.poll.options) {
-                    replace(result.poll.options);
-                }
-                form.setValue("answer", result.poll.answer, { shouldValidate: true });
+                const currentValues = form.getValues();
+                form.reset({
+                    ...currentValues,
+                    question: result.poll.question,
+                    options: result.poll.options,
+                    answer: result.poll.answer,
+                });
                 form.clearErrors();
                 logAiUsage('generatePoll');
             } else {
