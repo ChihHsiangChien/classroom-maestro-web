@@ -3,7 +3,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { School, User, AlertTriangle, Lock } from 'lucide-react';
+import { School, User, AlertTriangle, Lock, Terminal } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -17,6 +17,7 @@ import {
   TableCell,
   TableRow,
 } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Classroom, Student, PresenceData } from '@/contexts/classroom-context';
 import { useI18n } from '@/lib/i18n/provider';
@@ -55,7 +56,18 @@ function JoinPageContent() {
       if (authLoading) return;
       let currentUser = user;
       if (!currentUser) {
-        currentUser = await signInAnonymously();
+        try {
+          currentUser = await signInAnonymously();
+        } catch (e: any) {
+            if (e.code === 'auth/admin-restricted-operation') {
+                setError('admin-restricted-operation');
+            } else {
+                console.error("Authentication failed:", e);
+                setError(e.message || 'Could not authenticate session. Please refresh the page.');
+            }
+            setLoading(false);
+            return;
+        }
       }
       if (!currentUser) {
          setError('Could not authenticate session. Please refresh the page.');
@@ -132,6 +144,32 @@ function JoinPageContent() {
   }
 
   if (error) {
+    if (error === 'admin-restricted-operation') {
+        return (
+            <Card className="w-full max-w-lg shadow-lg">
+                <CardHeader>
+                    <CardTitle>{t('firebase.auth_anon_error_title')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Alert variant="destructive">
+                        <Terminal className="h-4 w-4" />
+                        <AlertTitle>{t('firebase.auth_anon_error_title')}</AlertTitle>
+                        <AlertDescription>
+                            <div className="space-y-3 mt-2">
+                                <p>{t('firebase.auth_anon_error_description')}</p>
+                                <p>{t('firebase.auth_anon_error_instructions')}</p>
+                                <Button asChild variant="link" className="p-0 h-auto text-destructive font-semibold">
+                                <a href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/authentication/sign-in-method`} target="_blank" rel="noopener noreferrer">
+                                    {t('firebase.auth_anon_error_button')}
+                                </a>
+                                </Button>
+                            </div>
+                        </AlertDescription>
+                    </Alert>
+                </CardContent>
+            </Card>
+        )
+    }
     return (
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader>

@@ -89,18 +89,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const handleSignInAnonymously = useCallback(async (): Promise<User | null> => {
-    if (!auth) return null;
-    try {
-        const userCredential = await signInAnonymously(auth);
-        return userCredential.user;
-    } catch (error) {
-        console.error("Anonymous sign-in failed", error);
-        return null;
-    }
-  }, []);
-
-
   const signInWithGoogle = useCallback(async () => {
     if (!isFirebaseConfigured || !auth || !googleProvider) {
       throw new Error("Firebase is not configured. Cannot sign in.");
@@ -117,6 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/');
   }, [router]);
   
+  const handleSignInAnonymously = useCallback(async (): Promise<User | null> => {
+    if (!auth) return null;
+    // We let the calling function handle the error, so it can display a specific message.
+    const userCredential = await signInAnonymously(auth);
+    return userCredential.user;
+  }, []);
+
   useEffect(() => {
     if (loading) return;
 
