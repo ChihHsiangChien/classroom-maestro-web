@@ -76,6 +76,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { generateQuestionsFromTextAction } from '@/app/actions';
 import { useUsage } from '@/contexts/usage-context';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { ScrollArea } from './ui/scroll-area';
 
 
 function SortableActivityItem({
@@ -561,72 +562,74 @@ export function CoursewareManagement() {
                 <DialogTitle>{t('courseware.generate_from_text')}</DialogTitle>
                 <DialogDescription>{t('courseware.generate_from_text_description')}</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                    <Label htmlFor="text-context">{t('courseware.paste_content_label')}</Label>
-                    <Textarea 
-                        id="text-context" 
-                        placeholder={t('courseware.paste_content_placeholder')}
-                        value={textContext}
-                        onChange={(e) => setTextContext(e.target.value)}
-                        rows={8}
-                    />
-                </div>
-                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <ScrollArea className="max-h-[60vh] overflow-y-auto p-1 pr-4">
+                <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="num-tf">{t('courseware.num_true_false_label')}</Label>
-                        <Input id="num-tf" type="number" value={numTrueFalse} onChange={(e) => setNumTrueFalse(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
+                        <Label htmlFor="text-context">{t('courseware.paste_content_label')}</Label>
+                        <Textarea 
+                            id="text-context" 
+                            placeholder={t('courseware.paste_content_placeholder')}
+                            value={textContext}
+                            onChange={(e) => setTextContext(e.target.value)}
+                            rows={8}
+                        />
                     </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="num-sc">{t('courseware.num_single_choice_label')}</Label>
-                        <Input id="num-sc" type="number" value={numSingleChoice} onChange={(e) => setNumSingleChoice(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="num-ma">{t('courseware.num_multiple_answer_label')}</Label>
-                        <Input id="num-ma" type="number" value={numMultipleAnswer} onChange={(e) => setNumMultipleAnswer(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="num-sa">{t('courseware.num_short_answer_label')}</Label>
-                        <Input id="num-sa" type="number" value={numShortAnswer} onChange={(e) => setNumShortAnswer(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="num-dr">{t('courseware.num_drawing_label')}</Label>
-                        <Input id="num-dr" type="number" value={numDrawing} onChange={(e) => setNumDrawing(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
-                    </div>
-                </div>
-                <div className="grid gap-4">
-                    <Label>{t('courseware.add_to_courseware_label')}</Label>
-                    <RadioGroup value={creationMode} onValueChange={(value) => setCreationMode(value as 'existing' | 'new')}>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="existing" id="r1" />
-                            <Label htmlFor="r1">{t('courseware.add_to_existing_option')}</Label>
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="num-tf">{t('courseware.num_true_false_label')}</Label>
+                            <Input id="num-tf" type="number" value={numTrueFalse} onChange={(e) => setNumTrueFalse(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="new" id="r2" />
-                            <Label htmlFor="r2">{t('courseware.create_new_courseware_option')}</Label>
+                        <div className="grid gap-2">
+                            <Label htmlFor="num-sc">{t('courseware.num_single_choice_label')}</Label>
+                            <Input id="num-sc" type="number" value={numSingleChoice} onChange={(e) => setNumSingleChoice(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
                         </div>
-                    </RadioGroup>
+                        <div className="grid gap-2">
+                            <Label htmlFor="num-ma">{t('courseware.num_multiple_answer_label')}</Label>
+                            <Input id="num-ma" type="number" value={numMultipleAnswer} onChange={(e) => setNumMultipleAnswer(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="num-sa">{t('courseware.num_short_answer_label')}</Label>
+                            <Input id="num-sa" type="number" value={numShortAnswer} onChange={(e) => setNumShortAnswer(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="num-dr">{t('courseware.num_drawing_label')}</Label>
+                            <Input id="num-dr" type="number" value={numDrawing} onChange={(e) => setNumDrawing(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
+                        </div>
+                    </div>
+                    <div className="grid gap-4">
+                        <Label>{t('courseware.add_to_courseware_label')}</Label>
+                        <RadioGroup value={creationMode} onValueChange={(value) => setCreationMode(value as 'existing' | 'new')}>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="existing" id="r1" />
+                                <Label htmlFor="r1">{t('courseware.add_to_existing_option')}</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="new" id="r2" />
+                                <Label htmlFor="r2">{t('courseware.create_new_courseware_option')}</Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
+                    {creationMode === 'existing' ? (
+                        <Select onValueChange={setTargetCoursewareId} disabled={coursewares.length === 0}>
+                            <SelectTrigger>
+                                <SelectValue placeholder={t('courseware.select_courseware_placeholder')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {coursewares.map(cw => (
+                                    <SelectItem key={cw.id} value={cw.id}>{cw.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    ) : (
+                        <Input 
+                            placeholder={t('courseware.new_courseware_name_label')}
+                            value={newCoursewareNameForGen}
+                            onChange={(e) => setNewCoursewareNameForGen(e.target.value)}
+                        />
+                    )}
                 </div>
-                {creationMode === 'existing' ? (
-                    <Select onValueChange={setTargetCoursewareId} disabled={coursewares.length === 0}>
-                        <SelectTrigger>
-                            <SelectValue placeholder={t('courseware.select_courseware_placeholder')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {coursewares.map(cw => (
-                                <SelectItem key={cw.id} value={cw.id}>{cw.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                ) : (
-                    <Input 
-                        placeholder={t('courseware.new_courseware_name_label')}
-                        value={newCoursewareNameForGen}
-                        onChange={(e) => setNewCoursewareNameForGen(e.target.value)}
-                    />
-                )}
-            </div>
-            <DialogFooter>
+            </ScrollArea>
+            <DialogFooter className="pt-4">
                 <Button variant="ghost" onClick={() => setGenerateQuestionsDialogOpen(false)}>{t('common.cancel')}</Button>
                 <Button 
                   onClick={handleGenerateQuestions} 

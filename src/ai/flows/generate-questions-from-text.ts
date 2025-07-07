@@ -22,7 +22,7 @@ const GenerateQuestionsFromTextInputSchema = z.object({
 export type GenerateQuestionsFromTextInput = z.infer<typeof GenerateQuestionsFromTextInputSchema>;
 
 const MultipleChoiceQuestionSchema = z.object({
-  type: z.literal('multiple-choice'),
+  type: z.enum(['multiple-choice']),
   question: z.string().describe('The multiple-choice question.'),
   options: z.array(z.object({ value: z.string() })).min(4).max(4).describe('A list of exactly 4 plausible options.'),
   allowMultipleAnswers: z.boolean().describe('Whether multiple answers are allowed. Set to `false` for single-choice, `true` for multiple-answer.'),
@@ -30,18 +30,18 @@ const MultipleChoiceQuestionSchema = z.object({
 });
 
 const TrueFalseQuestionSchema = z.object({
-  type: z.literal('true-false'),
+  type: z.enum(['true-false']),
   question: z.string().describe('The true/false question.'),
   answer: z.enum(['O', 'X']).describe('The correct answer, either "O" for true or "X" for false.'),
 });
 
 const ShortAnswerQuestionSchema = z.object({
-    type: z.literal('short-answer'),
+    type: z.enum(['short-answer']),
     question: z.string().describe('An open-ended short-answer question that encourages critical thinking based on the text.')
 });
 
 const DrawingQuestionSchema = z.object({
-    type: z.literal('drawing'),
+    type: z.enum(['drawing']),
     question: z.string().describe('A creative prompt that requires students to draw a concept, diagram, or scene related to the text.')
 });
 
