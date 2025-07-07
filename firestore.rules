@@ -4,57 +4,56 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Helper function to check if a user is an admin
     function isAdmin() {
-      // Check if the requesting user's UID exists in the 'admins' collection.
-      // This function should be used for read access control.
-      return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // Teachers can only access their own user document. Admins can read for management.
+    // Admins can read/write anything
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // Users collection
     match /users/{userId} {
-      allow write: if request.auth != null && request.auth.uid == userId;
-      allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+      allow read, write: if request.auth.uid == userId || isAdmin();
     }
-    
-    // Only admins can read the list of admins. Writing should be done via backend/console.
-    match /admins/{adminId} {
-      allow read: if isAdmin();
-      allow write: if false; 
-    }
-    
-    // AI usage logs can be created by any authenticated user, but only read by admins.
+
+    // AI Usage Logs
     match /aiUsageLogs/{logId} {
       allow create: if request.auth != null;
-      allow read: if isAdmin();
+      allow read, update, delete: if isAdmin();
     }
 
-    // Classrooms can be read by anyone, but only created/modified by their owner.
-    match /classrooms/{classroomId} {
-      allow read: if true;
-      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
-    }
-    
-    // Courseware can only be managed by its owner. Admins can read.
+    // Courseware collection
     match /courseware/{coursewareId} {
-      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
-      allow read: if (request.auth != null && resource.data.ownerId == request.auth.uid) || isAdmin();
+        allow read, write: if request.auth.uid == resource.data.ownerId;
+        allow create: if request.auth.uid == request.resource.data.ownerId;
     }
 
-    // Presence data can be read by anyone in the classroom.
-    // Anyone (even unauthenticated students) can update their presence.
-    match /classrooms/{classroomId}/presence/{studentId} {
-      allow read: if true;
-      allow write: if true; 
-    }
+    // Classrooms collection and subcollections
+    match /classrooms/{classroomId} {
+      // The classroom document itself
+      allow create: if request.auth.uid == request.resource.data.ownerId;
+      allow read, update, delete: if request.auth.uid == resource.data.ownerId;
+      
+      // Students (anonymous) need read access to join
+      allow read: if request.auth == null;
 
-    // Submissions can be created by anyone (students). They can also be read by anyone.
-    // Only the teacher who owns the classroom can moderate (update/delete) submissions.
-    match /classrooms/{classroomId}/submissions/{submissionId} {
-      allow create: if true;
-      allow read: if true;
-      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid;
+      // Submissions subcollection
+      match /submissions/{submissionId} {
+        allow create: if request.auth == null;
+        allow read: if request.auth.uid == get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId;
+        allow update, delete: if false; // For data integrity
+      }
+
+      // Presence subcollection
+      match /presence/{studentId} {
+        allow write: if request.auth == null;
+        allow read: if request.auth.uid == get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId;
+      }
     }
   }
 }
+
+    

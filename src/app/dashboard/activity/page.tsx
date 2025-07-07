@@ -44,11 +44,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 type QuestionDataWithId = QuestionData & { id: string; showAnswer?: boolean; };
 
 // Helper to check for correct answers
-const areArraysEqual = (arr1: string[], arr2: string[]) => {
+const areArraysEqual = (arr1: (string|number)[], arr2: (string|number)[]) => {
     if (arr1.length !== arr2.length) return false;
     const sorted1 = [...arr1].sort();
     const sorted2 = [...arr2].sort();
-    return sorted1.every((value, index) => value === sorted2[index]);
+    return sorted1.every((value, index) => String(value) === String(sorted2[index]));
 };
 
 export default function ActivityPage() {
@@ -140,7 +140,7 @@ export default function ActivityPage() {
       const correctStudentIds: string[] = [];
       const correctAnswer = activeQuestion.answer;
       
-      if (correctAnswer) {
+      if (correctAnswer !== undefined) {
           const answerArray = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
           submissions.forEach(sub => {
               const studentAnswer = Array.isArray(sub.answer) ? sub.answer : [sub.answer];
@@ -198,7 +198,8 @@ export default function ActivityPage() {
           type: 'true-false',
         };
         // Only include the answer key if it exists to avoid sending 'undefined' to Firestore.
-        if (question.answer) {
+        // The check for `question.answer` must be `!== undefined` to handle the case where the answer is 0 (falsy).
+        if (question.answer !== undefined && question.answer !== null) {
           tfQuestionPayload.answer = question.answer;
         }
         newQuestion = tfQuestionPayload;
@@ -508,3 +509,5 @@ export default function ActivityPage() {
     </>
   );
 }
+
+    
