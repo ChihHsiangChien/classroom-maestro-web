@@ -60,15 +60,32 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
 
         const answerArray = Array.isArray(answer) ? answer : [answer];
         
-        if ((isMcq || isTf) && options && options.length > 0) {
+        if ((isMcq || isTf) && options) {
             const getOptionText = (val: string | number) => {
                 const index = typeof val === 'number' ? val : parseInt(val, 10);
-                if (!isNaN(index) && index >= 0 && index < options.length && options[index]) {
+
+                if (isNaN(index)) {
+                    return val.toString(); // Fallback for non-numeric values
+                }
+
+                // If the option has text and it's not empty, use it.
+                if (options[index]?.value) {
                     return options[index].value;
                 }
-                return val.toString(); // Fallback to show the value/index
+                
+                // Fallback for empty option text
+                if (isTf) {
+                    return index === 0 ? 'O' : 'X';
+                }
+                
+                // Fallback for Multiple Choice (A, B, C...)
+                if (index >= 0) {
+                  return String.fromCharCode(65 + index);
+                }
+
+                return val.toString(); // Ultimate fallback
             };
-            return answerArray.map(getOptionText).filter(Boolean).join(', ');
+            return answerArray.map(getOptionText).join(', ');
         }
         
         return Array.isArray(answer) ? answer.join(', ') : answer.toString();
