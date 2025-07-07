@@ -59,21 +59,25 @@ Here is a breakdown of the permissions for each data collection:
 
 #### `/users/{userId}`
 *   **Read, Update**: A user can only read or update their own document (e.g., to update `lastActivity`). Admins can read any user's document.
-*   **Create**: Any authenticated user can create their own user document upon first sign-in.
+*   **Create**: Any authenticated Teacher can create their own user document upon first sign-in.
 
 #### `/aiUsageLogs/{logId}`
 *   **Read**: Only Admins can view the AI usage logs.
 *   **Create**: Any authenticated Teacher can write to the log. This prevents anonymous students from creating log entries.
 
 #### `/classrooms/{classroomId}`
-*   **Read (Get a single document)**: Any authenticated user (including anonymous Students) can `get` a single classroom. This is essential for the "Join Class" page to function.
-*   **Read (List documents)**: Only Teachers and Admins can `list` classrooms. The app's front-end query ensures teachers can only request the list of classrooms they own.
+*   **Read (Get a single document)**: 
+    *   The **owner** of the classroom or an **Admin** can `get` the document.
+    *   **Students** (anonymous users) can also `get` a single classroom. This is essential for the "Join Class" page to function.
+*   **Read (List documents)**: 
+    *   **Admins** can `list` all classrooms.
+    *   **Teachers** can `list` classrooms **only if** they are querying for classrooms they own (`where('ownerId', '==', their_uid)`). This rule is tied directly to the frontend query for security.
 *   **Create**: Only Teachers can create new classrooms. The rules enforce that the `ownerId` must be their own UID.
 *   **Update, Delete**: Only the Teacher who owns the classroom (`isOwner`) or an Admin can modify or delete it.
 
 #### `/classrooms/{classroomId}/submissions/{submissionId}`
 *   **Read**: Any authenticated user can read submissions. This is needed for the teacher's dashboard and for students to see their results.
-*   **Create**: Any authenticated user (including anonymous Students) can create a new submission. The rules enforce that all required fields are present.
+*   **Create**: Any authenticated user (including anonymous Students) can create a new submission.
 *   **Update, Delete**: No one can modify or delete submissions from the client-side to preserve data integrity.
 
 #### `/classrooms/{classroomId}/presence/{studentId}`
@@ -81,6 +85,7 @@ Here is a breakdown of the permissions for each data collection:
 
 #### `/courseware/{coursewareId}`
 *   The rules for this collection mirror the `classrooms` collection rules to ensure consistent permissions for teacher-owned resources.
-*   **List**: Only Teachers and Admins.
-*   **Create**: Only Teachers.
+*   **Read (Get)**: Only the owner or an Admin.
+*   **Read (List)**: Only Teachers who are querying their own courseware or Admins.
+*   **Create**: Only Teachers creating for themselves.
 *   **Update, Delete**: Only the owner or an Admin.
