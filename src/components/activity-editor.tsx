@@ -77,21 +77,25 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
 
     type ActivityFormData = z.infer<typeof activityFormSchema>;
 
-    // Convert legacy string-based answers to new index-based format on component load.
     const initialAnswer = useMemo(() => {
-        if (!initialData || !('answer' in initialData) || !Array.isArray(initialData.answer)) {
+        if (!initialData || !('answer' in initialData) || initialData.answer === undefined) {
             return undefined;
         }
-        // If it's already indices (numbers), use it as is.
-        if (initialData.answer.every(item => typeof item === 'number')) {
+    
+        if (initialData.type === 'true-false') {
+            // The form's RadioGroup expects a string value ("0" or "1")
+            return String(initialData.answer);
+        }
+        
+        if (initialData.type === 'multiple-choice') {
+            // This part handles multiple choice answers which are number arrays
+            if (!Array.isArray(initialData.answer)) {
+                return [];
+            }
             return initialData.answer;
         }
-        // If it's the old string format, convert it.
-        const options = (initialData.type === 'multiple-choice' && initialData.options) || [];
-        const optionValues = options.map(opt => opt.value);
-        return initialData.answer
-            .map(ans => optionValues.indexOf(ans as string))
-            .filter(index => index !== -1);
+        
+        return initialData.answer; // Fallback for other types
     }, [initialData]);
 
     const form = useForm<ActivityFormData>({
@@ -122,11 +126,12 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         startPollTransition(async () => {
             const result = await generatePollAction({ topic: pollTopic });
             if (result.poll) {
-                const currentValues = form.getValues();
                 form.reset({
-                    ...currentValues,
+                    ...form.getValues(),
+                    type: 'multiple-choice',
                     question: result.poll.question,
                     options: result.poll.options,
+                    allowMultipleAnswers: false,
                     answer: result.poll.answer,
                 });
                 form.clearErrors();
@@ -168,7 +173,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                 options: (initialData.type === 'multiple-choice' ? initialData.options : [{ value: "" }, { value: "" }]),
                 allowMultipleAnswers: !!(initialData.type === 'multiple-choice' && initialData.allowMultipleAnswers),
                 imageUrl: (initialData.type === 'image-annotation' ? initialData.imageUrl : undefined),
-                answer: 'answer' in initialData ? initialAnswer : undefined
+                answer: initialAnswer
             });
         }
     }, [initialData, form, initialAnswer]);
@@ -180,8 +185,8 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
         switch (data.type) {
             case 'true-false':
                 const tfData: TrueFalseQuestion = { type: 'true-false', question: question };
-                if (data.answer) {
-                    tfData.answer = data.answer;
+                if (data.answer !== undefined && data.answer !== null) {
+                    tfData.answer = parseInt(data.answer as string, 10);
                 }
                 finalData = tfData;
                 break;
@@ -249,11 +254,11 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                                     <FormControl>
                                         <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
                                             <FormItem className="flex items-center space-x-3 space-y-0">
-                                                <FormControl><RadioGroupItem value="O" /></FormControl>
+                                                <FormControl><RadioGroupItem value="0" /></FormControl>
                                                 <FormLabel className="font-normal text-2xl">O</FormLabel>
                                             </FormItem>
                                             <FormItem className="flex items-center space-x-3 space-y-0">
-                                                <FormControl><RadioGroupItem value="X" /></FormControl>
+                                                <FormControl><RadioGroupItem value="1" /></FormControl>
                                                 <FormLabel className="font-normal text-2xl">X</FormLabel>
                                             </FormItem>
                                         </RadioGroup>
