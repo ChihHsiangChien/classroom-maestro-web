@@ -91,3 +91,33 @@ Here is a breakdown of the permissions for each data collection:
 *   **Read (List)**: Only Teachers who are querying their own courseware or Admins.
 *   **Create**: Only Teachers creating for themselves.
 *   **Update, Delete**: Only the owner or an Admin.
+
+## AI Development Learnings & Best Practices
+
+This section documents key lessons learned during the development process to prevent recurring errors, particularly concerning Firebase Security Rules.
+
+### 1. Firestore Rules: The `list` vs. `get` Distinction is Critical
+
+*   **Mistake**: Repeatedly confusing `allow read` with a universal read permission. `read` is a shorthand for `get` (single document) and `list` (collection query). Rules that rely on `resource` data (e.g., `isOwner(resource)`) work for `get` but will **always fail** for `list` because `resource` is not available during a list query.
+*   **Symptom**: Non-admin users could not see their own list of classrooms/courseware, even though the frontend query `where('ownerId', '==', request.auth.uid)` was correct. This is because the overly-strict `list` rule rejected the query before it could even be executed.
+*   **Correct Pattern**:
+    *   `allow list`: Use broader checks that don't rely on `resource` (e.g., `isTeacher()`). Trust the frontend query to filter the data.
+    *   `allow get`: Use specific, resource-based checks (e.g., `isOwner(resource)`). This acts as a second layer of defense, ensuring that even if the `list` is broad, users can only access the content of documents they are permitted to.
+
+### 2. Firestore Rules: Account for the "Bootstrap" State of New Users
+
+*   **Mistake**: Writing rules that require a certain state or role to even check for that state. For instance, requiring admin privileges to read the `/admins` collection, creating a catch-22 for new users trying to see if they are admins.
+*   **Symptom**: Non-admin users would get a permission error immediately upon login because the initial `isAdmin` check would fail.
+*   **Correct Pattern**: Always allow a user to read their **own** document in role-defining collections (e.g., `allow get: if request.auth.uid == adminId;`). Similarly, ensure new authenticated users can `create` their own initial profile in the `/users` collection.
+
+### 3. Frontend Logic: Global Contexts Must be Role-Aware
+
+*   **Mistake**: Having global context providers (`ClassroomProvider`, `CoursewareProvider`) that unconditionally fetch data as soon as *any* user logs in.
+*   **Symptom**: Anonymous students would trigger permission errors because the providers tried to fetch a list of classrooms/courseware for them, which they are not permitted to do. The main page functionality still worked, creating a confusing "ghost error".
+*   **Correct Pattern**: The context provider's `useEffect` hook for fetching data must first check the user's role (e.g., `if (user && !user.isAnonymous)`) before initiating data queries intended for authenticated teachers.
+
+### 4. Consistency is Key
+
+*   **Mistake**: Applying a fix to one part of the system (e.g., the security rules for `classrooms`) but forgetting to apply the identical fix to a parallel part (e.g., `courseware`).
+*   **Symptom**: An error that was thought to be fixed reappears in a different context, leading to confusion and repeated work.
+*   **Correct Pattern**: When two collections serve a similar purpose for the user (like `classrooms` and `courseware`), their security rules should be structured identically to ensure consistent and predictable behavior.
