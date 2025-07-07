@@ -69,7 +69,6 @@ const prompt = ai.definePrompt({
   name: 'generateQuestionsFromTextPrompt',
   model: 'googleai/gemini-1.5-flash-latest',
   input: {schema: GenerateQuestionsFromTextInputSchema},
-  output: {schema: GenerateQuestionsFromTextOutputSchema},
   prompt: `You are an expert AI educator. Your task is to generate a precise set of questions based on the provided text and specifications.
 
 **ABSOLUTE, CRITICAL INSTRUCTIONS:**
@@ -170,6 +169,15 @@ Your output will be a JSON object with a single key "questions", which is an arr
 {{{context}}}
 ---
 
+**Final Check:** Before you output your response, review your work against the instructions.
+- Did you generate exactly {{{numTrueFalse}}} questions of type 'true-false'?
+- Did you generate exactly {{{numSingleChoice}}} questions of type 'multiple-choice' with \`allowMultipleAnswers: false\`?
+- Did you generate exactly {{{numMultipleAnswer}}} questions of type 'multiple-choice' with \`allowMultipleAnswers: true\`?
+- Did you generate exactly {{{numShortAnswer}}} questions of type 'short-answer'?
+- Did you generate exactly {{{numDrawing}}} questions of type 'drawing'?
+- Is your entire output a single, valid JSON object with no extra text?
+- Is all content in Traditional Chinese?
+
 Now, generate the JSON object based on these exact rules and the provided context.
 `,
 });
@@ -185,7 +193,27 @@ const generateQuestionsFromTextFlow = ai.defineFlow(
       return { questions: [] };
     }
     
-    const {output} = await prompt(input);
-    return output!;
+    const response = await prompt(input);
+    const rawText = response.text.trim();
+
+    try {
+        const jsonStart = rawText.indexOf('{');
+        const jsonEnd = rawText.lastIndexOf('}');
+        if (jsonStart === -1 || jsonEnd === -1) {
+            throw new Error("No JSON object found in the AI's response.");
+        }
+        const jsonString = rawText.substring(jsonStart, jsonEnd + 1);
+
+        const parsedJson = JSON.parse(jsonString);
+
+        const validatedOutput = GenerateQuestionsFromTextOutputSchema.parse(parsedJson);
+        return validatedOutput;
+
+    } catch (e: any) {
+        const errorMessage = e.message || "An unknown error occurred during parsing.";
+        console.error("AI Output Parsing Error:", errorMessage);
+        console.error("Raw AI Output:", rawText);
+        throw new Error(`AI output could not be processed. Error: ${errorMessage}. Raw response:\n\n${rawText}`);
+    }
   }
 );

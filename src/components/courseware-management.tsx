@@ -436,7 +436,21 @@ export function CoursewareManagement() {
             setGenerateQuestionsDialogOpen(false);
             logAiUsage('generateQuestionsFromText');
         } else {
-            toast({ variant: "destructive", title: t('common.error'), description: result.error || 'Failed to generate questions.' });
+            toast({
+                variant: "destructive",
+                title: t('common.error'),
+                duration: 20000, // Give more time to read the error
+                description: (
+                    <div className="mt-2 w-full max-w-[400px] space-y-2">
+                        <p className="text-sm font-medium">{t('courseware.toast_ai_error_description')}</p>
+                        <ScrollArea className="h-48 w-full rounded-md border bg-muted/50 p-2">
+                            <pre className="whitespace-pre-wrap break-all text-xs">
+                                <code>{result.error || 'Failed to generate questions.'}</code>
+                            </pre>
+                        </ScrollArea>
+                    </div>
+                )
+            });
         }
     });
   };

@@ -426,6 +426,7 @@ export const dictionaries = {
       num_multiple_answer_label: '多選題數量',
       num_short_answer_label: '簡答題數量',
       num_drawing_label: '繪圖題數量',
+      toast_ai_error_description: 'AI 回傳的資料格式有誤。以下為原始回覆內容，請將此內容回報以協助修正問題：',
     },
     leaderboard: {
       title: '排行榜',
@@ -876,6 +877,7 @@ export const dictionaries = {
       num_multiple_answer_label: 'Number of Multiple-Answer',
       num_short_answer_label: 'Number of Short-Answer',
       num_drawing_label: 'Number of Drawing',
+      toast_ai_error_description: 'The AI returned data in an unexpected format. Please see the raw response below and report this to help fix the issue:',
     },
     leaderboard: {
       title: 'Leaderboard',
