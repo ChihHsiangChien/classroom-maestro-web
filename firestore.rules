@@ -4,12 +4,10 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // --- Helper Functions ---
-    // These functions help keep the rules readable and reusable.
-
     function isAuthenticated() {
       return request.auth != null;
     }
-
+    
     function isAnonymous() {
       return isAuthenticated() && request.auth.token.firebase.sign_in_provider == 'anonymous';
     }
@@ -17,72 +15,86 @@ service cloud.firestore {
     function isTeacher() {
       return isAuthenticated() && !isAnonymous();
     }
-
+    
     function isAdmin() {
-      // This is a non-billable read and is safe from recursive loops.
       return isTeacher() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
     
     function isOwner(resource) {
-      return request.auth.uid == resource.data.ownerId;
+      return resource.data.ownerId == request.auth.uid;
     }
 
     // --- Collection Rules ---
 
+    // Admins: Only other admins can manage the list. ANY user can check their own admin status.
     match /admins/{adminId} {
-      // A user can check their own admin status. Admins can check anyone.
-      allow get: if (isTeacher() && request.auth.uid == adminId) || isAdmin();
-      // Only other Admins can manage the admin list.
-      allow list, write: if isAdmin();
+        allow get: if isAuthenticated() && (request.auth.uid == adminId || isAdmin());
+        allow list, write: if isAdmin();
     }
-
+    
+    // Users: Teachers can create their own doc. Can only R/W their own. Admins can read any.
     match /users/{userId} {
-      // A user can read/update their own doc. Admins can read any user's doc.
-      allow get, update: if (isTeacher() && request.auth.uid == userId) || isAdmin();
-      // A teacher can create their own user doc upon first sign-in.
+      allow get: if request.auth.uid == userId || isAdmin();
       allow create: if isTeacher() && request.auth.uid == userId;
-      // Only admins can list all users for the admin dashboard.
+      allow update: if request.auth.uid == userId;
       allow list: if isAdmin();
     }
 
+    // AI Usage Logs: Teachers can create logs, but only admins can read them.
     match /aiUsageLogs/{logId} {
-      allow read: if isAdmin();
-      allow create: if isTeacher();
+        allow create: if isTeacher();
+        allow read: if isAdmin();
     }
 
+    // Classrooms: Teachers can manage their own. Students can get a single classroom to join.
     match /classrooms/{classroomId} {
-      // Admins can list all. Teachers can list their own via a query.
-      allow list: if isTeacher() || isAdmin(); 
-      // Students can GET a classroom to join. Owners/Admins can GET it too.
-      allow get: if isAnonymous() || isOwner(resource) || isAdmin();
+      // LIST: An admin can list all. A teacher can list ONLY their own (query must contain where clause).
+      allow list: if isAdmin() || isTeacher();
+      // GET: The owner, an admin, or ANY authenticated user (including anonymous students for joining) can get a single doc.
+      allow get: if isAuthenticated();
+      // CREATE: Only a teacher creating for themselves.
+      allow create: if isTeacher() && request.resource.data.ownerId == request.auth.uid;
       
-      // Teachers create their own classrooms.
-      allow create: if isTeacher();
-      // Only owners or admins can update/delete.
-      allow update, delete: if isOwner(resource) || isAdmin();
-      
-      // Subcollections
+      // UPDATE: The owner, an admin, OR a student claiming a race under very specific conditions.
+      allow update: if (isOwner(resource) || isAdmin()) ||
+        (
+          // Allow a student to claim a race
+          isAuthenticated() &&
+          resource.data.race.status == 'pending' &&
+          request.resource.data.race.status == 'finished' &&
+          request.resource.data.race.winnerId == request.auth.uid &&
+          // Ensure ONLY the race object is being changed by comparing all other fields
+          request.resource.data.name == resource.data.name &&
+          request.resource.data.ownerId == resource.data.ownerId &&
+          request.resource.data.students == resource.data.students &&
+          request.resource.data.order == resource.data.order &&
+          request.resource.data.isLocked == resource.data.isLocked &&
+          request.resource.data.activeQuestion == resource.data.activeQuestion &&
+          request.resource.data.scores == resource.data.scores &&
+          request.resource.data.pingRequest == resource.data.pingRequest
+        );
+
+      // DELETE: Only the owner or an admin.
+      allow delete: if isOwner(resource) || isAdmin();
+
+      // Submissions: Any authenticated user (including students) can create. Reading is open for dashboards.
       match /submissions/{submissionId} {
         allow read, create: if isAuthenticated();
-        // Submissions are immutable from the client.
-        allow update, delete: if false; 
+        allow update, delete: if false; // Submissions are immutable
       }
-
+      
+      // Presence: Any authenticated user can R/W to update their own online status.
       match /presence/{studentId} {
         allow read, write: if isAuthenticated();
       }
     }
     
+    // Courseware: Mirrors classroom rules for consistency. Teacher-owned resources.
     match /courseware/{coursewareId} {
-      // Admins can list all. Teachers can list their own via a query.
-      allow list: if isTeacher() || isAdmin();
-      // Only owners or admins can GET a single courseware.
-      allow get: if isOwner(resource) || isAdmin();
-      
-      // Teachers create their own courseware.
-      allow create: if isTeacher();
-      // Only owners or admins can update/delete.
-      allow update, delete: if isOwner(resource) || isAdmin();
+        allow list: if isAdmin() || isTeacher();
+        allow get: if isOwner(resource) || isAdmin();
+        allow create: if isTeacher() && request.resource.data.ownerId == request.auth.uid;
+        allow update, delete: if isOwner(resource) || isAdmin();
     }
   }
 }
