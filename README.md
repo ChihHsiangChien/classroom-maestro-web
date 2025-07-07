@@ -60,8 +60,8 @@ Here is a breakdown of the permissions for each data collection:
 *   **List, Write**: Only other Admins can list, create, or delete administrators.
 
 #### `/users/{userId}`
-*   **Read, Update**: A user can only read or update their own document (e.g., to update `lastActivity`). Admins can read any user's document.
-*   **Create**: Any authenticated Teacher can create their own user document upon first sign-in.
+*   **Read (Get), Update, Create**: A user can only read, update, or create their own document (e.g., to update `lastActivity`). 
+*   **Read (List)**: Only Admins can list all user documents. This is for the Admin Panel.
 
 #### `/aiUsageLogs/{logId}`
 *   **Read**: Only Admins can view the AI usage logs.
@@ -75,7 +75,13 @@ Here is a breakdown of the permissions for each data collection:
     *   **Admins** can `list` all classrooms.
     *   **Teachers** can `list` classrooms **only if** they are querying for classrooms they own (`where('ownerId', '==', their_uid)`). This rule is tied directly to the frontend query for security.
 *   **Create**: Only Teachers can create new classrooms. The rules enforce that the `ownerId` must be their own UID.
-*   **Update, Delete**: Only the Teacher who owns the classroom (`isOwner`) or an Admin can modify or delete it.
+*   **Update**:
+    *   **General**: The Teacher who owns the classroom (`isOwner`) or an Admin can modify the document.
+    *   **Exception for "Race" Feature**: A Student (`isAuthenticated()`) is allowed to update a classroom **only if all** of the following conditions are met:
+        1.  The existing `race.status` is `'pending'`.
+        2.  The student is claiming the win for themselves (`request.resource.data.race.winnerId == request.auth.uid`).
+        3.  The only field being changed is the `race` field (`request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race'])`).
+*   **Delete**: Only the Teacher who owns the classroom (`isOwner`) or an Admin can delete it.
 
 #### `/classrooms/{classroomId}/submissions/{submissionId}`
 *   **Read**: Any authenticated user can read submissions. This is needed for the teacher's dashboard and for students to see their results.
@@ -123,7 +129,13 @@ This section documents key lessons learned during the development process to pre
 *   **Correct Pattern**: When two collections serve a similar purpose for the user (like `classrooms` and `courseware`), their security rules should be structured identically to ensure consistent and predictable behavior.
 
 ### 5. Transactional Updates vs. General Permissions
-*   **Mistake**: Assuming that because a user with high privileges (e.g., a teacher) initiates a feature, the permissions for subsequent actions within that feature are automatically covered for all participants.
-*   **Symptom**: An interactive feature like "Race" (搶權) is successfully started by the teacher, but fails with a `permission-denied` error when a student tries to interact with it (e.g., claim the win).
-*   **Root Cause**: The feature's logic requires a user with lower privileges (a student) to perform a write/update operation on a document owned by a user with higher privileges (the teacher's `classroom` document). The general security rule correctly restricts `update` permissions to the owner, thus blocking the student's legitimate action within the feature's flow. The atomicity of a Firestore Transaction does not bypass this fundamental permission check.
-*   **Learning**: Features that require cross-privilege updates need their own, highly-specific security rules. It is a mistake to loosen the general `update` rule. The correct pattern is to add a separate, narrow rule that allows a non-owner to update *only specific fields* under *very specific conditions*. This keeps the document secure while enabling the feature.
+
+*   **Mistake**: Assuming that because a high-privilege user (teacher) initiates a feature, the permissions for subsequent actions within that feature are automatically covered for all participants.
+*   **Symptom**: The "Race" (搶權) feature, started by a teacher, fails with `permission-denied` when a student tries to claim the win.
+*   **Root Cause**: The feature requires a low-privilege user (student) to update a document owned by a high-privilege user (the teacher's `classroom` document). The general security rule correctly restricts `update` to the owner, blocking the student's legitimate action. The atomicity of a Firestore Transaction does not bypass this fundamental permission check.
+*   **Learning & Correct Pattern**: Never broadly open up `update` permissions. Instead, create a **narrow, surgical exception** for the specific cross-privilege action. The rule must validate the state transition and ensure no other data is tampered with. The correct rule for the "Race" feature should enforce all of the following:
+    1.  The user must be authenticated (`isAuthenticated()`).
+    2.  The race must currently be in the `pending` state (`resource.data.race.status == 'pending'`).
+    3.  The student must be claiming the win for themselves (`request.resource.data.race.winnerId == request.auth.uid`).
+    4.  The only field being modified in the entire document must be the `race` field (`request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race'])`).
+    This keeps the document secure while enabling the feature.

@@ -1,13 +1,13 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // --- Helper Functions ---
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isAnonymous() {
       return isAuthenticated() && request.auth.token.firebase.sign_in_provider == 'anonymous';
     }
@@ -15,86 +15,68 @@ service cloud.firestore {
     function isTeacher() {
       return isAuthenticated() && !isAnonymous();
     }
-    
+
     function isAdmin() {
       return isTeacher() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
-    
+
     function isOwner(resource) {
-      return resource.data.ownerId == request.auth.uid;
+      return request.auth.uid == resource.data.ownerId;
     }
 
-    // --- Collection Rules ---
-
-    // Admins: Only other admins can manage the list. ANY user can check their own admin status.
     match /admins/{adminId} {
-        allow get: if isAuthenticated() && (request.auth.uid == adminId || isAdmin());
-        allow list, write: if isAdmin();
+      allow get: if isTeacher() && request.auth.uid == adminId || isAdmin();
+      allow list, write: if isAdmin();
     }
-    
-    // Users: Teachers can create their own doc. Can only R/W their own. Admins can read any.
+
     match /users/{userId} {
-      allow get: if request.auth.uid == userId || isAdmin();
-      allow create: if isTeacher() && request.auth.uid == userId;
-      allow update: if request.auth.uid == userId;
+      allow get, update, create: if isTeacher() && request.auth.uid == userId;
       allow list: if isAdmin();
     }
 
-    // AI Usage Logs: Teachers can create logs, but only admins can read them.
     match /aiUsageLogs/{logId} {
-        allow create: if isTeacher();
-        allow read: if isAdmin();
+      allow read: if isAdmin();
+      allow create: if isTeacher();
     }
 
-    // Classrooms: Teachers can manage their own. Students can get a single classroom to join.
     match /classrooms/{classroomId} {
-      // LIST: An admin can list all. A teacher can list ONLY their own (query must contain where clause).
-      allow list: if isAdmin() || isTeacher();
-      // GET: The owner, an admin, or ANY authenticated user (including anonymous students for joining) can get a single doc.
-      allow get: if isAuthenticated();
-      // CREATE: Only a teacher creating for themselves.
+      allow get: if isOwner(resource) || isAdmin() || isAnonymous();
+      allow list: if (isTeacher() && request.query.ownerId == request.auth.uid) || isAdmin();
       allow create: if isTeacher() && request.resource.data.ownerId == request.auth.uid;
-      
-      // UPDATE: The owner, an admin, OR a student claiming a race under very specific conditions.
-      allow update: if (isOwner(resource) || isAdmin()) ||
-        (
-          // Allow a student to claim a race
-          isAuthenticated() &&
-          resource.data.race.status == 'pending' &&
-          request.resource.data.race.status == 'finished' &&
-          request.resource.data.race.winnerId == request.auth.uid &&
-          // Ensure ONLY the race object is being changed by comparing all other fields
-          request.resource.data.name == resource.data.name &&
-          request.resource.data.ownerId == resource.data.ownerId &&
-          request.resource.data.students == resource.data.students &&
-          request.resource.data.order == resource.data.order &&
-          request.resource.data.isLocked == resource.data.isLocked &&
-          request.resource.data.activeQuestion == resource.data.activeQuestion &&
-          request.resource.data.scores == resource.data.scores &&
-          request.resource.data.pingRequest == resource.data.pingRequest
-        );
-
-      // DELETE: Only the owner or an admin.
       allow delete: if isOwner(resource) || isAdmin();
 
-      // Submissions: Any authenticated user (including students) can create. Reading is open for dashboards.
+      // Rule for general updates by owner/admin
+      allow update: if isOwner(resource) || isAdmin();
+
+      // Specific rule to allow students to claim a race.
+      // This is a narrow exception to the general update rule above,
+      // creating a secure opening for the "Race" feature.
+      allow update: if
+        isAuthenticated() &&
+        // The race must be currently pending to be claimed.
+        resource.data.race.status == 'pending' &&
+        // The student must be claiming it for themselves.
+        request.resource.data.race.winnerId == request.auth.uid &&
+        // The update must mark the race as finished.
+        request.resource.data.race.status == 'finished' &&
+        // CRITICAL: Ensure NO OTHER fields are changed except for 'race'.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race']);
+
       match /submissions/{submissionId} {
         allow read, create: if isAuthenticated();
-        allow update, delete: if false; // Submissions are immutable
+        allow update, delete: if false;
       }
-      
-      // Presence: Any authenticated user can R/W to update their own online status.
+
       match /presence/{studentId} {
         allow read, write: if isAuthenticated();
       }
     }
-    
-    // Courseware: Mirrors classroom rules for consistency. Teacher-owned resources.
+
     match /courseware/{coursewareId} {
-        allow list: if isAdmin() || isTeacher();
-        allow get: if isOwner(resource) || isAdmin();
-        allow create: if isTeacher() && request.resource.data.ownerId == request.auth.uid;
-        allow update, delete: if isOwner(resource) || isAdmin();
+      allow get: if isOwner(resource) || isAdmin();
+      allow list: if (isTeacher() && request.query.ownerId == request.auth.uid) || isAdmin();
+      allow create: if isTeacher() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isOwner(resource) || isAdmin();
     }
   }
 }
