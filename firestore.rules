@@ -3,66 +3,58 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    
+    function isAdmin() {
+      // Check if the requesting user's UID exists in the 'admins' collection.
+      // This function should be used for read access control.
+      return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    function isAdmin(userId) {
-      return exists(/databases/$(database)/documents/admins/$(userId));
+    // Teachers can only access their own user document. Admins can read for management.
+    match /users/{userId} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
     }
     
-    match /users/{userId} {
-      allow read: if true;
-      allow write: if isOwner(userId);
-    }
-
-    match /admins/{userId} {
-      allow read: if isOwner(userId);
-      // For simplicity, admin creation is handled manually in the Firebase Console.
+    // Only admins can read the list of admins. Writing should be done via backend/console.
+    match /admins/{adminId} {
+      allow read: if isAdmin();
       allow write: if false; 
     }
+    
+    // AI usage logs can be created by any authenticated user, but only read by admins.
+    match /aiUsageLogs/{logId} {
+      allow create: if request.auth != null;
+      allow read: if isAdmin();
+    }
 
+    // Classrooms can be read by anyone, but only created/modified by their owner.
     match /classrooms/{classroomId} {
       allow read: if true;
-
-      // Teachers can create and delete their own classrooms. Admins can delete any.
-      allow create: if isOwner(request.resource.data.ownerId);
-      allow delete: if isOwner(resource.data.ownerId) || isAdmin(request.auth.uid);
-
-      // This is a special rule to allow the server-side claimRaceAction to work.
-      // It's a highly restricted update.
-      allow update: if (isOwner(resource.data.ownerId) || isAdmin(request.auth.uid))
-                    || 
-                    (
-                      request.auth == null && // Must be unauthenticated (from a server action)
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race']) && // Only 'race' can be changed
-                      request.resource.data.race.diff(resource.data.race).affectedKeys().hasOnly(['status', 'winnerId', 'winnerName']) && // Only specific race fields
-                      resource.data.race.status == 'pending' && // Old status must be 'pending'
-                      request.resource.data.race.status == 'finished' // New status must be 'finished'
-                    );
-
-      // Subcollections
-      match /submissions/{submissionId} {
-        allow read: if isOwner(get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId) || isAdmin(request.auth.uid);
-        allow create: if true; // Students can always create submissions
-        allow update, delete: if false; // Submissions are immutable
-      }
-      
-      match /presence/{studentId} {
-          allow read, write: if true; // Open for students and teachers to update presence
-      }
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }
     
+    // Courseware can only be managed by its owner. Admins can read.
     match /courseware/{coursewareId} {
-      allow read, create: if request.auth.uid != null;
-      allow update, delete: if isOwner(resource.data.ownerId) || isAdmin(request.auth.uid);
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+      allow read: if (request.auth != null && resource.data.ownerId == request.auth.uid) || isAdmin();
     }
-    
-    match /aiUsageLogs/{logId} {
-      allow read: if isAdmin(request.auth.uid);
-      allow create: if request.auth.uid != null && request.auth.uid == request.resource.data.userId;
-      allow update, delete: if false;
+
+    // Presence data can be read by anyone in the classroom.
+    // Anyone (even unauthenticated students) can update their presence.
+    match /classrooms/{classroomId}/presence/{studentId} {
+      allow read: if true;
+      allow write: if true; 
+    }
+
+    // Submissions can be created by anyone (students). They can also be read by anyone.
+    // Only the teacher who owns the classroom can moderate (update/delete) submissions.
+    match /classrooms/{classroomId}/submissions/{submissionId} {
+      allow create: if true;
+      allow read: if true;
+      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId == request.auth.uid;
     }
   }
 }
