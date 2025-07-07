@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { PlusCircle, XCircle, Loader2, FileText, Vote, Image as ImageIcon, CheckSquare as CheckSquareIcon, PencilRuler, Wand2 } from "lucide-react";
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useMemo } from "react";
 import dynamic from "next/dynamic";
 
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,23 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
 
     type ActivityFormData = z.infer<typeof activityFormSchema>;
 
+    // Convert legacy string-based answers to new index-based format on component load.
+    const initialAnswer = useMemo(() => {
+        if (!initialData || !('answer' in initialData) || !Array.isArray(initialData.answer)) {
+            return undefined;
+        }
+        // If it's already indices (numbers), use it as is.
+        if (initialData.answer.every(item => typeof item === 'number')) {
+            return initialData.answer;
+        }
+        // If it's the old string format, convert it.
+        const options = (initialData.type === 'multiple-choice' && initialData.options) || [];
+        const optionValues = options.map(opt => opt.value);
+        return initialData.answer
+            .map(ans => optionValues.indexOf(ans as string))
+            .filter(index => index !== -1);
+    }, [initialData]);
+
     const form = useForm<ActivityFormData>({
         resolver: zodResolver(activityFormSchema),
         defaultValues: initialData ? {
@@ -85,7 +102,7 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
             options: initialData.type === 'multiple-choice' ? initialData.options : [{ value: "" }, { value: "" }],
             allowMultipleAnswers: initialData.type === 'multiple-choice' ? initialData.allowMultipleAnswers : false,
             imageUrl: initialData.type === 'image-annotation' ? initialData.imageUrl : '',
-            answer: 'answer' in initialData ? initialData.answer : undefined,
+            answer: initialAnswer,
         } : {
             type: 'true-false',
             question: "",
@@ -149,10 +166,10 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                 options: (initialData.type === 'multiple-choice' ? initialData.options : [{ value: "" }, { value: "" }]),
                 allowMultipleAnswers: !!(initialData.type === 'multiple-choice' && initialData.allowMultipleAnswers),
                 imageUrl: (initialData.type === 'image-annotation' ? initialData.imageUrl : undefined),
-                answer: 'answer' in initialData ? initialData.answer : undefined
+                answer: 'answer' in initialData ? initialAnswer : undefined
             });
         }
-    }, [initialData, form]);
+    }, [initialData, form, initialAnswer]);
 
     function onSubmit(data: ActivityFormData) {
         let finalData: QuestionData;
@@ -287,23 +304,21 @@ export function ActivityEditor({ initialData, onSave, onCancel, submitButtonText
                                                     <FormControl>
                                                         {allowMultipleAnswers ? (
                                                             <Checkbox
-                                                                checked={(field.value || []).includes(form.getValues(`options.${index}.value`))}
+                                                                checked={(field.value || []).includes(index)}
                                                                 onCheckedChange={(checked) => {
-                                                                    const optionValue = form.getValues(`options.${index}.value`);
-                                                                    if (!optionValue) return;
-                                                                    const currentAnswers = field.value || [];
+                                                                    const currentAnswers = (field.value || []) as number[];
                                                                     const newAnswers = checked
-                                                                        ? [...currentAnswers, optionValue]
-                                                                        : currentAnswers.filter((value: string) => value !== optionValue);
+                                                                        ? [...currentAnswers, index]
+                                                                        : currentAnswers.filter((value) => value !== index);
                                                                     field.onChange(newAnswers);
                                                                 }}
                                                             />
                                                         ) : (
                                                             <RadioGroup
-                                                                onValueChange={(val) => field.onChange([val])}
-                                                                value={field.value?.[0]}
+                                                                onValueChange={(val) => field.onChange([parseInt(val)])}
+                                                                value={field.value?.[0]?.toString()}
                                                             >
-                                                                <RadioGroupItem value={form.getValues(`options.${index}.value`)} />
+                                                                <RadioGroupItem value={index.toString()} />
                                                             </RadioGroup>
                                                         )}
                                                     </FormControl>
