@@ -1,80 +1,93 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // =============================================
     // Helper Functions
+    // =============================================
     function isAuthenticated() {
       return request.auth != null;
     }
+
     function isAnonymous() {
       return isAuthenticated() && request.auth.token.firebase.sign_in_provider == 'anonymous';
     }
+
     function isTeacher() {
-      return isAuthenticated() && request.auth.token.firebase.sign_in_provider != 'anonymous';
-    }
-    function isAdmin() {
-      // IMPORTANT: `exists()` calls do NOT trigger security rule evaluation on the path.
-      // This avoids infinite loops. It's a metadata check, not a data read.
-      return isAuthenticated() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-    function isOwner(resource) {
-      return isAuthenticated() && request.auth.uid == resource.data.ownerId;
+      return isAuthenticated() && !isAnonymous();
     }
 
-    // /admins/{adminId}
-    // Admins manage the list of other admins.
-    // Any authenticated user can check if THEY are an admin.
+    function isAdmin() {
+      // Check if the user's UID exists in the /admins collection.
+      // This check does not incur a read and is safe from recursive loops.
+      return isTeacher() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isOwner(res) {
+      // Check if the requesting user's UID matches the ownerId of the document.
+      return isTeacher() && request.auth.uid == res.data.ownerId;
+    }
+
+    // =============================================
+    // Collection-Specific Rules
+    // =============================================
+
+    // --- Admin & User Profile Rules ---
     match /admins/{adminId} {
+      // Allow any user to check their own admin status. Admins can read anyone's.
       allow get: if request.auth.uid == adminId || isAdmin();
+      // Only Admins can list, create, or delete other admins.
       allow list, write: if isAdmin();
     }
 
-    // /users/{userId}
-    // Users can update their own document. Admins can read any user doc.
     match /users/{userId} {
-      allow read, update: if request.auth.uid == userId || isAdmin();
-      allow create: if isTeacher() && request.resource.data.uid == request.auth.uid;
+      // A user can only read or update their own document. Admins can read any.
+      allow get: if request.auth.uid == userId || isAdmin();
+      allow update: if request.auth.uid == userId;
+      // Any authenticated teacher can create their own user document on first sign-in.
+      allow create: if isTeacher() && request.auth.uid == userId;
     }
-
-    // /aiUsageLogs/{logId}
-    // Only Teachers can create logs. Only Admins can read them.
+    
     match /aiUsageLogs/{logId} {
       allow read: if isAdmin();
+      // Only teachers can create usage logs.
       allow create: if isTeacher();
     }
 
-    // /classrooms/{classroomId}
-    // Core rules for classrooms and their subcollections.
+    // --- Classroom Rules ---
     match /classrooms/{classroomId} {
-      // GET: An anonymous student needs to 'get' a classroom to join it.
-      // The owner or an admin can also 'get' it.
-      allow get: if isOwner(resource) || isAdmin() || isAnonymous();
-      // LIST: Admins can list all. Teachers can list ONLY their own.
-      allow list: if isAdmin() || (isTeacher() && request.query.where.ownerId == request.auth.uid);
-      // WRITE: Only teachers can create for themselves. Only owner/admin can update/delete.
+      // Read Permissions:
+      // get: Reading a single document.
+      // list: Querying a collection.
+      allow get: if isAnonymous() || isOwner(resource) || isAdmin();
+      allow list: if isTeacher() || isAdmin();
+
+      // Write Permissions:
       allow create: if isTeacher() && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if isOwner(resource) || isAdmin();
 
-      // Submissions can be created by any authenticated user (student or teacher).
+      // --- Subcollections ---
       match /submissions/{submissionId} {
-        allow read: if isAuthenticated();
-        allow create: if isAuthenticated();
-        // No one can update/delete submissions from the client.
+        // Any authenticated user can read submissions (for dashboard/results).
+        // Any authenticated user can create a submission (students answering).
+        allow read, create: if isAuthenticated();
+        // Submissions are immutable from the client-side.
         allow update, delete: if false;
       }
 
-      // Presence can be read/written by any authenticated user.
       match /presence/{studentId} {
-        allow read, write: if isAuthenticated();
+         // Any authenticated user can update presence status.
+         allow read, write: if isAuthenticated();
       }
     }
 
-    // /courseware/{coursewareId}
-    // Rules mirror classrooms for teacher-owned resources.
+    // --- Courseware Rules ---
     match /courseware/{coursewareId} {
+      // Same logic as classrooms, but anonymous users have no access.
       allow get: if isOwner(resource) || isAdmin();
-      allow list: if isAdmin() || (isTeacher() && request.query.where.ownerId == request.auth.uid);
+      allow list: if isTeacher() || isAdmin();
       allow create: if isTeacher() && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if isOwner(resource) || isAdmin();
     }
