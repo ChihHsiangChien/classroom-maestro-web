@@ -47,7 +47,7 @@ To keep the rules clean and readable, several helper functions are defined:
 *   `isAuthenticated()`: Returns `true` if a user is logged in (either as a Teacher or an anonymous Student).
 *   `isAnonymous()`: Returns `true` if the user is specifically an anonymous user.
 *   `isTeacher()`: Returns `true` if the user is logged in and is **not** anonymous.
-*   `isAdmin()`: Checks if the user's UID exists in the `/admins` collection.
+*   `isAdmin()`: Checks if the user's UID exists in the `/admins` collection. This check does not incur a read operation and is safe from recursive loops.
 *   `isOwner(resource)`: Checks if the logged-in user's UID matches the `ownerId` field of the document they are trying to access.
 
 ### 3. Collection-Specific Rules
@@ -55,7 +55,8 @@ To keep the rules clean and readable, several helper functions are defined:
 Here is a breakdown of the permissions for each data collection:
 
 #### `/admins/{adminId}`
-*   **Read, Write**: Only other Admins can read or modify the list of administrators. This is for security.
+*   **Get**: Any user can check their **own** admin status (`/admins/their-own-id`). Admins can check anyone's status. This is crucial for the login flow to work for all users.
+*   **List, Write**: Only other Admins can list, create, or delete administrators.
 
 #### `/users/{userId}`
 *   **Read, Update**: A user can only read or update their own document (e.g., to update `lastActivity`). Admins can read any user's document.
