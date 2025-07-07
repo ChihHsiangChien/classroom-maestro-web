@@ -91,14 +91,14 @@ export function CoursewarePicker({ onQuestionSelect }: CoursewarePickerProps) {
                                     open={expandedActivityId === activity.id}
                                     onOpenChange={(isOpen) => setExpandedActivityId(isOpen ? activity.id : null)}
                                 >
-                                    <div className="flex items-center justify-between rounded-md p-2 hover:bg-muted/50">
+                                    <div className="flex items-center justify-between gap-4 rounded-md p-2 hover:bg-muted/50">
                                         <CollapsibleTrigger asChild>
-                                            <div className="flex flex-1 items-center gap-3 overflow-hidden cursor-pointer">
+                                            <div className="flex flex-1 items-center gap-3 min-w-0 cursor-pointer">
                                                 {Icon && <Icon className="h-5 w-5 flex-shrink-0 text-muted-foreground" />}
                                                 <p className="truncate font-medium text-sm">{activity.question}</p>
                                             </div>
                                         </CollapsibleTrigger>
-                                        <Button size="sm" onClick={() => handleSelectQuestion(activity)}>{t('courseware.send_question')}</Button>
+                                        <Button size="sm" onClick={() => handleSelectQuestion(activity)} className="flex-shrink-0">{t('courseware.send_question')}</Button>
                                     </div>
                                     <CollapsibleContent>
                                         {activity.type === 'multiple-choice' && 'options' in activity && (
