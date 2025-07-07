@@ -70,58 +70,96 @@ const prompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-flash-latest',
   input: {schema: GenerateQuestionsFromTextInputSchema},
   output: {schema: GenerateQuestionsFromTextOutputSchema},
-  prompt: `You are a highly advanced AI educator tasked with creating a precise set of classroom materials. You MUST strictly adhere to the user's request for the number of questions of each type. Based on the following text context, generate the specified mix of questions.
+  prompt: `You are an AI educator. Based on the provided text, generate a set of questions in a specific JSON format.
 
-**CRITICAL INSTRUCTION**: You MUST generate the exact number of questions requested for each type. If the user requests 5 true/false questions, you MUST provide exactly 5 JSON objects with "type": "true-false". Do not substitute one question type for another.
+**CRITICAL INSTRUCTIONS:**
+1. You MUST generate the exact number of questions for each type as specified.
+   - True/False: {{{numTrueFalse}}}
+   - Single-Choice: {{{numSingleChoice}}}
+   - Multiple-Answer: {{{numMultipleAnswer}}}
+   - Short-Answer: {{{numShortAnswer}}}
+   - Drawing: {{{numDrawing}}}
+2. Your entire output MUST be a single, valid JSON object matching the schema. Do not output any text outside of the JSON structure.
+3. All content (questions, options, etc.) MUST be in Traditional Chinese (繁體中文).
 
-Question Generation Instructions:
-- Generate exactly {{{numTrueFalse}}} true/false questions.
-- Generate exactly {{{numSingleChoice}}} single-choice questions.
-- Generate exactly {{{numMultipleAnswer}}} multiple-answer questions.
-- Generate exactly {{{numShortAnswer}}} short-answer questions.
-- Generate exactly {{{numDrawing}}} drawing-prompt questions.
+**JSON Structure and Rules with Examples:**
 
-If a number for a question type is 0, do not generate any questions of that type.
+Your output will be a JSON object with a single key "questions", which is an array of question objects. Each question object must have a "type" field.
 
-Rules for each question type:
-1.  **True/False (\`true-false\`)**:
-    - The object MUST have the field \`type: 'true-false'\`.
-    - Create a clear statement that is definitively true or false based on the text.
-    - You MUST provide the correct answer ('O' for true, 'X' for false) in the 'answer' field.
-    - The object MUST NOT have an 'options' field or an 'allowMultipleAnswers' field.
+1.  **True/False (\`"type": "true-false"\`)**
+    - MUST have a \`question\` (string) and an \`answer\` ('O' for true, 'X' for false).
+    - MUST NOT have \`options\` or \`allowMultipleAnswers\`.
+    - *Example:*
+      \`\`\`json
+      {
+        "type": "true-false",
+        "question": "虎克是第一位觀察到細胞的科學家。",
+        "answer": "O"
+      }
+      \`\`\`
 
-2.  **Single-Choice (\`multiple-choice\`)**:
-    - The object MUST have the fields \`type: 'multiple-choice'\` and \`allowMultipleAnswers: false\`.
-    - You must provide exactly 4 plausible options.
-    - Exactly one option must be the correct answer. The others should be plausible but incorrect distractors.
-    - CRITICAL: The 'answer' field MUST be an array containing a SINGLE NUMBER, which is the 0-based index of the correct option (e.g., \`[1]\`).
+2.  **Single-Choice (\`"type": "multiple-choice"\`)**
+    - MUST have a \`question\` (string), \`options\` (array of 4 objects with a \`value\` string), \`allowMultipleAnswers: false\`, and \`answer\` (array with ONE number index).
+    - *Example:*
+      \`\`\`json
+      {
+        "type": "multiple-choice",
+        "question": "發現細胞核的科學家是誰？",
+        "options": [
+          {"value": "虎克"},
+          {"value": "布朗"},
+          {"value": "許旺"},
+          {"value": "許來登"}
+        ],
+        "allowMultipleAnswers": false,
+        "answer": [1]
+      }
+      \`\`\`
 
-3.  **Multiple-Answer (\`multiple-choice\`)**:
-    - The object MUST have the fields \`type: 'multiple-choice'\` and \`allowMultipleAnswers: true\`.
-    - You must provide exactly 4 plausible options.
-    - One or more options must be correct.
-    - CRITICAL: The 'answer' field MUST be an array of NUMBERS, representing the 0-based indices of ALL correct options (e.g., \`[0, 3]\`).
+3.  **Multiple-Answer (\`"type": "multiple-choice"\`)**
+    - MUST have \`allowMultipleAnswers: true\` and an \`answer\` array with one or more number indices.
+    - *Example:*
+      \`\`\`json
+      {
+        "type": "multiple-choice",
+        "question": "細胞學說的貢獻者包含哪些科學家？",
+        "options": [
+          {"value": "許旺"},
+          {"value": "達爾文"},
+          {"value": "許來登"},
+          {"value": "虎克"}
+        ],
+        "allowMultipleAnswers": true,
+        "answer": [0, 2]
+      }
+      \`\`\`
 
-4.  **Short-Answer (\`short-answer\`)**:
-    - The object MUST have the field \`type: 'short-answer'\`.
-    - Create an open-ended question that prompts for a brief written response based on the text.
-    - The question should encourage understanding, not just rote memorization.
+4.  **Short-Answer (\`"type": "short-answer"\`)**
+    - MUST have a \`question\` (string).
+    - *Example:*
+      \`\`\`json
+      {
+        "type": "short-answer",
+        "question": "請簡單描述細胞學說的要點。"
+      }
+      \`\`\`
 
-5.  **Drawing (\`drawing\`)**:
-    - The object MUST have the field \`type: 'drawing'\`.
-    - Create a prompt that requires students to visualize and draw a concept, diagram, or scene from the text.
-    - The prompt should be clear and actionable (e.g., "Draw a diagram showing...", "Illustrate the process of...").
+5.  **Drawing (\`"type": "drawing"\`)**
+    - MUST have a \`question\` (string).
+    - *Example:*
+      \`\`\`json
+      {
+        "type": "drawing",
+        "question": "請繪製一個植物細胞的示意圖，並標示出細胞壁、細胞膜和細胞核。"
+      }
+      \`\`\`
 
-The entire output, including questions, all options, and answers, must be in Traditional Chinese (繁體中文).
-
-It is crucial that your output is a single, valid JSON object that strictly adheres to the requested schema. Do not add any extra text, explanations, or markdown formatting outside of the JSON structure.
-
-Context:
+**Context Text:**
 ---
 {{{context}}}
 ---
 
-Please generate the questions and return them in the specified JSON format.
+Now, generate the JSON object based on these rules and the provided context.
 `,
 });
 
