@@ -16,38 +16,36 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
     const { t } = useI18n();
 
     const getIsCorrect = (): boolean => {
+        // Explicitly check for null or undefined answer right away.
         if (myAnswer === null || myAnswer === undefined) {
             return false;
         }
-    
-        const studentAnswers = (Array.isArray(myAnswer) ? myAnswer : [myAnswer])
-            .map(val => {
-                if (val === null || val === undefined || String(val).trim() === '') return NaN;
-                const num = Number(val);
-                return isNaN(num) ? val : num;
-            })
-            .filter(n => n !== null && n !== undefined && !Number.isNaN(n));
-    
-        let correctAnswers: (string | number)[] = [];
-    
+
+        // Standardize student's answer into a sorted array of numbers.
+        const studentAnswerIndices: number[] = (Array.isArray(myAnswer) ? myAnswer : [myAnswer])
+            .map(val => parseInt(String(val), 10))
+            .filter(num => !isNaN(num))
+            .sort((a, b) => a - b);
+
+        // Get correct answers, also as a sorted array of numbers.
+        let correctAnserIndices: number[] = [];
         if (question.type === 'true-false' && 'answer' in question && typeof question.answer === 'number') {
-            correctAnswers = [question.answer];
-        } else if (question.type === 'multiple-choice' && 'answer' in question) {
-            correctAnswers = Array.isArray(question.answer) ? question.answer : [];
+            correctAnserIndices = [question.answer];
+        } else if (question.type === 'multiple-choice' && 'answer' in question && Array.isArray(question.answer)) {
+            correctAnserIndices = [...question.answer].sort((a, b) => a - b);
         }
-    
-        if (correctAnswers.length === 0 || studentAnswers.length === 0) {
+
+        // For non-gradable questions, or if student didn't answer, they are never "correct".
+        if (correctAnserIndices.length === 0 || studentAnswerIndices.length === 0) {
             return false;
         }
 
-        if (correctAnswers.length !== studentAnswers.length) {
+        // Compare the two arrays.
+        if (studentAnswerIndices.length !== correctAnserIndices.length) {
             return false;
         }
-    
-        const sortedCorrect = [...correctAnswers].sort();
-        const sortedStudent = [...studentAnswers].sort();
-        
-        return sortedCorrect.every((value, index) => value === sortedStudent[index]);
+
+        return studentAnswerIndices.every((value, index) => value === correctAnserIndices[index]);
     };
     
     const isCorrect = getIsCorrect();
@@ -55,19 +53,22 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
     const isTf = question.type === 'true-false';
 
     const renderAnswer = (answer: string | string[] | number | number[] | null | undefined, options?: { value: string }[]) => {
-        if (answer === undefined || answer === null) return <span className="text-muted-foreground">{t('studentAnswerResult.no_answer')}</span>;
-        
+        // Explicitly check for null/undefined. This is the only path to "no answer".
+        if (answer === null || answer === undefined) {
+          return <span className="text-muted-foreground">{t('studentAnswerResult.no_answer')}</span>;
+        }
+
         const answerArray = Array.isArray(answer) ? answer : [answer];
         
-        if ((isMcq || isTf) && options) {
+        if ((isMcq || isTf) && options && options.length > 0) {
             const getOptionText = (val: string | number) => {
                 const index = typeof val === 'number' ? val : parseInt(val, 10);
-                if (!isNaN(index) && options[index]) {
+                if (!isNaN(index) && index >= 0 && index < options.length && options[index]) {
                     return options[index].value;
                 }
                 return val.toString(); // Fallback to show the value/index
             };
-            return answerArray.map(getOptionText).join(', ');
+            return answerArray.map(getOptionText).filter(Boolean).join(', ');
         }
         
         return Array.isArray(answer) ? answer.join(', ') : answer.toString();
@@ -80,7 +81,9 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
     }
 
     const getCorrectAnswerIndices = () => {
-        if (question.type === 'multiple-choice' && 'answer' in question) return question.answer;
+        if (question.type === 'multiple-choice' && 'answer' in question && Array.isArray(question.answer)) {
+            return question.answer;
+        }
         if (question.type === 'true-false' && 'answer' in question && typeof question.answer === 'number') {
            return [question.answer];
         }

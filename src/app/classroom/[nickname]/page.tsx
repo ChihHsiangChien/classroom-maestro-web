@@ -39,7 +39,7 @@ function ClassroomPageContent() {
 
     const activeQuestion = classroom?.activeQuestion;
     const activeRace = classroom?.race;
-    const myScore = (studentId && classroom?.scores?.[studentId]) || 0;
+    const myScore = (studentId && classroom?.scores?.[studentId]) ?? 0;
 
     const myRank = useMemo(() => {
         if (!classroom?.scores || !studentId) {
