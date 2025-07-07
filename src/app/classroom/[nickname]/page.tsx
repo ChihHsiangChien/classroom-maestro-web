@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Suspense, useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useClassroom, type Classroom, type Submission } from '@/contexts/classroom-context';
 import type { QuestionData } from '@/components/create-poll-form';
@@ -9,7 +9,7 @@ import { StudentQuestionForm } from '@/components/student-poll';
 import { StudentAnswerResult } from '@/components/student-answer-result';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, PartyPopper, LogOut, RefreshCw, Trophy } from 'lucide-react';
+import { Loader2, PartyPopper, LogOut, RefreshCw, Trophy, Award } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { StudentRace } from '@/components/student-race';
@@ -40,6 +40,27 @@ function ClassroomPageContent() {
     const activeQuestion = classroom?.activeQuestion;
     const activeRace = classroom?.race;
     const myScore = (studentId && classroom?.scores?.[studentId]) || 0;
+
+    const myRank = useMemo(() => {
+        if (!classroom?.scores || !studentId) {
+            return null;
+        }
+
+        const scores = classroom.scores;
+        const studentScore = scores[studentId];
+
+        if (studentScore === undefined) {
+            return null;
+        }
+
+        // Create a sorted list of unique scores in descending order
+        const uniqueScores = [...new Set(Object.values(scores))].sort((a, b) => b - a);
+        
+        // Find the rank (1-based index)
+        const rank = uniqueScores.indexOf(studentScore) + 1;
+        
+        return rank > 0 ? rank : null;
+    }, [classroom?.scores, studentId]);
 
     // This effect handles student presence: login session and attention tracking.
     useEffect(() => {
@@ -254,7 +275,13 @@ function ClassroomPageContent() {
     return (
         <>
             {showScore && (
-                <div className="absolute top-4 right-4 z-10">
+                <div className="absolute top-4 right-4 z-10 flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                    {myRank && (
+                        <Badge variant="secondary" className="text-lg py-2 px-4 shadow-md border-primary/50">
+                            <Award className="mr-2 h-5 w-5 text-primary" />
+                            {t('classroomPage.your_rank', { rank: myRank })}
+                        </Badge>
+                    )}
                     <Badge variant="secondary" className="text-lg py-2 px-4 shadow-md border-primary/50">
                         <Trophy className="mr-2 h-5 w-5 text-amber-500" />
                         {t('classroomPage.your_score', { score: myScore })}

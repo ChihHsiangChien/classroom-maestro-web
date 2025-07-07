@@ -135,6 +135,7 @@ export const dictionaries = {
       session_ended_description: '老師可能已離開連線。您可以嘗試重新加入。',
       rejoin_session_button: '重新加入課程',
       your_score: '你的分數: {score}',
+      your_rank: '排名: 第 {rank} 名',
     },
     teacherDashboard: {
       title: '活動中心',
@@ -586,6 +587,7 @@ export const dictionaries = {
       session_ended_description: 'The teacher may have left the session. You can try to rejoin.',
       rejoin_session_button: 'Rejoin Session',
       your_score: 'Your Score: {score}',
+      your_rank: 'Rank: #{rank}',
     },
     teacherDashboard: {
       title: 'Activity Center',
