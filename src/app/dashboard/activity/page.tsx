@@ -408,7 +408,7 @@ export default function ActivityPage() {
                 />
               ) : null}
 
-              {activityHistory.length > 0 && (
+              {activityHistory.length > 0 && !activityInProgress && (
                 <Card className="mt-8 shadow-md">
                     <CardHeader>
                         <CardTitle>{t('teacherDashboard.session_history_title')}</CardTitle>
@@ -509,7 +509,3 @@ export default function ActivityPage() {
     </>
   );
 }
-
-    
-
-    
