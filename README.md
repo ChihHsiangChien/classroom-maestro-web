@@ -121,3 +121,9 @@ This section documents key lessons learned during the development process to pre
 *   **Mistake**: Applying a fix to one part of the system (e.g., the security rules for `classrooms`) but forgetting to apply the identical fix to a parallel part (e.g., `courseware`).
 *   **Symptom**: An error that was thought to be fixed reappears in a different context, leading to confusion and repeated work.
 *   **Correct Pattern**: When two collections serve a similar purpose for the user (like `classrooms` and `courseware`), their security rules should be structured identically to ensure consistent and predictable behavior.
+
+### 5. Transactional Updates vs. General Permissions
+*   **Mistake**: Assuming that because a user with high privileges (e.g., a teacher) initiates a feature, the permissions for subsequent actions within that feature are automatically covered for all participants.
+*   **Symptom**: An interactive feature like "Race" (搶權) is successfully started by the teacher, but fails with a `permission-denied` error when a student tries to interact with it (e.g., claim the win).
+*   **Root Cause**: The feature's logic requires a user with lower privileges (a student) to perform a write/update operation on a document owned by a user with higher privileges (the teacher's `classroom` document). The general security rule correctly restricts `update` permissions to the owner, thus blocking the student's legitimate action within the feature's flow. The atomicity of a Firestore Transaction does not bypass this fundamental permission check.
+*   **Learning**: Features that require cross-privilege updates need their own, highly-specific security rules. It is a mistake to loosen the general `update` rule. The correct pattern is to add a separate, narrow rule that allows a non-owner to update *only specific fields* under *very specific conditions*. This keeps the document secure while enabling the feature.
