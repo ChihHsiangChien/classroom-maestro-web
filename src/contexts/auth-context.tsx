@@ -8,6 +8,7 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   signOut as firebaseSignOut,
+  signInAnonymously,
 } from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -21,6 +22,7 @@ interface AuthContextType {
   isFirebaseConfigured: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  signInAnonymously: () => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,8 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        log(`onAuthStateChanged: User is logged in: ${user.email}`);
+      if (user && !user.isAnonymous) {
+        log(`onAuthStateChanged: Teacher is logged in: ${user.email}`);
         
         const userDocRef = doc(db, 'users', user.uid);
         const adminDocRef = doc(db, 'admins', user.uid);
@@ -67,7 +69,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         setUser(user);
 
-      } else {
+      } else if (user && user.isAnonymous) {
+        log(`onAuthStateChanged: Anonymous user detected: ${user.uid}`);
+        setUser(user);
+        setIsAdmin(false);
+      }
+      else {
         log("onAuthStateChanged: User is logged out.");
         setUser(null);
         setIsAdmin(false);
@@ -81,6 +88,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubscribe();
     };
   }, []);
+
+  const handleSignInAnonymously = useCallback(async (): Promise<User | null> => {
+    if (!auth) return null;
+    try {
+        const userCredential = await signInAnonymously(auth);
+        return userCredential.user;
+    } catch (error) {
+        console.error("Anonymous sign-in failed", error);
+        return null;
+    }
+  }, []);
+
 
   const signInWithGoogle = useCallback(async () => {
     if (!isFirebaseConfigured || !auth || !googleProvider) {
@@ -101,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return;
 
-    if (user) {
+    if (user && !user.isAnonymous) {
       // Don't auto-redirect if on the admin page
       if (router.pathname?.startsWith('/dashboard/admin')) return;
       
@@ -117,8 +136,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     isFirebaseConfigured,
     signInWithGoogle,
-    signOut
-  }), [user, isAdmin, loading, isFirebaseConfigured, signInWithGoogle, signOut]);
+    signOut,
+    signInAnonymously: handleSignInAnonymously,
+  }), [user, isAdmin, loading, isFirebaseConfigured, signInWithGoogle, signOut, handleSignInAnonymously]);
 
   return (
     <AuthContext.Provider value={value}>

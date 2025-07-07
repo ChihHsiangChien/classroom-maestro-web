@@ -23,82 +23,98 @@ import { useI18n } from '@/lib/i18n/provider';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/auth-context';
 
 
 function JoinPageContent() {
   const { t } = useI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user, signInAnonymously, loading: authLoading } = useAuth();
   const [classroom, setClassroom] = useState<(Omit<Classroom, 'students'> & { students: (Student & { isLoggedIn?: boolean })[] }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const classId = searchParams.get('classId');
-    let unsubscribe = () => {};
-
-    if (classId && db) {
-      const setupListeners = async () => {
-        try {
-          const classroomRef = doc(db, 'classrooms', classId);
-          const classroomSnap = await getDoc(classroomRef);
-
-          if (!classroomSnap.exists()) {
-            setError(t('joinPage.class_not_found_error'));
-            setLoading(false);
-            return;
-          }
-          const classroomData = classroomSnap.data();
-
-          const presenceRef = collection(db, 'classrooms', classId, 'presence');
-          unsubscribe = onSnapshot(presenceRef, (presenceSnap) => {
-            const presenceData: { [key: string]: PresenceData } = {};
-            presenceSnap.forEach(doc => {
-              presenceData[doc.id] = doc.data() as PresenceData;
-            });
-
-            const studentsWithPresence = (classroomData.students || []).map((student: Student) => {
-              const presence = presenceData[student.id];
-              // A student is considered logged in if their session is marked as active.
-              // This prevents another student from taking their spot if they just switch tabs.
-              const isLoggedIn = !!presence?.isOnline;
-              return { ...student, isLoggedIn };
-            });
-
-            const fetchedClassroom = {
-              id: classroomSnap.id,
-              name: classroomData.name,
-              students: studentsWithPresence,
-              ownerId: classroomData.ownerId,
-              isLocked: classroomData.isLocked || false,
-            };
-            setClassroom(fetchedClassroom as (Omit<Classroom, 'students'> & { students: (Student & { isLoggedIn?: boolean })[] }));
-            setLoading(false);
-          }, (err) => {
-              const errorMessage = `Failed to listen for presence. Code: ${err.code}. Message: ${err.message}`;
-              setError(errorMessage);
-              setLoading(false);
-          });
-
-        } catch (e: any) {
-          const errorMessage = `Failed to fetch classroom. Code: ${e.code}. Message: ${e.message}`;
-          setError(errorMessage);
-          setLoading(false);
-        }
-      };
-      setupListeners();
-    } else if (!classId) {
+    if (!classId) {
       setError(t('joinPage.no_classroom_error'));
       setLoading(false);
-    } else if (!db) {
+      return;
+    }
+    if (!db) {
        setError("Firebase is not configured correctly.");
        setLoading(false);
+       return;
     }
+
+    let unsubscribe = () => {};
+
+    const initialize = async () => {
+      // Ensure user is authenticated (anonymously is fine) before proceeding
+      if (authLoading) return;
+      let currentUser = user;
+      if (!currentUser) {
+        currentUser = await signInAnonymously();
+      }
+      if (!currentUser) {
+         setError('Could not authenticate session. Please refresh the page.');
+         setLoading(false);
+         return;
+      }
+
+      try {
+        const classroomRef = doc(db, 'classrooms', classId);
+        const classroomSnap = await getDoc(classroomRef);
+
+        if (!classroomSnap.exists()) {
+          setError(t('joinPage.class_not_found_error'));
+          setLoading(false);
+          return;
+        }
+        const classroomData = classroomSnap.data();
+
+        const presenceRef = collection(db, 'classrooms', classId, 'presence');
+        unsubscribe = onSnapshot(presenceRef, (presenceSnap) => {
+          const presenceData: { [key: string]: PresenceData } = {};
+          presenceSnap.forEach(doc => {
+            presenceData[doc.id] = doc.data() as PresenceData;
+          });
+
+          const studentsWithPresence = (classroomData.students || []).map((student: Student) => {
+            const presence = presenceData[student.id];
+            const isLoggedIn = !!presence?.isOnline;
+            return { ...student, isLoggedIn };
+          });
+
+          const fetchedClassroom = {
+            id: classroomSnap.id,
+            name: classroomData.name,
+            students: studentsWithPresence,
+            ownerId: classroomData.ownerId,
+            isLocked: classroomData.isLocked || false,
+          };
+          setClassroom(fetchedClassroom as (Omit<Classroom, 'students'> & { students: (Student & { isLoggedIn?: boolean })[] }));
+          setLoading(false);
+        }, (err) => {
+            const errorMessage = `Failed to listen for presence. Code: ${err.code}. Message: ${err.message}`;
+            setError(errorMessage);
+            setLoading(false);
+        });
+
+      } catch (e: any) {
+        const errorMessage = `Failed to fetch classroom. Code: ${e.code}. Message: ${e.message}`;
+        setError(errorMessage);
+        setLoading(false);
+      }
+    };
+
+    initialize();
 
     return () => {
       unsubscribe();
     }
-  }, [searchParams, t]);
+  }, [searchParams, t, user, authLoading, signInAnonymously]);
 
   const handleStudentClick = (student: Student & { isLoggedIn?: boolean }) => {
     if (student.isLoggedIn || !classroom) return;
@@ -106,7 +122,7 @@ function JoinPageContent() {
     router.push(url);
   };
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
         <School className="h-12 w-12 animate-pulse text-primary" />
