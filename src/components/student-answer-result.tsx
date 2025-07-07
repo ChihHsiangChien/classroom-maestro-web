@@ -19,33 +19,34 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
         if (myAnswer === null || myAnswer === undefined) {
             return false;
         }
-
-        if (question.type === 'true-false') {
-            if (!('answer' in question) || question.answer === undefined) {
-                return false; // Cannot be correct if no answer is defined
-            }
-            const studentAnswerIndex = Number(myAnswer);
-            const correctAnswerIndex = question.answer === 'O' ? 0 : 1;
-            return studentAnswerIndex === correctAnswerIndex;
+    
+        const studentAnswers = (Array.isArray(myAnswer) ? myAnswer : [myAnswer])
+            .map(val => {
+                if (val === null || val === undefined || String(val).trim() === '') return NaN;
+                return Number(val);
+            })
+            .filter(n => !isNaN(n));
+    
+        let correctAnswers: number[] = [];
+    
+        if (question.type === 'true-false' && 'answer' in question && question.answer !== undefined) {
+            correctAnswers = question.answer === 'O' ? [0] : [1];
+        } else if (question.type === 'multiple-choice' && 'answer' in question) {
+            correctAnswers = Array.isArray(question.answer) ? question.answer : [];
+        }
+    
+        if (correctAnswers.length === 0 || studentAnswers.length === 0) {
+            return false;
         }
 
-        if (question.type === 'multiple-choice') {
-            const correctAnswers = question.answer; // is number[]
-            if (!Array.isArray(correctAnswers)) return false;
-
-            const studentAnswers = (Array.isArray(myAnswer) ? myAnswer : [myAnswer]).map(Number);
-
-            if (correctAnswers.length !== studentAnswers.length) {
-                return false;
-            }
-
-            const sortedCorrect = [...correctAnswers].sort();
-            const sortedStudent = [...studentAnswers].sort();
-            
-            return sortedCorrect.every((value, index) => value === sortedStudent[index]);
+        if (correctAnswers.length !== studentAnswers.length) {
+            return false;
         }
-
-        return false;
+    
+        const sortedCorrect = [...correctAnswers].sort();
+        const sortedStudent = [...studentAnswers].sort();
+        
+        return sortedCorrect.every((value, index) => value === sortedStudent[index]);
     };
     
     const isCorrect = getIsCorrect();
@@ -78,8 +79,8 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
     }
 
     const getCorrectAnswerIndices = () => {
-        if (question.type === 'multiple-choice') return question.answer;
-        if (question.type === 'true-false') {
+        if (question.type === 'multiple-choice' && 'answer' in question) return question.answer;
+        if (question.type === 'true-false' && 'answer' in question) {
             if (question.answer === 'O') return [0];
             if (question.answer === 'X') return [1];
         }
@@ -108,7 +109,7 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
                         <p className="text-sm font-medium text-muted-foreground">{t('studentAnswerResult.your_answer')}</p>
                         <p className="text-lg font-semibold">{renderAnswer(myAnswer || undefined, getOptions())}</p>
                     </div>
-                    {!isCorrect && 'answer' in question && question.answer !== undefined && (
+                    {!isCorrect && 'answer' in question && question.answer !== undefined && getCorrectAnswerIndices().length > 0 && (
                          <div className="p-4 bg-green-500/10 rounded-lg">
                             <p className="text-sm font-medium text-green-700">{t('studentAnswerResult.correct_answer')}</p>
                             <p className="text-lg font-semibold text-green-800">{renderAnswer(getCorrectAnswerIndices(), getOptions())}</p>

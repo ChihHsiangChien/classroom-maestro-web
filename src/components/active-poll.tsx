@@ -51,24 +51,6 @@ interface ResultsProps {
     submissions: Submission[];
 }
 
-// Helper function to robustly parse answers into an array of numbers.
-// Handles null, undefined, strings, and numbers, both in arrays and as single values.
-function parseAnswerIndices(answer: any): number[] {
-    if (answer === null || answer === undefined) {
-        return [];
-    }
-    const answers = Array.isArray(answer) ? answer : [answer];
-    
-    return answers
-        .map(a => {
-            if (a === null || a === undefined) return NaN;
-            const num = Number(a); 
-            return num;
-        })
-        .filter(n => !isNaN(n));
-}
-
-
 function MultipleChoiceResults({ question, submissions, students }: { question: (MultipleChoiceQuestion | (QuestionData & { type: 'true-false' })) & { options: { value: string }[], allowMultipleAnswers?: boolean, answer: number[] }, submissions: Submission[], students: Student[] }) {
   const { t } = useI18n();
   const [isResponsesOpen, setIsResponsesOpen] = useState(true);
@@ -78,52 +60,69 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [optionSortKey, setOptionSortKey] = useState<number | null>(null);
   
-  const results = useMemo(() => {
-    const voteCounts = new Map<number, number>();
-    question.options.forEach((_, index) => {
-        voteCounts.set(index, 0);
-    });
-    
-    submissions.forEach(sub => {
-      const answerIndices = parseAnswerIndices(sub.answer);
-      answerIndices.forEach(index => {
-          if (voteCounts.has(index)) {
-              voteCounts.set(index, (voteCounts.get(index) || 0) + 1);
-          }
-      });
-    });
+  const { voteCounts, studentAnswerMap } = useMemo(() => {
+    const counts = new Map<number, number>();
+    question.options.forEach((_, index) => counts.set(index, 0));
+    const answers = new Map<string, number | number[]>();
 
-    const totalVotes = submissions.reduce((acc, sub) => {
-        return acc + parseAnswerIndices(sub.answer).length;
-    }, 0);
+    for (const sub of submissions) {
+        const rawAnswer = sub.answer;
+        let indices: number[] = [];
+
+        if (rawAnswer === null || rawAnswer === undefined) {
+            continue; // Skip this submission
+        }
+
+        const answerArray = Array.isArray(rawAnswer) ? rawAnswer : [rawAnswer];
+
+        indices = answerArray
+            .map(val => {
+                if (val === null || val === undefined || String(val).trim() === '') {
+                    return NaN;
+                }
+                return Number(val);
+            })
+            .filter(n => !isNaN(n));
+
+        if (indices.length > 0) {
+            // Populate vote counts for progress bars
+            indices.forEach(index => {
+                if (counts.has(index)) {
+                    counts.set(index, (counts.get(index) || 0) + 1);
+                }
+            });
+
+            // Populate student answers for the table
+            const finalAnswer = question.allowMultipleAnswers ? indices : indices[0];
+            answers.set(sub.studentId, finalAnswer);
+        }
+    }
+
+    return { voteCounts: counts, studentAnswerMap: answers };
+  }, [submissions, question.options, question.allowMultipleAnswers]);
+
+  const results = useMemo(() => {
+    const totalVotes = Array.from(voteCounts.values()).reduce((acc, count) => acc + count, 0);
 
     return question.options.map((option, index) => {
       const letter = String.fromCharCode(65 + index);
       const displayValue = isTrueFalse ? (option.value === 'O' ? 'O' : 'X') : (option.value ? `${letter}. ${option.value}` : letter);
       const votes = voteCounts.get(index) || 0;
-      const isCorrect = !!(question.showAnswer && question.answer?.includes(index));
+      const isCorrect = !!(question.showAnswer && Array.isArray(question.answer) && question.answer.includes(index));
+
+      const percentageBase = question.allowMultipleAnswers ? submissions.length : totalVotes;
+      const percentage = percentageBase > 0 ? (votes / percentageBase) * 100 : 0;
 
       return {
         option: displayValue,
         index,
         votes,
-        percentage: totalVotes > 0 ? (votes / (question.allowMultipleAnswers ? submissions.length : totalVotes)) * 100 : 0,
+        percentage,
         isCorrect,
       };
     });
-  }, [submissions, question, isTrueFalse]);
+  }, [voteCounts, submissions.length, question, isTrueFalse]);
 
-  const studentAnswers = useMemo(() => {
-    const answerMap = new Map<string, number | number[]>();
-    submissions.forEach(sub => {
-        const answerIndices = parseAnswerIndices(sub.answer);
-        if (answerIndices.length > 0) {
-            const finalAnswer = question.allowMultipleAnswers ? answerIndices : answerIndices[0];
-            answerMap.set(sub.studentId, finalAnswer);
-        }
-    });
-    return answerMap;
-  }, [submissions, question.allowMultipleAnswers]);
 
   const studentSubmissions = useMemo(() => {
     const submissionMap = new Map<string, Submission>();
@@ -161,8 +160,8 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
           break;
         case 'option':
           if (optionSortKey !== null) {
-            const aHasAnswer = studentAnswers.get(a.id);
-            const bHasAnswer = studentAnswers.get(b.id);
+            const aHasAnswer = studentAnswerMap.get(a.id);
+            const bHasAnswer = studentAnswerMap.get(b.id);
             const aSelected = aHasAnswer !== undefined && (Array.isArray(aHasAnswer) ? aHasAnswer.includes(optionSortKey) : aHasAnswer === optionSortKey);
             const bSelected = bHasAnswer !== undefined && (Array.isArray(bHasAnswer) ? bHasAnswer.includes(optionSortKey) : bHasAnswer === optionSortKey);
             if (aSelected !== bSelected) {
@@ -175,7 +174,7 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
       }
       return sortOrder === 'asc' ? compare : -compare;
     });
-  }, [students, sortBy, sortOrder, studentSubmissions, studentAnswers, optionSortKey]);
+  }, [students, sortBy, sortOrder, studentSubmissions, studentAnswerMap, optionSortKey]);
 
 
   const totalSubmissions = submissions.length;
@@ -272,7 +271,7 @@ function MultipleChoiceResults({ question, submissions, students }: { question: 
                   </TableHeader>
                   <TableBody>
                     {sortedStudents.map(student => {
-                      const answer = studentAnswers.get(student.id);
+                      const answer = studentAnswerMap.get(student.id);
                       return (
                         <TableRow key={student.id} data-answered={answer !== undefined} className="data-[answered=true]:bg-green-500/10">
                           <TableCell className="font-medium">{student.name}</TableCell>
