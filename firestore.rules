@@ -4,10 +4,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
-
+    
     function isAnonymous() {
       return isAuthenticated() && request.auth.token.firebase.sign_in_provider == 'anonymous';
     }
@@ -17,65 +18,77 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isTeacher() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
-
+    
     function isOwner(resource) {
       return request.auth.uid == resource.data.ownerId;
     }
 
+    // Collection Rules
+
     match /admins/{adminId} {
-      allow get: if isTeacher() && request.auth.uid == adminId || isAdmin();
+      // Any user can check their OWN admin status. Admins can check anyone.
+      allow get: if request.auth.uid == adminId || isAdmin();
+      // Only Admins can list or write.
       allow list, write: if isAdmin();
     }
-
+    
     match /users/{userId} {
-      allow get, update, create: if isTeacher() && request.auth.uid == userId;
+      // A user can read, create, or update their own user document.
+      allow get, update, create: if request.auth.uid == userId;
+      // Only admins can list all users.
       allow list: if isAdmin();
     }
-
+    
     match /aiUsageLogs/{logId} {
+      // Only Admins can view logs.
       allow read: if isAdmin();
+      // Only Teachers can create logs.
       allow create: if isTeacher();
     }
-
+    
     match /classrooms/{classroomId} {
+      // Get: Owner, Admin, or any Student can get a single classroom doc.
       allow get: if isOwner(resource) || isAdmin() || isAnonymous();
-      allow list: if (isTeacher() && request.query.ownerId == request.auth.uid) || isAdmin();
+      // List: Admins can list all. Teachers can list their own via a query.
+      allow list: if isAdmin() || (isTeacher() && request.query.where.get('ownerId')[2][0] == request.auth.uid);
+      
+      // Create: Only Teachers, for themselves.
       allow create: if isTeacher() && request.resource.data.ownerId == request.auth.uid;
+      
+      // Update: Owner/Admin, OR a student claiming a race win under specific conditions.
+      allow update: if (isOwner(resource) || isAdmin()) || (
+        isAuthenticated() &&
+        resource.data.race.status == 'pending' &&
+        request.resource.data.race.winnerId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race'])
+      );
+      
+      // Delete: Only Owner or Admin.
       allow delete: if isOwner(resource) || isAdmin();
 
-      // Rule for general updates by owner/admin
-      allow update: if isOwner(resource) || isAdmin();
-
-      // Specific rule to allow students to claim a race.
-      // This is a narrow exception to the general update rule above,
-      // creating a secure opening for the "Race" feature.
-      allow update: if
-        isAuthenticated() &&
-        // The race must be currently pending to be claimed.
-        resource.data.race.status == 'pending' &&
-        // The student must be claiming it for themselves.
-        request.resource.data.race.winnerId == request.auth.uid &&
-        // The update must mark the race as finished.
-        request.resource.data.race.status == 'finished' &&
-        // CRITICAL: Ensure NO OTHER fields are changed except for 'race'.
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['race']);
-
       match /submissions/{submissionId} {
+        // Any authenticated user can read or create.
         allow read, create: if isAuthenticated();
+        // Nobody can update or delete submissions from the client.
         allow update, delete: if false;
       }
-
+      
       match /presence/{studentId} {
+        // Any authenticated user can read or write to presence.
         allow read, write: if isAuthenticated();
       }
     }
-
+    
     match /courseware/{coursewareId} {
+      // Get: Only the owner or an Admin.
       allow get: if isOwner(resource) || isAdmin();
-      allow list: if (isTeacher() && request.query.ownerId == request.auth.uid) || isAdmin();
+      // List: Teachers their own, Admins all.
+      allow list: if isAdmin() || (isTeacher() && request.query.where.get('ownerId')[2][0] == request.auth.uid);
+      // Create: Only Teachers, for themselves.
       allow create: if isTeacher() && request.resource.data.ownerId == request.auth.uid;
+      // Update/Delete: Only the owner or an Admin.
       allow update, delete: if isOwner(resource) || isAdmin();
     }
   }
