@@ -625,7 +625,7 @@ export function ActiveQuestion({ question, onEndQuestion, onRevealAnswer, studen
     
     const hasAnswer = 'answer' in question && 
       question.answer !== undefined &&
-      (Array.isArray(question.answer) ? question.answer.length > 0 : true);
+      (Array.isArray(question.answer) ? question.answer.length > 0 : (question.answer === 0 || question.answer === 1));
 
     const isAnswerRevealed = question.showAnswer;
 
@@ -641,7 +641,7 @@ export function ActiveQuestion({ question, onEndQuestion, onRevealAnswer, studen
                     </div>
                     <div className="flex items-center gap-2">
                         {hasAnswer && !isAnswerRevealed && (
-                           <Button variant="secondary" onClick={onRevealAnswer}>
+                           <Button variant="default" onClick={onRevealAnswer}>
                                 <CheckCheck className="mr-2 h-4 w-4" />
                                 {t('teacherDashboard.reveal_answer_button')}
                             </Button>

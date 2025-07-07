@@ -183,7 +183,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
     
     const renderActivityStatus = () => {
         if (props.activeQuestion) {
-            const hasAnswer = 'answer' in props.activeQuestion && props.activeQuestion.answer && (Array.isArray(props.activeQuestion.answer) ? props.activeQuestion.answer.length > 0 : true);
+            const hasAnswer = 'answer' in props.activeQuestion && props.activeQuestion.answer !== undefined && (Array.isArray(props.activeQuestion.answer) ? props.activeQuestion.answer.length > 0 : (props.activeQuestion.answer === 0 || props.activeQuestion.answer === 1));
             const answerRevealed = props.activeQuestion.showAnswer;
             
             let footerContent;
@@ -199,7 +199,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                         <Button variant="destructive" className="flex-1" onClick={props.onEndQuestion}>
                             {t('teacherDashboard.end_question_button')}
                         </Button>
-                        <Button variant="secondary" className="flex-1" onClick={props.onRevealAnswer}>
+                        <Button variant="default" className="flex-1" onClick={props.onRevealAnswer}>
                             <CheckCheck className="mr-2 h-4 w-4" />
                             {t('teacherDashboard.reveal_answer_button')}
                         </Button>
