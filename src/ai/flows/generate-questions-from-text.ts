@@ -83,26 +83,30 @@ If a number for a question type is 0, do not generate any questions of that type
 
 Rules for each question type:
 1.  **True/False (\`true-false\`)**:
+    - This question type MUST have the field \`type: 'true-false'\`.
     - Create a clear statement that is definitively true or false based on the text.
     - You MUST provide the correct answer ('O' for true, 'X' for false) in the 'answer' field.
+    - This question type MUST NOT have an 'options' field or an 'allowMultipleAnswers' field.
 
 2.  **Single-Choice (\`multiple-choice\`)**:
+    - This question type MUST have the fields \`type: 'multiple-choice'\` and \`allowMultipleAnswers: false\`.
     - You must provide exactly 4 plausible options.
     - Exactly one option must be the correct answer. The others should be plausible but incorrect distractors.
-    - The \`allowMultipleAnswers\` field MUST be \`false\`.
     - CRITICAL: The 'answer' field MUST be an array containing a SINGLE NUMBER, which is the 0-based index of the correct option (e.g., \`[1]\`).
 
 3.  **Multiple-Answer (\`multiple-choice\`)**:
+    - This question type MUST have the fields \`type: 'multiple-choice'\` and \`allowMultipleAnswers: true\`.
     - You must provide exactly 4 plausible options.
     - One or more options must be correct.
-    - The \`allowMultipleAnswers\` field MUST be \`true\`.
     - CRITICAL: The 'answer' field MUST be an array of NUMBERS, representing the 0-based indices of ALL correct options (e.g., \`[0, 3]\`).
 
 4.  **Short-Answer (\`short-answer\`)**:
+    - This question type MUST have the field \`type: 'short-answer'\`.
     - Create an open-ended question that prompts for a brief written response based on the text.
     - The question should encourage understanding, not just rote memorization.
 
 5.  **Drawing (\`drawing\`)**:
+    - This question type MUST have the field \`type: 'drawing'\`.
     - Create a prompt that requires students to visualize and draw a concept, diagram, or scene from the text.
     - The prompt should be clear and actionable (e.g., "Draw a diagram showing...", "Illustrate the process of...").
 
