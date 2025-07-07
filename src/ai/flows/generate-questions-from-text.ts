@@ -13,26 +13,44 @@ import {z} from 'zod';
 
 const GenerateQuestionsFromTextInputSchema = z.object({
   context: z.string().describe('The text content to generate questions from.'),
-  numMultipleChoice: z.number().int().min(0).describe('The desired number of multiple-choice questions.'),
   numTrueFalse: z.number().int().min(0).describe('The desired number of true/false questions.'),
+  numSingleChoice: z.number().int().min(0).describe('The desired number of single-choice questions.'),
+  numMultipleAnswer: z.number().int().min(0).describe('The desired number of multiple-answer questions.'),
+  numShortAnswer: z.number().int().min(0).describe('The desired number of short-answer questions.'),
+  numDrawing: z.number().int().min(0).describe('The desired number of drawing questions.'),
 });
 export type GenerateQuestionsFromTextInput = z.infer<typeof GenerateQuestionsFromTextInputSchema>;
 
 const MultipleChoiceQuestionSchema = z.object({
-  type: z.enum(['multiple-choice']),
+  type: z.literal('multiple-choice'),
   question: z.string().describe('The multiple-choice question.'),
   options: z.array(z.object({ value: z.string() })).min(4).max(4).describe('A list of exactly 4 plausible options.'),
-  allowMultipleAnswers: z.boolean().default(false).describe('Whether multiple answers are allowed.'),
-  answer: z.array(z.number().int()).min(1).describe("An array containing the 0-based index/indices of the correct option(s). For example, if the first option is correct, the value should be [0]."),
+  allowMultipleAnswers: z.boolean().describe('Whether multiple answers are allowed. Set to `false` for single-choice, `true` for multiple-answer.'),
+  answer: z.array(z.number().int()).min(1).describe("An array containing the 0-based index/indices of the correct option(s)."),
 });
 
 const TrueFalseQuestionSchema = z.object({
-  type: z.enum(['true-false']),
+  type: z.literal('true-false'),
   question: z.string().describe('The true/false question.'),
   answer: z.enum(['O', 'X']).describe('The correct answer, either "O" for true or "X" for false.'),
 });
 
-const QuestionDataSchema = z.union([MultipleChoiceQuestionSchema, TrueFalseQuestionSchema]);
+const ShortAnswerQuestionSchema = z.object({
+    type: z.literal('short-answer'),
+    question: z.string().describe('An open-ended short-answer question that encourages critical thinking based on the text.')
+});
+
+const DrawingQuestionSchema = z.object({
+    type: z.literal('drawing'),
+    question: z.string().describe('A creative prompt that requires students to draw a concept, diagram, or scene related to the text.')
+});
+
+const QuestionDataSchema = z.union([
+    MultipleChoiceQuestionSchema,
+    TrueFalseQuestionSchema,
+    ShortAnswerQuestionSchema,
+    DrawingQuestionSchema
+]);
 export type QuestionData = z.infer<typeof QuestionDataSchema>;
 
 const GenerateQuestionsFromTextOutputSchema = z.object({
@@ -52,16 +70,41 @@ const prompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-flash-latest',
   input: {schema: GenerateQuestionsFromTextInputSchema},
   output: {schema: GenerateQuestionsFromTextOutputSchema},
-  prompt: `You are an expert educator creating classroom materials. Based on the following text context, please generate exactly {{{numMultipleChoice}}} multiple-choice questions and {{{numTrueFalse}}} true/false questions. If a number for a question type is 0, do not generate any questions of that type.
+  prompt: `You are an expert educator creating classroom materials. Based on the following text context, please generate a mix of questions as specified.
 
-For each multiple-choice question:
-- You must provide exactly 4 plausible options.
-- One or more options must be the correct answer, and the others should be plausible but incorrect distractors.
-- It is absolutely CRITICAL that the 'answer' field is an array of NUMBERS representing the 0-based indices of the correct option(s). For example, if the second option is correct, the value must be [1]. Do NOT return the answer as a string of the correct option's text.
+Question Generation Instructions:
+- Generate exactly {{{numTrueFalse}}} true/false questions.
+- Generate exactly {{{numSingleChoice}}} single-choice questions.
+- Generate exactly {{{numMultipleAnswer}}} multiple-answer questions.
+- Generate exactly {{{numShortAnswer}}} short-answer questions.
+- Generate exactly {{{numDrawing}}} drawing-prompt questions.
 
-For each true/false question:
-- Create a clear statement that is definitively true or false based on the text.
-- You MUST provide the correct answer ('O' for true, 'X' for false) in the 'answer' field.
+If a number for a question type is 0, do not generate any questions of that type.
+
+Rules for each question type:
+1.  **True/False (\`true-false\`)**:
+    - Create a clear statement that is definitively true or false based on the text.
+    - You MUST provide the correct answer ('O' for true, 'X' for false) in the 'answer' field.
+
+2.  **Single-Choice (\`multiple-choice\`)**:
+    - You must provide exactly 4 plausible options.
+    - Exactly one option must be the correct answer. The others should be plausible but incorrect distractors.
+    - The \`allowMultipleAnswers\` field MUST be \`false\`.
+    - CRITICAL: The 'answer' field MUST be an array containing a SINGLE NUMBER, which is the 0-based index of the correct option (e.g., \`[1]\`).
+
+3.  **Multiple-Answer (\`multiple-choice\`)**:
+    - You must provide exactly 4 plausible options.
+    - One or more options must be correct.
+    - The \`allowMultipleAnswers\` field MUST be \`true\`.
+    - CRITICAL: The 'answer' field MUST be an array of NUMBERS, representing the 0-based indices of ALL correct options (e.g., \`[0, 3]\`).
+
+4.  **Short-Answer (\`short-answer\`)**:
+    - Create an open-ended question that prompts for a brief written response based on the text.
+    - The question should encourage understanding, not just rote memorization.
+
+5.  **Drawing (\`drawing\`)**:
+    - Create a prompt that requires students to visualize and draw a concept, diagram, or scene from the text.
+    - The prompt should be clear and actionable (e.g., "Draw a diagram showing...", "Illustrate the process of...").
 
 The entire output, including questions, all options, and answers, must be in Traditional Chinese (繁體中文).
 
@@ -83,7 +126,7 @@ const generateQuestionsFromTextFlow = ai.defineFlow(
     outputSchema: GenerateQuestionsFromTextOutputSchema,
   },
   async input => {
-    if (input.numMultipleChoice === 0 && input.numTrueFalse === 0) {
+    if (input.numTrueFalse === 0 && input.numSingleChoice === 0 && input.numMultipleAnswer === 0 && input.numShortAnswer === 0 && input.numDrawing === 0) {
       return { questions: [] };
     }
     

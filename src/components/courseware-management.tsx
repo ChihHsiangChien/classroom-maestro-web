@@ -310,8 +310,11 @@ export function CoursewareManagement() {
   const [isGeneratingQuestions, startQuestionGenTransition] = useTransition();
   const [creationMode, setCreationMode] = useState<'existing' | 'new'>('existing');
   const [newCoursewareNameForGen, setNewCoursewareNameForGen] = useState('');
-  const [numMultipleChoice, setNumMultipleChoice] = useState(2);
   const [numTrueFalse, setNumTrueFalse] = useState(2);
+  const [numSingleChoice, setNumSingleChoice] = useState(2);
+  const [numMultipleAnswer, setNumMultipleAnswer] = useState(1);
+  const [numShortAnswer, setNumShortAnswer] = useState(1);
+  const [numDrawing, setNumDrawing] = useState(0);
 
 
   const [isSaving, setIsSaving] = useState(false);
@@ -416,8 +419,11 @@ export function CoursewareManagement() {
     startQuestionGenTransition(async () => {
         const result = await generateQuestionsFromTextAction({
             context: textContext,
-            numMultipleChoice,
-            numTrueFalse
+            numTrueFalse,
+            numSingleChoice,
+            numMultipleAnswer,
+            numShortAnswer,
+            numDrawing,
         });
         if (result.questions && result.questions.length > 0) {
             await addMultipleActivities(finalCoursewareId!, result.questions);
@@ -439,8 +445,11 @@ export function CoursewareManagement() {
     setTargetCoursewareId(null);
     setCreationMode('existing');
     setNewCoursewareNameForGen('');
-    setNumMultipleChoice(2);
     setNumTrueFalse(2);
+    setNumSingleChoice(2);
+    setNumMultipleAnswer(1);
+    setNumShortAnswer(1);
+    setNumDrawing(0);
   };
 
 
@@ -563,26 +572,26 @@ export function CoursewareManagement() {
                         rows={8}
                     />
                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="num-mc">{t('courseware.num_multiple_choice_label')}</Label>
-                        <Input
-                            id="num-mc"
-                            type="number"
-                            value={numMultipleChoice}
-                            onChange={(e) => setNumMultipleChoice(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                            min="0"
-                        />
-                    </div>
+                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="grid gap-2">
                         <Label htmlFor="num-tf">{t('courseware.num_true_false_label')}</Label>
-                        <Input
-                            id="num-tf"
-                            type="number"
-                            value={numTrueFalse}
-                            onChange={(e) => setNumTrueFalse(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                            min="0"
-                        />
+                        <Input id="num-tf" type="number" value={numTrueFalse} onChange={(e) => setNumTrueFalse(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="num-sc">{t('courseware.num_single_choice_label')}</Label>
+                        <Input id="num-sc" type="number" value={numSingleChoice} onChange={(e) => setNumSingleChoice(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="num-ma">{t('courseware.num_multiple_answer_label')}</Label>
+                        <Input id="num-ma" type="number" value={numMultipleAnswer} onChange={(e) => setNumMultipleAnswer(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="num-sa">{t('courseware.num_short_answer_label')}</Label>
+                        <Input id="num-sa" type="number" value={numShortAnswer} onChange={(e) => setNumShortAnswer(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="num-dr">{t('courseware.num_drawing_label')}</Label>
+                        <Input id="num-dr" type="number" value={numDrawing} onChange={(e) => setNumDrawing(Math.max(0, parseInt(e.target.value, 10) || 0))} min="0" />
                     </div>
                 </div>
                 <div className="grid gap-4">
@@ -621,7 +630,7 @@ export function CoursewareManagement() {
                 <Button variant="ghost" onClick={() => setGenerateQuestionsDialogOpen(false)}>{t('common.cancel')}</Button>
                 <Button 
                   onClick={handleGenerateQuestions} 
-                  disabled={isGeneratingQuestions || !textContext || (numMultipleChoice + numTrueFalse === 0) || (creationMode === 'existing' && !targetCoursewareId) || (creationMode === 'new' && !newCoursewareNameForGen.trim())}
+                  disabled={isGeneratingQuestions || !textContext || (numTrueFalse + numSingleChoice + numMultipleAnswer + numShortAnswer + numDrawing === 0) || (creationMode === 'existing' && !targetCoursewareId) || (creationMode === 'new' && !newCoursewareNameForGen.trim())}
                 >
                   {isGeneratingQuestions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                   {isGeneratingQuestions ? t('courseware.generating_questions') : t('courseware.generate_questions_button')}
