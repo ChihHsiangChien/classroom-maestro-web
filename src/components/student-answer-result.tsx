@@ -54,7 +54,7 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
     const isMcq = question.type === 'multiple-choice';
     const isTf = question.type === 'true-false';
 
-    const renderAnswer = (answer: string | string[] | number | number[] | undefined, options?: { value: string }[]) => {
+    const renderAnswer = (answer: string | string[] | number | number[] | null | undefined, options?: { value: string }[]) => {
         if (answer === undefined || answer === null) return <span className="text-muted-foreground">{t('studentAnswerResult.no_answer')}</span>;
         
         const answerArray = Array.isArray(answer) ? answer : [answer];
@@ -107,7 +107,7 @@ export function StudentAnswerResult({ question, myAnswer }: StudentAnswerResultP
                 <CardContent className="space-y-4">
                     <div className="p-4 bg-muted/50 rounded-lg">
                         <p className="text-sm font-medium text-muted-foreground">{t('studentAnswerResult.your_answer')}</p>
-                        <p className="text-lg font-semibold">{renderAnswer(myAnswer || undefined, getOptions())}</p>
+                        <p className="text-lg font-semibold">{renderAnswer(myAnswer, getOptions())}</p>
                     </div>
                     {!isCorrect && 'answer' in question && question.answer !== undefined && getCorrectAnswerIndices().length > 0 && (
                          <div className="p-4 bg-green-500/10 rounded-lg">
