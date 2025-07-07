@@ -4,56 +4,58 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to check if a user is an admin
+    function isOwner(collectionName, docId, userId) {
+      return get(/databases/$(database)/documents/$(collectionName)/$(docId)).data.ownerId == userId;
+    }
+    
+    function isAuthed() {
+      return request.auth != null;
+    }
+    
     function isAdmin() {
-      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isAuthed() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // Admins can read/write anything
-    match /{document=**} {
+    // Default catch-all for admins
+    match /{path=**} {
       allow read, write: if isAdmin();
     }
-
-    // Users collection
+    
+    // User profiles
     match /users/{userId} {
-      allow read, write: if request.auth.uid == userId || isAdmin();
+      allow read, write: if isAuthed() && request.auth.uid == userId;
     }
-
-    // AI Usage Logs
+    
+    // AI Usage logging
     match /aiUsageLogs/{logId} {
-      allow create: if request.auth != null;
-      allow read, update, delete: if isAdmin();
+        allow create: if isAuthed();
     }
-
-    // Courseware collection
+    
+    // Courseware owned by teachers
     match /courseware/{coursewareId} {
-        allow read, write: if request.auth.uid == resource.data.ownerId;
-        allow create: if request.auth.uid == request.resource.data.ownerId;
+      allow read, write: if isAuthed() && isOwner('courseware', coursewareId, request.auth.uid);
     }
-
-    // Classrooms collection and subcollections
+    
+    // Classrooms and their subcollections
     match /classrooms/{classroomId} {
-      // The classroom document itself
-      allow create: if request.auth.uid == request.resource.data.ownerId;
-      allow read, update, delete: if request.auth.uid == resource.data.ownerId;
-      
-      // Students (anonymous) need read access to join
-      allow read: if request.auth == null;
+      // Rules for the classroom document itself
+      allow get: if true; // Anyone can get a classroom doc to join
+      allow list: if isAuthed(); // Only authenticated users (teachers) can list classrooms
+      allow create, update, delete: if isAuthed() && isOwner('classrooms', classroomId, request.auth.uid);
 
-      // Submissions subcollection
+      // Rules for the 'submissions' subcollection
       match /submissions/{submissionId} {
-        allow create: if request.auth == null;
-        allow read: if request.auth.uid == get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId;
-        allow update, delete: if false; // For data integrity
+        allow create: if true; // Anyone can create a submission
+        // Only the owner can read/modify submissions
+        allow read, update, delete: if isAuthed() && isOwner('classrooms', classroomId, request.auth.uid);
       }
-
-      // Presence subcollection
-      match /presence/{studentId} {
-        allow write: if request.auth == null;
-        allow read: if request.auth.uid == get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerId;
+      
+      // Rules for the 'presence' subcollection and its documents
+      // The recursive wildcard {path=**} ensures this rule applies to both listing the collection
+      // and getting individual documents, which is what the join page needs.
+      match /presence/{path=**} {
+        allow read, write: if true;
       }
     }
   }
 }
-
-    
