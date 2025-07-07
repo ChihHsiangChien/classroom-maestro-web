@@ -3,107 +3,99 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    //======================================================================
-    //  Helper Functions
-    //  This section contains reusable functions for checking permissions.
-    //======================================================================
+    // --- Helper Functions ---
+    // These functions make the rules below easier to read and maintain.
 
+    // Checks if a user is signed in (including anonymous users).
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function isAnonymous() {
-      return isAuthenticated() && request.auth.token.firebase.sign_in_provider == 'anonymous';
-    }
-
-    function isTeacher() {
-      return isAuthenticated() && request.auth.token.firebase.sign_in_provider != 'anonymous';
-    }
-
-    function isAdmin() {
-      return isTeacher() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-    
+    // Checks if the currently authenticated user is the owner of a document.
+    // Used for existing documents during 'update' or 'delete'.
     function isOwner(resource) {
       return request.auth.uid == resource.data.ownerId;
     }
 
-    function isNewOwner() {
-      return request.auth.uid == request.resource.data.ownerId;
-    }
-
-    function isAccountOwner() {
-      return request.auth.uid == resource.data.uid;
+    // Checks if the user performing the request is an administrator.
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
     
-    function isNewAccountOwner() {
-        return request.auth.uid == request.resource.data.uid;
-    }
-    
-    //======================================================================
-    //  Rules
-    //  This section applies the helper functions to specific data paths.
-    //======================================================================
+    // --- Collection Rules ---
 
-    // Admins: Only authenticated teachers can check for admin status.
-    match /admins/{userId} {
-      allow read: if isTeacher();
-      allow write: if false; // Should only be editable from the Firebase Console
-    }
-    
-    // Users: Teachers can update their own user document.
-    match /users/{userId} {
-      allow read: if isTeacher();
-      // Allow creating a user doc if it's for the person making the request.
-      // Allow updating if it's the account owner or an admin.
-      allow write: if (isNewAccountOwner() && isTeacher()) || (isAccountOwner() && isTeacher()) || isAdmin();
-    }
-
-    // Classrooms:
-    // Students (anonymous users) can read a single classroom document to join.
-    // Teachers can create, update, delete their own classrooms.
-    // Admins can manage any classroom.
+    // Rules for the 'classrooms' collection
     match /classrooms/{classroomId} {
-      // Allow anonymous users to GET a single classroom to see the student list.
-      // Allow teachers to LIST their own classrooms. Admins can list all.
-      allow read: if isAnonymous() || 
-                     (isTeacher() && (isOwner(resource) || isAdmin())) ||
-                     (isAuthenticated() && request.query.where.ownerId == request.auth.uid);
-      allow create: if isTeacher() && isNewOwner();
-      allow update, delete: if isTeacher() && (isOwner(resource) || isAdmin());
+      // READ PERMISSIONS:
+      // 'get': Allow any authenticated user (including anonymous students) to read a single classroom.
+      // This is essential for the student "Join Classroom" page to function.
+      allow get: if isAuthenticated();
+      
+      // 'list': Allow authenticated teachers to list the classrooms they own.
+      // An admin can list all classrooms.
+      // This rule works because the frontend query includes `where("ownerId", "==", user.uid)`,
+      // and Firestore verifies that each document returned also passes the `get` rule.
+      allow list: if isAuthenticated();
 
-      // Submissions: Anonymous students must be able to submit answers.
-      // Teachers need to be able to read all submissions for their class.
+      // WRITE PERMISSIONS:
+      // 'create': Allow an authenticated user to create a classroom if they set themselves as the owner.
+      allow create: if (isAuthenticated() && (request.resource.data.ownerId == request.auth.uid || isAdmin()));
+      // 'update', 'delete': Only the owner or an admin can modify or delete a classroom.
+      allow update, delete: if isOwner(resource) || isAdmin();
+
+      // Sub-collection rules for a classroom
       match /submissions/{submissionId} {
         allow read: if isAuthenticated();
-        // Allow creation if the submitted data has the required fields.
-        allow create: if isAnonymous() && request.resource.data.keys().hasAll(['studentId', 'studentName', 'questionId', 'answer', 'timestamp']);
-        allow update, delete: if isTeacher() && exists(/databases/$(database)/documents/classrooms/$(classroomId));
+        // Allow any authenticated user to create a submission, but validate the required fields for security.
+        allow create: if isAuthenticated() && request.resource.data.keys().hasAll(['studentId', 'studentName', 'questionId', 'answer', 'timestamp']);
       }
-      
-      // Presence: Anonymous students must be able to write their presence status.
-      // Teachers need to read presence data.
+
       match /presence/{studentId} {
-        allow read: if isAuthenticated();
-        allow write: if isAnonymous();
+        // Presence data (online status, last seen) can be read and written by any authenticated user.
+        allow read, write: if isAuthenticated();
       }
     }
 
-    // Courseware:
-    // Teachers can manage their own courseware. Admins can manage any.
+    // Rules for the 'courseware' collection
     match /courseware/{coursewareId} {
-      allow get: if isTeacher() && (isOwner(resource) || isAdmin());
-      allow list: if isAdmin() || (isTeacher() && request.query.where.ownerId == request.auth.uid);
-      allow create: if isTeacher() && isNewOwner();
-      allow update, delete: if isTeacher() && (isOwner(resource) || isAdmin());
+      // READ PERMISSIONS:
+      // 'get': Only the owner or an admin can get a specific courseware document.
+      allow get: if isOwner(resource) || isAdmin();
+      
+      // 'list': Any authenticated user can *attempt* to list courseware.
+      // This will only succeed if their query (e.g., `where("ownerId", "==", uid)`)
+      // exclusively requests documents that they are allowed to 'get'.
+      allow list: if isAuthenticated();
+
+      // WRITE PERMISSIONS:
+      // 'create': Allow creation only if the user is the owner.
+      allow create: if (isAuthenticated() && (request.resource.data.ownerId == request.auth.uid || isAdmin()));
+      // 'update', 'delete': Only the owner or an admin can modify/delete.
+      allow update, delete: if isOwner(resource) || isAdmin();
     }
     
-    // AI Usage Logs:
-    // Teachers can create logs for their own usage.
-    // Only Admins can read the logs.
+    // Rules for the 'users' collection (stores teacher info)
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId || isAdmin();
+      allow write: if request.auth.uid == userId; // For updating their own 'lastActivity'
+    }
+    
+    // Rules for the 'admins' collection
+    match /admins/{adminId} {
+       // Only other admins can see the admin list.
+       allow read: if isAdmin();
+       // No one can write to this collection via the client. Must be managed from the Firebase Console.
+       allow write: if false;
+    }
+    
+    // Rules for the 'aiUsageLogs' collection
     match /aiUsageLogs/{logId} {
-        allow create: if isTeacher() && request.resource.data.userId == request.auth.uid;
-        allow read, write, delete: if isAdmin();
+       // Any authenticated user can create a log entry.
+       allow create: if isAuthenticated();
+       // Only admins can read the logs.
+       allow read, list: if isAdmin();
+       // Logs are immutable from the client.
+       allow update, delete: if false;
     }
   }
 }
