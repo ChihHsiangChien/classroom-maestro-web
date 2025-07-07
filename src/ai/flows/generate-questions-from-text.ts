@@ -70,7 +70,9 @@ const prompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-flash-latest',
   input: {schema: GenerateQuestionsFromTextInputSchema},
   output: {schema: GenerateQuestionsFromTextOutputSchema},
-  prompt: `You are an expert educator creating classroom materials. Based on the following text context, please generate a mix of questions as specified.
+  prompt: `You are a highly advanced AI educator tasked with creating a precise set of classroom materials. You MUST strictly adhere to the user's request for the number of questions of each type. Based on the following text context, generate the specified mix of questions.
+
+**CRITICAL INSTRUCTION**: You MUST generate the exact number of questions requested for each type. If the user requests 5 true/false questions, you MUST provide exactly 5 JSON objects with "type": "true-false". Do not substitute one question type for another.
 
 Question Generation Instructions:
 - Generate exactly {{{numTrueFalse}}} true/false questions.
@@ -83,30 +85,30 @@ If a number for a question type is 0, do not generate any questions of that type
 
 Rules for each question type:
 1.  **True/False (\`true-false\`)**:
-    - This question type MUST have the field \`type: 'true-false'\`.
+    - The object MUST have the field \`type: 'true-false'\`.
     - Create a clear statement that is definitively true or false based on the text.
     - You MUST provide the correct answer ('O' for true, 'X' for false) in the 'answer' field.
-    - This question type MUST NOT have an 'options' field or an 'allowMultipleAnswers' field.
+    - The object MUST NOT have an 'options' field or an 'allowMultipleAnswers' field.
 
 2.  **Single-Choice (\`multiple-choice\`)**:
-    - This question type MUST have the fields \`type: 'multiple-choice'\` and \`allowMultipleAnswers: false\`.
+    - The object MUST have the fields \`type: 'multiple-choice'\` and \`allowMultipleAnswers: false\`.
     - You must provide exactly 4 plausible options.
     - Exactly one option must be the correct answer. The others should be plausible but incorrect distractors.
     - CRITICAL: The 'answer' field MUST be an array containing a SINGLE NUMBER, which is the 0-based index of the correct option (e.g., \`[1]\`).
 
 3.  **Multiple-Answer (\`multiple-choice\`)**:
-    - This question type MUST have the fields \`type: 'multiple-choice'\` and \`allowMultipleAnswers: true\`.
+    - The object MUST have the fields \`type: 'multiple-choice'\` and \`allowMultipleAnswers: true\`.
     - You must provide exactly 4 plausible options.
     - One or more options must be correct.
     - CRITICAL: The 'answer' field MUST be an array of NUMBERS, representing the 0-based indices of ALL correct options (e.g., \`[0, 3]\`).
 
 4.  **Short-Answer (\`short-answer\`)**:
-    - This question type MUST have the field \`type: 'short-answer'\`.
+    - The object MUST have the field \`type: 'short-answer'\`.
     - Create an open-ended question that prompts for a brief written response based on the text.
     - The question should encourage understanding, not just rote memorization.
 
 5.  **Drawing (\`drawing\`)**:
-    - This question type MUST have the field \`type: 'drawing'\`.
+    - The object MUST have the field \`type: 'drawing'\`.
     - Create a prompt that requires students to visualize and draw a concept, diagram, or scene from the text.
     - The prompt should be clear and actionable (e.g., "Draw a diagram showing...", "Illustrate the process of...").
 
