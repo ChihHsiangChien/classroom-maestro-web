@@ -162,10 +162,13 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     if (user && db) {
       setLoading(true);
       let q;
+      // The query for an admin is different from a regular user.
+      // We remove the complex ordering from the query to prevent index-related errors.
+      // Sorting will be handled client-side after data is fetched.
       if (isAdmin) {
-          q = query(collection(db, "classrooms"), orderBy("ownerId"), orderBy("order"));
+          q = query(collection(db, "classrooms"), orderBy("ownerId"));
       } else {
-          q = query(collection(db, "classrooms"), where("ownerId", "==", user.uid), orderBy("order"));
+          q = query(collection(db, "classrooms"), where("ownerId", "==", user.uid));
       }
 
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -173,6 +176,10 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
           id: doc.id,
           ...doc.data()
         } as Classroom));
+        
+        // Client-side sorting ensures consistent order without needing complex Firestore indexes.
+        fetchedClassrooms.sort((a, b) => (a.order || 0) - (b.order || 0));
+
         setClassrooms(fetchedClassrooms);
         setLoading(false);
       }, (error) => {

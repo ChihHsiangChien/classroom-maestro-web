@@ -75,12 +75,13 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
             setLoading(true);
             
             let q;
+            // The query for an admin is different from a regular user.
+            // We remove the complex ordering from the query to prevent index-related errors.
+            // Sorting will be handled client-side after data is fetched.
             if (isAdmin) {
-                // Admins can see all courseware, ordered by owner and then by custom order
-                q = query(collection(db, "courseware"), orderBy("ownerId"), orderBy("order"));
+                q = query(collection(db, "courseware"), orderBy("ownerId"));
             } else {
-                // Regular users only see their own courseware
-                q = query(collection(db, "courseware"), where("ownerId", "==", user.uid), orderBy("order"));
+                q = query(collection(db, "courseware"), where("ownerId", "==", user.uid));
             }
 
             const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -88,6 +89,10 @@ export function CoursewareProvider({ children }: { children: React.ReactNode }) 
                     id: doc.id,
                     ...doc.data()
                 } as Courseware));
+
+                // Client-side sorting ensures consistent order without needing complex Firestore indexes.
+                fetchedCoursewares.sort((a, b) => (a.order || 0) - (b.order || 0));
+                
                 setCoursewares(fetchedCoursewares);
                 setLoading(false);
             }, (error) => {
