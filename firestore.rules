@@ -3,85 +3,100 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // --- Helper Functions ---
+    // These functions make the rules easier to read and maintain.
 
-    // =================================
-    // Helper Functions
-    // =================================
-    // These functions centralize common logic for reuse in the rules below.
-
-    // Is the user signed in?
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Is the user an administrator?
-    // This is used with the /admins/{userId} rule to allow 'get' for anyone,
-    // which prevents permission loops when checking for admin status.
+    // Checks if the user's UID is in the /admins collection.
+    // This allows any authenticated user to check for existence, which is secure.
     function isAdmin() {
-      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isAuthenticated() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // Does the incoming data's ownerId match the user's UID? (for create operations)
+    // For creating new documents: Checks if the new document's ownerId matches the user's UID.
     function isNewOwner() {
-      return request.auth.uid == request.resource.data.ownerId;
+      return isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
     }
 
-    // Does the existing data's ownerId match the user's UID? (for update/delete operations)
+    // For existing documents: Checks if the document's current ownerId matches the user's UID.
     function isExistingOwner(resource) {
-      return request.auth.uid == resource.data.ownerId;
+      return isAuthenticated() && resource.data.ownerId == request.auth.uid;
     }
 
-    // =================================
-    // Rules for Collections
-    // =================================
+    // --- Collection Rules ---
 
-    // Admins: Only admins can see who other admins are.
-    // Anyone authenticated can check their own admin status.
-    match /admins/{userId} {
+    // USERS: Basic user info.
+    // - Anyone authenticated can see their own user doc.
+    // - Only the user themselves can create or update their own doc.
+    match /users/{userId} {
+      allow read, update, create: if isAuthenticated() && request.auth.uid == userId;
+      allow list: if isAdmin(); // Admins can list all users.
+    }
+
+    // ADMINS: A simple list of UIDs for users who have admin privileges.
+    // - Only admins can read the list of other admins.
+    match /admins/{adminId} {
       allow get: if isAuthenticated();
       allow list, write: if isAdmin();
     }
-
-    // Users: Users can update their own document (e.g., lastActivity). Admins can read any user doc.
-    match /users/{userId} {
-      allow read, update: if request.auth.uid == userId || isAdmin();
-      allow create: if request.auth.uid == userId;
-      allow delete: if false; // Users should not be able to delete their own user records
-    }
-
-    // Classrooms: Publicly readable for students to join.
-    // Only owners or admins can modify.
-    match /classrooms/{classroomId} {
-      allow read: if true; // CRITICAL: Anyone must be able to read classroom info to join
-      allow create: if isAuthenticated() && isNewOwner();
-      allow update: if isAuthenticated() && (isExistingOwner(resource) || isAdmin());
-      allow delete: if isAuthenticated() && (isExistingOwner(resource) || isAdmin());
-
-      // Presence: Students (authenticated users) can update their own online status.
-      // Teacher/Admin can read all presence data.
-      match /presence/{studentId} {
-        allow read, write: if isAuthenticated();
-      }
-
-      // Submissions: Students (authenticated users) can create submissions.
-      // Teacher/Admin can read them. No one can update/delete to preserve data integrity.
-      match /submissions/{submissionId} {
-        allow read, create: if isAuthenticated();
-        allow update, delete: if false;
-      }
-    }
-
-    // Courseware: Only owners or admins can manage their courseware.
-    match /courseware/{coursewareId} {
-      allow create: if isAuthenticated() && isNewOwner();
-      allow read, update, delete: if isAuthenticated() && (isExistingOwner(resource) || isAdmin());
-    }
     
-    // AI Usage Logs: Teachers can create logs for themselves. Admins can read all.
+    // AI USAGE LOGS: For tracking AI feature usage.
+    // - Only admins can read.
+    // - Any authenticated user (teachers) can create a log entry.
     match /aiUsageLogs/{logId} {
-        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
         allow read: if isAdmin();
-        allow update, delete: if false;
+        allow create: if isAuthenticated();
+    }
+
+    // COURSEWARE: Teacher's lesson plans.
+    // - Teachers can do anything with their own courseware.
+    // - Admins can read all courseware for moderation/support.
+    match /courseware/{coursewareId} {
+      allow read: if isExistingOwner(resource) || isAdmin();
+      allow create: if isNewOwner();
+      allow update, delete: if isExistingOwner(resource);
+    }
+
+    // CLASSROOMS: The main container for a class, students, and activities.
+    match /classrooms/{classroomId} {
+      // READ: ANYONE can GET a single classroom document.
+      // This is CRITICAL for students to join a class, see the student list,
+      // and get updates on the active question or race status.
+      allow get: if true;
+
+      // LIST: Only the owner or an admin can list multiple classrooms (e.g., on the dashboard).
+      allow list: if isExistingOwner(resource) || isAdmin();
+      
+      // WRITE: Only the owner can create, update, or delete their own classroom.
+      allow create: if isNewOwner();
+      allow update, delete: if isExistingOwner(resource);
+
+      // --- SUBMISSIONS (Subcollection of Classrooms) ---
+      match /submissions/{submissionId} {
+        // READ: ANYONE can read submissions.
+        // This is necessary for the student client to confirm their submission
+        // and for the teacher's dashboard to display all results.
+        allow read: if true;
+        
+        // CREATE: ANYONE can create a submission (submit an answer).
+        // This is the core of the student workflow. We add validation
+        // to ensure the submitted data has a valid structure.
+        allow create: if request.resource.data.keys().hasAll([
+          'studentId', 'studentName', 'questionId', 'questionText', 'questionType', 'answer', 'timestamp'
+        ]) && request.resource.data.timestamp == request.time;
+      }
+
+      // --- PRESENCE (Subcollection of Classrooms) ---
+      match /presence/{studentId} {
+        // READ/WRITE: ANYONE can read and write to the presence collection.
+        // This is necessary for the student's client to report they are online
+        // and respond to attention pings from the teacher.
+        allow read, write: if true;
+      }
     }
   }
 }
