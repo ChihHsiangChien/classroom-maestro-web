@@ -56,7 +56,7 @@ export default function AdminPage() {
   const { t } = useI18n();
   const router = useRouter();
   const { isAdmin, loading: authLoading, user: adminUser } = useAuth();
-  const { deleteTeacherAndData } = useClassroom();
+  const { deleteTeacherAndData, updateUserLastActivity } = useClassroom();
   const { toast } = useToast();
 
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -71,6 +71,8 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!isAdmin || !db) return;
+
+    updateUserLastActivity();
 
     const usersRef = collection(db, 'users');
     const unsubscribe = onSnapshot(usersRef, async (usersSnapshot) => {
@@ -109,7 +111,7 @@ export default function AdminPage() {
     });
 
     return () => unsubscribe();
-  }, [isAdmin, toast]);
+  }, [isAdmin, toast, updateUserLastActivity]);
 
   const handleDeleteData = async (ownerId: string, ownerName: string) => {
     setIsDeleting(ownerId);

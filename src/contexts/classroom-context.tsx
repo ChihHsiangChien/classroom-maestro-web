@@ -102,6 +102,7 @@ interface ClassroomContextType {
   pingStudents: (classroomId: string) => Promise<void>;
   startNewActivitySession: (classroomId: string) => Promise<void>;
   awardPoints: (classroomId: string, studentIds: string[], points: number) => Promise<void>;
+  updateUserLastActivity: () => Promise<void>;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
@@ -246,19 +247,21 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
       const userClassrooms = classroomsRef.current.filter(c => c.ownerId === user.uid);
       const newOrder = userClassrooms.length > 0 ? Math.max(...userClassrooms.map(c => c.order)) + 1 : 0;
       await addDoc(collection(db, "classrooms"), { name, ownerId: user.uid, students: [], isLocked: false, order: newOrder, scores: {} });
+      await updateUserLastActivity();
     } catch (error) {
       handleFirestoreErrorRef.current?.(error, 'add-classroom');
     }
-  }, [user]);
+  }, [user, updateUserLastActivity]);
 
   const updateClassroom = useCallback(async (id: string, name: string) => {
     if (!db) return;
     try {
       await updateDoc(doc(db, 'classrooms', id), { name });
+      await updateUserLastActivity();
     } catch (error) {
       handleFirestoreErrorRef.current?.(error, 'update-classroom');
     }
-  }, []);
+  }, [updateUserLastActivity]);
 
   const deleteClassroom = useCallback(async (id: string) => {
     if (!db) return;
@@ -267,20 +270,22 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
       if (internalActiveClassroom?.id === id) {
         setInternalActiveClassroom(null);
       }
+      await updateUserLastActivity();
     } catch (error) {
       handleFirestoreErrorRef.current?.(error, 'delete-classroom');
     }
-  }, [internalActiveClassroom?.id]);
+  }, [internalActiveClassroom?.id, updateUserLastActivity]);
 
   const updateStudentList = useCallback(async (classroomId: string, newStudents: Student[]) => {
       if (!db) return;
       try {
           const studentRoster = newStudents.map(({ id, name }) => ({ id, name }));
           await updateDoc(doc(db, 'classrooms', classroomId), { students: studentRoster });
+          await updateUserLastActivity();
       } catch (error) {
           handleFirestoreErrorRef.current?.(error, 'update-student-list');
       }
-  }, []);
+  }, [updateUserLastActivity]);
 
   const addStudent = useCallback(async (classroomId: string, studentName: string) => {
     const classroom = classroomsRef.current.find(c => c.id === classroomId);
@@ -310,10 +315,11 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
             batch.update(classroomRef, { order: index });
         });
         await batch.commit();
+        await updateUserLastActivity();
     } catch (error) {
         handleFirestoreErrorRef.current?.(error, 'reorder-classrooms');
     }
-  }, []);
+  }, [updateUserLastActivity]);
 
   const deleteStudent = useCallback(async (classroomId: string, studentId: string) => {
     const classroom = classroomsRef.current.find(c => c.id === classroomId);
@@ -354,10 +360,11 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
           transaction.update(classroomDocRef, { activeQuestion: newQuestion });
         }
       });
+      await updateUserLastActivity();
     } catch (error) {
       handleFirestoreErrorRef.current?.(error, 'reveal-answer');
     }
-  }, []);
+  }, [updateUserLastActivity]);
   
   const addSubmission = useCallback(async (
     classroomId: string, 
@@ -664,6 +671,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     pingStudents,
     startNewActivitySession,
     awardPoints,
+    updateUserLastActivity,
   }), [
     classrooms,
     activeClassroom,
@@ -696,6 +704,7 @@ reorderClassrooms,
     pingStudents,
     startNewActivitySession,
     awardPoints,
+    updateUserLastActivity,
   ]);
 
   return (
