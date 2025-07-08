@@ -7,7 +7,7 @@ import { ClassList } from '@/components/class-list';
 import { ClassDetail } from '@/components/class-detail';
 
 export default function DashboardPage() {
-  const { classrooms, setActiveClassroom } = useClassroom();
+  const { classrooms, setActiveClassroom, startClassSession } = useClassroom();
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const router = useRouter();
 
@@ -15,7 +15,8 @@ export default function DashboardPage() {
     setSelectedClassId(classroom.id);
   };
 
-  const handleStartActivity = (classroom: Classroom) => {
+  const handleStartActivity = async (classroom: Classroom) => {
+    await startClassSession(classroom.id);
     setActiveClassroom(classroom);
     router.push('/dashboard/activity');
   };

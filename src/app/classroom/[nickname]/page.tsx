@@ -120,6 +120,11 @@ function ClassroomPageContent() {
                 setSessionEnded(true);
                 return;
             };
+
+            if (classroomData.isDismissed) {
+                router.push('/class-dismissed');
+                return;
+            }
             
             setClassroom(classroomData);
             setIsLocked(classroomData.isLocked || false);
@@ -127,7 +132,7 @@ function ClassroomPageContent() {
         });
 
         return () => unsubscribeRef.current();
-    }, [classroomId, listenForClassroom, sessionEnded]);
+    }, [classroomId, listenForClassroom, sessionEnded, router]);
 
     // New effect to listen for submissions for the active question
     useEffect(() => {

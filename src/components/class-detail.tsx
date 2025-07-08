@@ -15,10 +15,11 @@ interface ClassDetailProps {
 
 export function ClassDetail({ classroom, onBack }: ClassDetailProps) {
   const router = useRouter();
-  const { setActiveClassroom } = useClassroom();
+  const { setActiveClassroom, startClassSession } = useClassroom();
   const { t } = useI18n();
 
-  const handleStartActivity = () => {
+  const handleStartActivity = async () => {
+    await startClassSession(classroom.id);
     setActiveClassroom(classroom);
     router.push('/dashboard/activity');
   };

@@ -67,6 +67,8 @@ export interface Classroom {
   race?: RaceData | null;
   pingRequest?: { id: string; timestamp: Timestamp };
   scores?: { [studentId: string]: number };
+  sessionEndTime?: Timestamp;
+  isDismissed?: boolean;
 }
 
 interface ClassroomContextType {
@@ -100,9 +102,11 @@ interface ClassroomContextType {
   resetRace: (classroomId: string) => Promise<void>;
   deleteTeacherAndData: (ownerId: string) => Promise<void>;
   pingStudents: (classroomId: string) => Promise<void>;
-  startNewActivitySession: (classroomId: string) => Promise<void>;
+  startClassSession: (classroomId: string) => Promise<void>;
   awardPoints: (classroomId: string, studentIds: string[], points: number) => Promise<void>;
   updateUserLastActivity: () => Promise<void>;
+  dismissClass: (classroomId: string) => Promise<void>;
+  extendSession: (classroomId: string, currentEndTime: Timestamp) => Promise<void>;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
@@ -611,12 +615,19 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const startNewActivitySession = useCallback(async (classroomId: string) => {
+  const startClassSession = useCallback(async (classroomId: string) => {
     if (!db) return;
+    const CLASS_DURATION_MS = 100 * 60 * 1000;
+    const endTime = Timestamp.fromMillis(Date.now() + CLASS_DURATION_MS);
+
     try {
-        await updateDoc(doc(db, 'classrooms', classroomId), { scores: {} });
+        await updateDoc(doc(db, 'classrooms', classroomId), { 
+            scores: {},
+            sessionEndTime: endTime,
+            isDismissed: false,
+        });
     } catch (error) {
-        handleFirestoreErrorRef.current?.(error, 'start-new-activity-session');
+        handleFirestoreErrorRef.current?.(error, 'start-class-session');
     }
   }, []);
 
@@ -640,6 +651,28 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
         handleFirestoreErrorRef.current?.(error, 'award-points');
     }
   }, []);
+
+  const dismissClass = useCallback(async (classroomId: string) => {
+    if (!db) return;
+    try {
+        await updateDoc(doc(db, 'classrooms', classroomId), { isDismissed: true });
+        toast({ title: t('sessionTimer.class_dismissed_toast') });
+    } catch (error) {
+        handleFirestoreErrorRef.current?.(error, 'dismiss-class');
+    }
+  }, [t, toast]);
+
+  const extendSession = useCallback(async (classroomId: string, currentEndTime: Timestamp) => {
+    if (!db) return;
+    const EXTENSION_MS = 5 * 60 * 1000;
+    const newEndTime = Timestamp.fromMillis(currentEndTime.toMillis() + EXTENSION_MS);
+    try {
+        await updateDoc(doc(db, 'classrooms', classroomId), { sessionEndTime: newEndTime });
+        toast({ title: t('sessionTimer.time_extended_toast') });
+    } catch (error) {
+        handleFirestoreErrorRef.current?.(error, 'extend-session');
+    }
+  }, [t, toast]);
 
 
   const value = useMemo(() => ({
@@ -673,9 +706,11 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     resetRace,
     deleteTeacherAndData,
     pingStudents,
-    startNewActivitySession,
+    startClassSession,
     awardPoints,
     updateUserLastActivity,
+    dismissClass,
+    extendSession,
   }), [
     classrooms,
     activeClassroom,
@@ -706,9 +741,11 @@ reorderClassrooms,
     resetRace,
     deleteTeacherAndData,
     pingStudents,
-    startNewActivitySession,
+    startClassSession,
     awardPoints,
     updateUserLastActivity,
+    dismissClass,
+    extendSession,
   ]);
 
   return (

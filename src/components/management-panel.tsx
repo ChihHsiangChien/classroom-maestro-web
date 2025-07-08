@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut, GripVertical, ChevronDown, ArrowDownUp, ArrowUp, ArrowDown, RefreshCw, CheckCheck, Trophy } from 'lucide-react';
+import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut, GripVertical, ChevronDown, ArrowDownUp, ArrowUp, ArrowDown, RefreshCw, CheckCheck, Trophy, Timer, Hourglass, Plus, LogOutIcon } from 'lucide-react';
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom, type Classroom, type Submission, type Student } from '@/contexts/classroom-context';
 import type { QuestionData } from "./create-poll-form";
@@ -96,13 +96,40 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
     const handleProps = { ...attributes, ...listeners };
 
     const { t } = useI18n();
-    const { kickStudent, toggleClassroomLock, pingStudents } = useClassroom();
+    const { kickStudent, toggleClassroomLock, pingStudents, dismissClass, extendSession } = useClassroom();
     const { toast } = useToast();
     const canDisplayQrCode = props.joinUrl && props.joinUrl.length < 2000;
 
     // State and logic for the Student Status card
     const [sortBy, setSortBy] = useState<'name' | 'status' | 'submission'>('name');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    
+    // State and logic for Session Timer card
+    const [remainingMinutes, setRemainingMinutes] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (!props.classroom.sessionEndTime) {
+            setRemainingMinutes(null);
+            return;
+        }
+
+        const calculateRemaining = () => {
+            const endTimeMs = props.classroom.sessionEndTime!.toMillis();
+            const nowMs = Date.now();
+            const diffMs = endTimeMs - nowMs;
+
+            if (diffMs < 0) {
+                setRemainingMinutes(0);
+            } else {
+                setRemainingMinutes(Math.ceil(diffMs / 60000));
+            }
+        };
+
+        calculateRemaining();
+        const intervalId = setInterval(calculateRemaining, 15000); // Update every 15 seconds
+
+        return () => clearInterval(intervalId);
+    }, [props.classroom.sessionEndTime]);
 
     const sortedStudents = useMemo(() => {
         if (!props.classroom.students) return [];
@@ -454,6 +481,52 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                 </CardContent>
             )
         },
+        session: {
+            header: (
+                 <div className="flex-1">
+                    <CardTitle className="text-base font-medium">
+                        {t('sessionTimer.title')}
+                    </CardTitle>
+                    <CardDescription className="flex items-center gap-2 mt-1">
+                        <Hourglass className="h-4 w-4" />
+                        <span>{t('sessionTimer.description')}</span>
+                    </CardDescription>
+                </div>
+            ),
+            content: (
+                 <CardContent>
+                    <div className="text-center text-3xl font-bold py-4">
+                        {remainingMinutes !== null ? (
+                            remainingMinutes > 0 ? t('sessionTimer.minutes_remaining', { minutes: remainingMinutes }) : t('sessionTimer.less_than_a_minute')
+                        ) : (
+                            '--'
+                        )}
+                    </div>
+                </CardContent>
+            ),
+            footer: (
+                <CardFooter className="flex-col gap-2">
+                    {remainingMinutes !== null && remainingMinutes <= 5 && (
+                        <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => extendSession(props.classroom.id, props.classroom.sessionEndTime!)}
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            {t('sessionTimer.extend_time_button')}
+                        </Button>
+                    )}
+                    <Button
+                        variant="destructive"
+                        className="w-full"
+                        onClick={() => dismissClass(props.classroom.id)}
+                    >
+                        <LogOutIcon className="mr-2 h-4 w-4" />
+                        {t('sessionTimer.dismiss_now_button')}
+                    </Button>
+                </CardFooter>
+            )
+        },
         lesson: {
             header: (
                 <div className="flex-1">
@@ -512,8 +585,8 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
 }
 
 export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestion, onEndQuestion, onRevealAnswer }: ManagementPanelProps) {
-  const [cardOrder, setCardOrder] = useState(['join', 'leaderboard', 'status', 'lesson']);
-  const [openStates, setOpenStates] = useState<{ [key: string]: boolean }>({ join: true, leaderboard: true, status: true, lesson: true });
+  const [cardOrder, setCardOrder] = useState(['session', 'join', 'leaderboard', 'status', 'lesson']);
+  const [openStates, setOpenStates] = useState<{ [key: string]: boolean }>({ session: true, join: true, leaderboard: true, status: true, lesson: true });
 
   // Load state from localStorage on mount
   useEffect(() => {
@@ -521,7 +594,7 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
       const savedState = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (savedState) {
         const { order, open } = JSON.parse(savedState);
-        const defaultCards = ['join', 'leaderboard', 'status', 'lesson'];
+        const defaultCards = ['session', 'join', 'leaderboard', 'status', 'lesson'];
         if (Array.isArray(order) && typeof open === 'object') {
           // Ensure all default cards are present, even if new ones were added
           const currentCards = new Set(order);
@@ -532,7 +605,7 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
               }
           });
           
-          setCardOrder(newOrder);
+          setCardOrder(newOrder.filter(c => defaultCards.includes(c))); // Filter out old cards
           setOpenStates(open);
         }
       }
