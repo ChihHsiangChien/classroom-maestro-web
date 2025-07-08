@@ -54,7 +54,7 @@ const areArraysEqual = (arr1: (string|number)[], arr2: (string|number)[]) => {
 export default function ActivityPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace, pingStudents, revealAnswer, startNewActivitySession, awardPoints } = useClassroom();
+  const { activeClassroom, setActiveQuestionInDB, listenForSubmissions, loading: classroomLoading, startRace, resetRace, pingStudents, revealAnswer, awardPoints } = useClassroom();
   const { addCoursewareFromActivities } = useCourseware();
   const { toast } = useToast();
 
@@ -94,14 +94,6 @@ export default function ActivityPage() {
       }
     };
   }, [setActiveQuestionInDB]);
-
-  // Start a new scoring session when the page loads
-  useEffect(() => {
-    if (activeClassroom?.id) {
-        startNewActivitySession(activeClassroom.id);
-    }
-  }, [activeClassroom?.id, startNewActivitySession]);
-
 
   useEffect(() => {
     if (!classroomLoading && !activeClassroom) {
