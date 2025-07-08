@@ -96,7 +96,7 @@ export default function ActivityPage() {
   }, [setActiveQuestionInDB]);
 
   useEffect(() => {
-    if (!classroomLoading && !activeClassroom) {
+    if (!classroomLoading && (!activeClassroom || activeClassroom.isDismissed)) {
       router.replace('/dashboard');
     }
   }, [activeClassroom, classroomLoading, router]);
