@@ -96,7 +96,9 @@ export default function ActivityPage() {
   }, [setActiveQuestionInDB]);
 
   useEffect(() => {
-    if (!classroomLoading && (!activeClassroom || activeClassroom.isDismissed)) {
+    // If the classroom context is lost (e.g., deleted from another tab), redirect to safety.
+    // We no longer check for isDismissed here, to allow the teacher to stay on the page.
+    if (!classroomLoading && !activeClassroom) {
       router.replace('/dashboard');
     }
   }, [activeClassroom, classroomLoading, router]);
