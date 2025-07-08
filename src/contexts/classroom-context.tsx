@@ -536,7 +536,7 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
 
     const claimRace = useCallback(async (classroomId: string, studentAuthId: string, studentName: string): Promise<boolean> => {
         try {
-            const result = await claimRaceAction({ classroomId, studentId: studentAuthId, studentName });
+            const result = await claimRaceAction({ classroomId, studentAuthId, studentName });
             if (!result.success) {
                 console.log(`Claim race failed: ${result.error}`);
             }

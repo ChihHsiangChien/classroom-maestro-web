@@ -59,12 +59,12 @@ export async function analyzeShortAnswersAction(
 
 export interface ClaimRaceInput {
   classroomId: string;
-  studentId: string;
+  studentAuthId: string;
   studentName: string;
 }
 
 export async function claimRaceAction(input: ClaimRaceInput): Promise<{ success: boolean; error?: string }> {
-  const { classroomId, studentId, studentName } = input;
+  const { classroomId, studentAuthId, studentName } = input;
   if (!db) {
     return { success: false, error: "Database not configured." };
   }
@@ -90,7 +90,7 @@ export async function claimRaceAction(input: ClaimRaceInput): Promise<{ success:
       // If we passed all checks, this is a valid claim. The transaction ensures atomicity.
       transaction.update(classroomRef, {
         'race.winnerName': studentName,
-        'race.winnerId': studentId,
+        'race.winnerId': studentAuthId,
         'race.status': 'finished'
       });
     });
