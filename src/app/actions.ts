@@ -78,8 +78,8 @@ export async function claimRaceAction(input: ClaimRaceInput): Promise<{ success:
         throw new Error("Classroom does not exist.");
       }
 
-      const classroomData = classroomSnap.data();
-      const race = classroomData.race as RaceData | undefined;
+      const classroomData = classroomSnap.data() as Classroom;
+      const race = classroomData.race;
 
       // This is the critical check that the transaction's atomicity protects.
       // Only the first user to pass this check will succeed.
@@ -87,12 +87,17 @@ export async function claimRaceAction(input: ClaimRaceInput): Promise<{ success:
         throw new Error("Race not available to be claimed.");
       }
       
-      // If we passed all checks, this is a valid claim. The transaction ensures atomicity.
-      transaction.update(classroomRef, {
-        'race.winnerName': studentName,
-        'race.winnerId': studentAuthId,
-        'race.status': 'finished'
-      });
+      // Construct the complete new state for the race object.
+      // This is a more robust way to update, ensuring the security rule `hasOnly(['race'])` behaves as expected.
+      const newRaceData: RaceData = {
+        ...race,
+        winnerName: studentName,
+        winnerId: studentAuthId,
+        status: 'finished',
+      };
+      
+      // Update the entire 'race' field with the new object.
+      transaction.update(classroomRef, { race: newRaceData });
     });
     return { success: true };
   } catch (error: any) {
