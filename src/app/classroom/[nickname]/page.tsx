@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { StudentRace } from '@/components/student-race';
 import { Badge } from '@/components/ui/badge';
 import { Timestamp } from 'firebase/firestore';
+import { useAuth } from '@/contexts/auth-context';
 
 
 function ClassroomPageContent() {
@@ -22,6 +23,7 @@ function ClassroomPageContent() {
     const params = useParams();
     const searchParams = useSearchParams();
     const router = useRouter();
+    const { user } = useAuth();
     const { listenForClassroom, listenForStudentPresence, addSubmission, updateStudentPresence, acknowledgeKick, claimRace, listenForSubmissions } = useClassroom();
     const unsubscribeRef = useRef<() => void>(() => {});
 
@@ -167,8 +169,9 @@ function ClassroomPageContent() {
     };
 
     const handleClaimRace = async (): Promise<boolean> => {
-        if (!classroomId || !studentId || !activeRace) return false;
-        return claimRace(classroomId, studentId, studentName);
+        const studentAuthId = user?.uid;
+        if (!classroomId || !studentAuthId || !activeRace) return false;
+        return claimRace(classroomId, studentAuthId, studentName);
     };
 
     const handleLogout = () => {
@@ -214,7 +217,7 @@ function ClassroomPageContent() {
             </Card>
         );
     } else if (activeRace) {
-        content = <StudentRace key={activeRace.id} race={activeRace} studentId={studentId} onClaim={handleClaimRace} />;
+        content = <StudentRace key={activeRace.id} race={activeRace} studentId={user?.uid ?? null} onClaim={handleClaimRace} />;
     } else {
         const mySubmission = studentId ? submissions.find(sub => sub.studentId === studentId) : undefined;
         

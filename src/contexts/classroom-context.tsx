@@ -96,7 +96,7 @@ interface ClassroomContextType {
   fetchAllSubmissions: (classroomId: string) => Promise<Submission[]>;
   deleteActivityHistory: (classroomId: string) => Promise<void>;
   startRace: (classroomId: string) => Promise<void>;
-  claimRace: (classroomId: string, studentId: string, studentName: string) => Promise<boolean>;
+  claimRace: (classroomId: string, studentAuthId: string, studentName: string) => Promise<boolean>;
   resetRace: (classroomId: string) => Promise<void>;
   deleteTeacherAndData: (ownerId: string) => Promise<void>;
   pingStudents: (classroomId: string) => Promise<void>;
@@ -534,9 +534,9 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
         }
     }, [updateUserLastActivity]);
 
-    const claimRace = useCallback(async (classroomId: string, studentId: string, studentName: string): Promise<boolean> => {
+    const claimRace = useCallback(async (classroomId: string, studentAuthId: string, studentName: string): Promise<boolean> => {
         try {
-            const result = await claimRaceAction({ classroomId, studentId, studentName });
+            const result = await claimRaceAction({ classroomId, studentId: studentAuthId, studentName });
             if (!result.success) {
                 console.log(`Claim race failed: ${result.error}`);
             }
