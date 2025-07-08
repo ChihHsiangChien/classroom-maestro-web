@@ -49,7 +49,7 @@ function JoinPageContent() {
        return;
     }
 
-    let unsubscribe = () => {};
+    let unsubscribes: (() => void)[] = [];
 
     const initialize = async () => {
       // Ensure user is authenticated (anonymously is fine) before proceeding
@@ -77,42 +77,59 @@ function JoinPageContent() {
 
       try {
         const classroomRef = doc(db, 'classrooms', classId);
-        const classroomSnap = await getDoc(classroomRef);
 
-        if (!classroomSnap.exists()) {
-          setError(t('joinPage.class_not_found_error'));
-          setLoading(false);
-          return;
-        }
-        const classroomData = classroomSnap.data();
+        const classroomUnsubscribe = onSnapshot(classroomRef, (classroomSnap) => {
+            if (!classroomSnap.exists()) {
+                setError(t('joinPage.class_not_found_error'));
+                setLoading(false);
+                return;
+            }
+            const classroomData = classroomSnap.data();
+            
+            if (classroomData.isDismissed) {
+                router.push('/class-dismissed');
+                return;
+            }
 
-        const presenceRef = collection(db, 'classrooms', classId, 'presence');
-        unsubscribe = onSnapshot(presenceRef, (presenceSnap) => {
-          const presenceData: { [key: string]: PresenceData } = {};
-          presenceSnap.forEach(doc => {
-            presenceData[doc.id] = doc.data() as PresenceData;
-          });
+            const presenceRef = collection(db, 'classrooms', classId, 'presence');
+            const presenceUnsubscribe = onSnapshot(presenceRef, (presenceSnap) => {
+                const presenceData: { [key: string]: PresenceData } = {};
+                presenceSnap.forEach(doc => {
+                    presenceData[doc.id] = doc.data() as PresenceData;
+                });
 
-          const studentsWithPresence = (classroomData.students || []).map((student: Student) => {
-            const presence = presenceData[student.id];
-            const isLoggedIn = !!presence?.isOnline;
-            return { ...student, isLoggedIn };
-          });
+                const studentsWithPresence = (classroomData.students || []).map((student: Student) => {
+                    const presence = presenceData[student.id];
+                    const isLoggedIn = !!presence?.isOnline;
+                    return { ...student, isLoggedIn };
+                });
 
-          const fetchedClassroom = {
-            id: classroomSnap.id,
-            name: classroomData.name,
-            students: studentsWithPresence,
-            ownerId: classroomData.ownerId,
-            isLocked: classroomData.isLocked || false,
-          };
-          setClassroom(fetchedClassroom as (Omit<Classroom, 'students'> & { students: (Student & { isLoggedIn?: boolean })[] }));
-          setLoading(false);
+                const fetchedClassroom = {
+                    id: classroomSnap.id,
+                    name: classroomData.name,
+                    students: studentsWithPresence,
+                    ownerId: classroomData.ownerId,
+                    isLocked: classroomData.isLocked || false,
+                };
+                setClassroom(fetchedClassroom as (Omit<Classroom, 'students'> & { students: (Student & { isLoggedIn?: boolean })[] }));
+                setLoading(false);
+            }, (err) => {
+                const errorMessage = `Failed to listen for presence. Code: ${err.code}. Message: ${err.message}`;
+                setError(errorMessage);
+                setLoading(false);
+            });
+            
+            // Manage the presence subscription so it can be cleaned up
+            unsubscribes = unsubscribes.filter(u => u !== presenceUnsubscribe); // remove old one if exists
+            unsubscribes.push(presenceUnsubscribe);
+
         }, (err) => {
-            const errorMessage = `Failed to listen for presence. Code: ${err.code}. Message: ${err.message}`;
+            const errorMessage = `Failed to fetch classroom. Code: ${err.code}. Message: ${err.message}`;
             setError(errorMessage);
             setLoading(false);
         });
+
+        unsubscribes.push(classroomUnsubscribe);
 
       } catch (e: any) {
         const errorMessage = `Failed to fetch classroom. Code: ${e.code}. Message: ${e.message}`;
@@ -124,9 +141,9 @@ function JoinPageContent() {
     initialize();
 
     return () => {
-      unsubscribe();
+      unsubscribes.forEach(unsub => unsub());
     }
-  }, [searchParams, t, user, authLoading, signInAnonymously]);
+  }, [searchParams, t, user, authLoading, signInAnonymously, router]);
 
   const handleStudentClick = (student: Student & { isLoggedIn?: boolean }) => {
     if (student.isLoggedIn || !classroom) return;
