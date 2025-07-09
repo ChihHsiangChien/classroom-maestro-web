@@ -1,8 +1,6 @@
 'use client';
-import { School, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import Link from 'next/link';
+import { School } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useI18n } from '@/lib/i18n/provider';
 
 export default function ClassDismissedPage() {
@@ -17,14 +15,6 @@ export default function ClassDismissedPage() {
           <CardTitle className="text-2xl">{t('classDismissed.title')}</CardTitle>
           <CardDescription>{t('classDismissed.description')}</CardDescription>
         </CardHeader>
-        <CardFooter>
-          <Button asChild className="w-full">
-            <Link href="/">
-              <LogOut className="mr-2 h-4 w-4" />
-              {t('classDismissed.return_home_button')}
-            </Link>
-          </Button>
-        </CardFooter>
       </Card>
     </main>
   );
