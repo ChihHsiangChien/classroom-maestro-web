@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { QuestionData, MultipleChoiceQuestion } from "./create-poll-form";
+import type { QuestionData, MultipleChoiceQuestion, DrawingQuestion, ImageAnnotationQuestion } from "./create-poll-form";
 import { Textarea } from "./ui/textarea";
 import { Label } from '@/components/ui/label';
 import { Checkbox } from './ui/checkbox';
@@ -150,12 +150,12 @@ function ShortAnswerForm({ onSubmit }: { onSubmit: (answer: string) => void }) {
     return (<Form {...form}><form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6"><FormField control={form.control} name="answer" render={({ field }) => (<FormItem><FormLabel>{t('studentPoll.your_answer_label')}</FormLabel><FormControl><Textarea placeholder={t('studentPoll.your_answer_placeholder')} {...field} rows={4} /></FormControl><FormMessage /></FormItem>)} /><Button type="submit" className="w-full">{t('studentPoll.submit_answer_button')}</Button></form></Form>);
 }
 
-function CanvasSubmissionForm({
+function FullScreenDrawingForm({
+  question,
   onSubmit,
-  backgroundImageUrl,
 }: {
+  question: DrawingQuestion | ImageAnnotationQuestion;
   onSubmit: (dataUrl: string) => void;
-  backgroundImageUrl?: string;
 }) {
   const { t } = useI18n();
   const editorRef = useRef<DrawingEditorRef>(null);
@@ -167,11 +167,23 @@ function CanvasSubmissionForm({
     }
   };
 
+  const backgroundImageUrl =
+    question.type === 'image-annotation' ? question.imageUrl : undefined;
+
   return (
-    <div className="space-y-4">
-      <DrawingEditor ref={editorRef} backgroundImageUrl={backgroundImageUrl} />
-      <div className="flex justify-end">
-        <Button onClick={handleSubmitClick}>{t('common.submit')}</Button>
+    <div className="fixed inset-0 z-40 flex h-full w-full flex-col bg-background p-4 sm:p-6">
+      <header className="flex flex-shrink-0 items-center justify-between gap-4 border-b pb-4 mb-4">
+        <div className="space-y-1">
+          <h1 className="text-xl font-bold">{question.question}</h1>
+          <p className="text-sm text-muted-foreground">{t('studentPoll.drawing_description')}</p>
+        </div>
+        <Button onClick={handleSubmitClick} size="lg">
+          <CheckCircle className="mr-2 h-5 w-5" />
+          {t('common.submit')}
+        </Button>
+      </header>
+      <div className="flex-1 relative min-h-0">
+        <DrawingEditor ref={editorRef} backgroundImageUrl={backgroundImageUrl} />
       </div>
     </div>
   );
@@ -181,6 +193,14 @@ function CanvasSubmissionForm({
 // --- Main Component ---
 export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionFormProps) {
   const { t } = useI18n();
+
+  const handleSubmit = (answer: string | string[] | number | number[]) => {
+    onVoteSubmit(answer);
+  };
+  
+  if (question.type === 'drawing' || question.type === 'image-annotation') {
+      return <FullScreenDrawingForm question={question} onSubmit={handleSubmit} />;
+  }
 
   const getTranslatedQuestionType = (type: QuestionData['type']) => {
     switch (type) {
@@ -194,17 +214,11 @@ export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionF
   };
   const translatedQuestionType = getTranslatedQuestionType(question.type);
 
-  function handleSubmit(answer: string | string[] | number | number[]) {
-    onVoteSubmit(answer);
-  }
-
   const renderForm = () => {
       switch(question.type) {
           case 'multiple-choice': return <MultipleChoiceForm question={question} onSubmit={handleSubmit} />;
           case 'true-false': return <TrueFalseForm onSubmit={(answer) => handleSubmit(answer)} />;
           case 'short-answer': return <ShortAnswerForm onSubmit={(answer) => handleSubmit(answer)} />;
-          case 'drawing': return <CanvasSubmissionForm onSubmit={handleSubmit} />;
-          case 'image-annotation': return <CanvasSubmissionForm onSubmit={handleSubmit} backgroundImageUrl={question.imageUrl} />;
           default: return <p>{t('studentPoll.unknown_question_type')}</p>;
       }
   }
@@ -215,9 +229,6 @@ export function StudentQuestionForm({ question, onVoteSubmit }: StudentQuestionF
         <CardTitle className="text-2xl">{question.question}</CardTitle>
         {translatedQuestionType && (
             <CardDescription className="font-semibold text-primary">{translatedQuestionType}</CardDescription>
-        )}
-        {(question.type === 'drawing' || question.type === 'image-annotation') && (
-          <CardDescription>{t('studentPoll.drawing_description')}</CardDescription>
         )}
       </CardHeader>
       <CardContent>{renderForm()}</CardContent>
