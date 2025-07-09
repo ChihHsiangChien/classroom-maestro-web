@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut, GripVertical, ChevronDown, ArrowDownUp, ArrowUp, ArrowDown, RefreshCw, CheckCheck, Trophy, Timer, Hourglass, Plus, LogOutIcon } from 'lucide-react';
+import { Copy, CheckCircle, Clapperboard, AlertTriangle, LogOut, GripVertical, ChevronDown, ArrowDownUp, ArrowUp, ArrowDown, RefreshCw, CheckCheck, Trophy, Timer, Hourglass, Plus, LogOutIcon, PlayCircle } from 'lucide-react';
 import { useI18n } from "@/lib/i18n/provider";
 import { useClassroom, type Classroom, type Submission, type Student } from '@/contexts/classroom-context';
 import type { QuestionData } from "./create-poll-form";
@@ -96,7 +96,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
     const handleProps = { ...attributes, ...listeners };
 
     const { t } = useI18n();
-    const { kickStudent, toggleClassroomLock, pingStudents, dismissClass, extendSession } = useClassroom();
+    const { kickStudent, toggleClassroomLock, pingStudents, dismissClass, extendSession, startClassSession } = useClassroom();
     const { toast } = useToast();
     const canDisplayQrCode = props.joinUrl && props.joinUrl.length < 2000;
 
@@ -108,7 +108,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
     const [remainingMinutes, setRemainingMinutes] = useState<number | null>(null);
 
     useEffect(() => {
-        if (!props.classroom.sessionEndTime) {
+        if (!props.classroom.sessionEndTime || props.classroom.isDismissed) {
             setRemainingMinutes(null);
             return;
         }
@@ -129,7 +129,7 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
         const intervalId = setInterval(calculateRemaining, 15000); // Update every 15 seconds
 
         return () => clearInterval(intervalId);
-    }, [props.classroom.sessionEndTime]);
+    }, [props.classroom.sessionEndTime, props.classroom.isDismissed]);
 
     const sortedStudents = useMemo(() => {
         if (!props.classroom.students) return [];
@@ -494,9 +494,11 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                 </div>
             ),
             content: (
-                 <CardContent>
+                <CardContent>
                     <div className="text-center text-3xl font-bold py-4">
-                        {remainingMinutes !== null ? (
+                        {props.classroom.isDismissed ? (
+                            t('classDismissed.title')
+                        ) : remainingMinutes !== null ? (
                             remainingMinutes > 0 ? t('sessionTimer.minutes_remaining', { minutes: remainingMinutes }) : t('sessionTimer.less_than_a_minute')
                         ) : (
                             '--'
@@ -504,7 +506,18 @@ function SortableItem({ id, ...props }: { id: string } & ManagementPanelProps & 
                     </div>
                 </CardContent>
             ),
-            footer: (
+            footer: props.classroom.isDismissed ? (
+                <CardFooter>
+                    <Button
+                        variant="default"
+                        className="w-full"
+                        onClick={() => startClassSession(props.classroom.id)}
+                    >
+                        <PlayCircle className="mr-2 h-4 w-4" />
+                        {t('dashboard.start_activity')}
+                    </Button>
+                </CardFooter>
+            ) : (
                 <CardFooter className="flex-col gap-2">
                     {remainingMinutes !== null && remainingMinutes <= 5 && (
                         <Button
@@ -667,3 +680,5 @@ export function ManagementPanel({ classroom, submissions, joinUrl, activeQuestio
       </DndContext>
   );
 }
+
+    
