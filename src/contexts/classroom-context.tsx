@@ -621,11 +621,25 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     const endTime = Timestamp.fromMillis(Date.now() + CLASS_DURATION_MS);
 
     try {
-        await updateDoc(doc(db, 'classrooms', classroomId), { 
+        const batch = writeBatch(db);
+
+        // Clean up presence from any previous session. This makes the system self-healing.
+        const presenceColRef = collection(db, 'classrooms', classroomId, 'presence');
+        const presenceSnapshot = await getDocs(presenceColRef);
+        presenceSnapshot.forEach(presenceDoc => {
+            batch.delete(presenceDoc.ref);
+        });
+        
+        // Reset the classroom state for a new session
+        const classroomRef = doc(db, 'classrooms', classroomId);
+        batch.update(classroomRef, { 
             scores: {},
             sessionEndTime: endTime,
             isDismissed: false,
         });
+
+        await batch.commit();
+
     } catch (error) {
         handleFirestoreErrorRef.current?.(error, 'start-class-session');
     }
@@ -655,7 +669,21 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
   const dismissClass = useCallback(async (classroomId: string) => {
     if (!db) return;
     try {
-        await updateDoc(doc(db, 'classrooms', classroomId), { isDismissed: true });
+        const batch = writeBatch(db);
+
+        // 1. Mark the classroom as dismissed
+        const classroomRef = doc(db, 'classrooms', classroomId);
+        batch.update(classroomRef, { isDismissed: true });
+
+        // 2. Clear all presence documents to log students out
+        const presenceColRef = collection(db, 'classrooms', classroomId, 'presence');
+        const presenceSnapshot = await getDocs(presenceColRef);
+        presenceSnapshot.forEach(presenceDoc => {
+            batch.delete(presenceDoc.ref);
+        });
+
+        await batch.commit();
+
         toast({ title: t('sessionTimer.class_dismissed_toast') });
     } catch (error) {
         handleFirestoreErrorRef.current?.(error, 'dismiss-class');
