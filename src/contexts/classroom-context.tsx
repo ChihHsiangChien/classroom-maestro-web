@@ -675,14 +675,21 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
         const classroomRef = doc(db, 'classrooms', classroomId);
         batch.update(classroomRef, { isDismissed: true });
 
-        // 2. Clear all presence documents to log students out
+        // 2. Get all presence documents for this classroom to clear them
         const presenceColRef = collection(db, 'classrooms', classroomId, 'presence');
         const presenceSnapshot = await getDocs(presenceColRef);
+        
+        // 3. Add deletions to the batch
         presenceSnapshot.forEach(presenceDoc => {
             batch.delete(presenceDoc.ref);
         });
 
+        // 4. Commit all batched writes atomically
         await batch.commit();
+
+        // 5. Optimistically update local state to reflect the change immediately
+        setActivePresenceData({});
+        setClassrooms(prev => prev.map(c => c.id === classroomId ? {...c, isDismissed: true} : c));
 
         toast({ title: t('sessionTimer.class_dismissed_toast') });
     } catch (error) {
