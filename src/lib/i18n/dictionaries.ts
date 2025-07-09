@@ -343,11 +343,11 @@ export const dictionaries = {
       drawing_description: '請使用下方的編輯器來完成您的作答。',
     },
     studentAnswerResult: {
-      correct: 'Correct！',
-      incorrect: 'Incorrect',
-      your_answer: 'Your Answer',
-      correct_answer: 'Correct Answer',
-      no_answer: 'You did not provide an answer',
+      correct: '答對了！',
+      incorrect: '答錯了',
+      your_answer: '你的答案',
+      correct_answer: '正確答案',
+      no_answer: '你沒有作答',
     },
     admin: {
       title: '管理面板',
