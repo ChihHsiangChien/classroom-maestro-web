@@ -360,8 +360,8 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
     );
 
     return (
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-2 rounded-md border p-2 bg-muted/50">
+      <div className="flex h-full flex-col gap-4">
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-2 rounded-md border bg-muted/50 p-2">
           <ToolButton name="select" icon={<MousePointer />} title={t('drawingEditor.select_tool')} />
           <ToolButton name="pen" icon={<PenLine />} title={t('drawingEditor.pen_tool')} />
           <ToolButton name="eraser" icon={<Eraser />} title={t('drawingEditor.eraser_tool')} />
@@ -401,7 +401,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
             </PopoverContent>
           </Popover>
 
-          <div className="h-6 w-px bg-border mx-2" />
+          <div className="mx-2 h-6 w-px bg-border" />
 
           <Button variant="outline" size="icon" onClick={addText} type="button" title={t('drawingEditor.add_text_tool')}>
             <Type />
@@ -481,7 +481,7 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
             </DialogContent>
           </Dialog>
 
-          <div className="h-6 w-px bg-border mx-2" />
+          <div className="mx-2 h-6 w-px bg-border" />
 
           <Button
             variant="outline"
@@ -497,8 +497,8 @@ export const DrawingEditor = forwardRef<DrawingEditorRef, DrawingEditorProps>(
             {t('drawingEditor.clear_all_button')}
           </Button>
         </div>
-        <div className="relative w-full aspect-video border rounded-md bg-white touch-none overflow-hidden">
-          <canvas ref={canvasRef} className="w-full h-full" />
+        <div className="relative flex-1 rounded-md border bg-white touch-none overflow-hidden min-h-0">
+          <canvas ref={canvasRef} className="h-full w-full" />
         </div>
       </div>
     );
