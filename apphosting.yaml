@@ -18,18 +18,6 @@ runConfig:
   # must be configured as a secret in Google Cloud Secret Manager.
   secrets:
     - GOOGLE_API_KEY
-  # The NEXT_PUBLIC_ variables are required for the Firebase client-side SDK
-  # to work. They are made available as environment variables during the build
-  # process and at runtime.
-  # For a CI/CD-based deployment, these values must also be configured as
-  # secrets in Google Cloud Secret Manager.
-  environmentVariables:
-    NEXT_PUBLIC_FIREBASE_API_KEY: ${secret:NEXT_PUBLIC_FIREBASE_API_KEY}
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${secret:NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${secret:NEXT_PUBLIC_FIREBASE_PROJECT_ID}
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${secret:NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${secret:NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
-    NEXT_PUBLIC_FIREBASE_APP_ID: ${secret:NEXT_PUBLIC_FIREBASE_APP_ID}
 
 # Specifies the CPU and memory for your App Hosting backend.
 # 1 CPU is suitable for many general-purpose applications.
