@@ -5,87 +5,79 @@ This is a NextJS starter in Firebase Studio.
 
 To get started, take a look at src/app/page.tsx.
 
-## Deployment to Firebase App Hosting
+## Deployment to Firebase App Hosting (with GitHub CI/CD)
 
-This application is configured for deployment using [Firebase App Hosting](https://firebase.google.com/docs/hosting/app-hosting).
+This application is configured for automated deployment from a GitHub repository using [Firebase App Hosting](https://firebase.google.com/docs/hosting/app-hosting).
 
-To deploy your application, you will need the Firebase CLI and a local `.env` file containing your Firebase project's credentials.
+The deployment process uses **Google Cloud Secret Manager** to securely provide your Firebase API keys to the live application. This is the standard and most secure method for CI/CD workflows, as it avoids ever storing secret keys in your source code or a local `.env` file.
 
-### 1. Create your `.env` file
+### Step 1: Find Your Firebase Config Values
 
-Your project needs a file named `.env` in the root directory. This file stores your secret keys and configuration.
+You will need the configuration values for your specific Firebase project.
 
-1.  **Find Your Firebase Config**:
-    *   Go to your Firebase Project Settings by clicking the gear icon (⚙️) next to "Project Overview".
+1.  **Go to Firebase Project Settings**:
+    *   Open your Firebase project.
+    *   Click the gear icon (⚙️) next to "Project Overview".
+    *   Select **Project settings**.
+
+2.  **Find Your Web App Config**:
     *   Under the "General" tab, scroll down to "Your apps".
-    *   Find your web app and look for the `firebaseConfig` object. It will contain all the values you need.
+    *   Find your web app and look for the `firebaseConfig` object. It contains all the values you need for the next step (e.g., `apiKey`, `authDomain`, `projectId`, etc.).
 
-2.  **Create the file**:
-    Create a file named `.env` in the root of your project and paste the following content into it. **Replace `YOUR_..._HERE` with the actual values from your `firebaseConfig` object.**
+### Step 2: Create Secrets in Google Cloud Secret Manager
 
-    ```env
-    # Firebase Public Keys (copied from Firebase Console)
-    NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_API_KEY_HERE
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=YOUR_AUTH_DOMAIN_HERE
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID=YOUR_PROJECT_ID_HERE
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=YOUR_STORAGE_BUCKET_HERE
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=YOUR_MESSAGING_SENDER_ID_HERE
-    NEXT_PUBLIC_FIREBASE_APP_ID=YOUR_APP_ID_HERE
-    
-    # Genkit Server-Side Secret Key
-    # NOTE: The value is the same as NEXT_PUBLIC_FIREBASE_API_KEY
-    GOOGLE_API_KEY=YOUR_API_KEY_HERE
-    ```
-    
-    **Important**: The `.gitignore` file is already configured to prevent `.env` from being uploaded to your repository, keeping your keys safe.
-
-### 2. Initial Deployment
-
-1.  **Install the Firebase CLI** (if you haven't already):
-    ```bash
-    npm install -g firebase-tools
-    ```
-
-2.  **Login to Firebase**:
-    ```bash
-    firebase login
-    ```
-
-3.  **Deploy your application**:
-    From the root of your project directory, run the following command:
-    ```bash
-    firebase deploy
-    ```
-The CLI will build your Next.js application, read your `.env` file to configure the backend, and deploy it to Firebase App Hosting. Once complete, it will provide you with the URL to your live application.
-
-### 3. Configuring the `GOOGLE_API_KEY` Secret
-
-After the first deployment, your live application might show an error related to the AI features. This is because the `GOOGLE_API_KEY` needs to be managed as a secure "secret" in the cloud.
+Now, you will create a "secret" for each required environment variable. Your `apphosting.yaml` file tells App Hosting which secrets to look for.
 
 1.  **Go to Google Cloud Secret Manager**:
-    *   Go to the [Google Cloud Secret Manager](https://console.cloud.google.com/security/secret-manager).
-    *   Ensure you are in the correct project.
+    *   Open the [Google Cloud Secret Manager](https://console.cloud.google.com/security/secret-manager) for your project.
+    *   Ensure you are in the correct Google Cloud project.
 
-2.  **Create the Secret**:
-    *   Click "**Create secret**".
-    *   **Name**: `GOOGLE_API_KEY` (This must match the name in `apphosting.yaml`).
-    *   **Secret value**: Paste the `apiKey` from your `firebaseConfig` (the same value as `NEXT_PUBLIC_FIREBASE_API_KEY`).
-    *   Leave other settings as default and click "**Create secret**".
+2.  **Create a Secret for Each Variable**:
+    You must create a secret for **each** of the following variables listed in your `apphosting.yaml` file. The process is the same for all of them.
 
-3.  **Grant Access to App Hosting**:
-    *   After creating the secret, you must grant your App Hosting backend access to it.
-    *   Click on the `GOOGLE_API_KEY` secret name in the list.
-    *   Go to the **Permissions** tab.
+    *   `GOOGLE_API_KEY` (The value is the `apiKey` from your `firebaseConfig`)
+    *   `NEXT_PUBLIC_FIREBASE_API_KEY` (The value is also the `apiKey` from your `firebaseConfig`)
+    *   `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+    *   `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+    *   `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+    *   `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+    *   `NEXT_PUBLIC_FIREBASE_APP_ID`
+
+    **For each variable, follow these steps:**
+    *   Click **CREATE SECRET**.
+    *   **Name**: Enter the exact secret name (e.g., `GOOGLE_API_KEY`).
+    *   **Secret value**: Paste the corresponding value from your `firebaseConfig` object.
+    *   Leave other settings as default and click **CREATE SECRET**.
+
+### Step 3: Grant Access to Your App Hosting Backend
+
+After creating the secrets, you must grant your App Hosting backend permission to access them.
+
+1.  **Go to the Permissions Page for a Secret**:
+    *   In the Secret Manager list, click on the name of a secret you just created (e.g., `GOOGLE_API_KEY`).
+    *   Click the **Permissions** tab.
+
+2.  **Grant Access**:
     *   Click **GRANT ACCESS**.
-    *   **New principals**: Search for and select the service account associated with your App Hosting backend. It usually looks like `app-hosting-backend-id@...`.
-    *   **Role**: Search for and select "**Secret Manager Secret Accessor**".
+    *   **New principals**: Search for and select the service account associated with your App Hosting backend. It usually has a name like `app-hosting-backend-....@...`.
+    *   **Role**: Search for and select the **Secret Manager Secret Accessor** role.
     *   Click **SAVE**.
 
-4.  **Redeploy**:
-    *   After setting up the secret, you must redeploy your application for the changes to take effect.
+3.  **Repeat for All Secrets**:
+    *   **Important**: You must repeat this permission-granting process for **every single secret** you created in Step 2. A faster way is to go to the [IAM page](https://console.cloud.google.com/iam-admin/iam), find the App Hosting principal, click the pencil icon, and add the "Secret Manager Secret Accessor" role once, which grants it project-wide access.
+
+### Step 4: Deploy
+
+Once all secrets are created and permissions are granted, your CI/CD workflow is ready.
+
+*   **Commit and Push**: Commit the changes to your `apphosting.yaml` and `README.md` files and push them to your GitHub repository.
     ```bash
-    firebase deploy
+    git add apphosting.yaml README.md
+    git commit -m "Configure App Hosting for CI/CD with Secret Manager"
+    git push
     ```
+*   **Automatic Deployment**: The push will trigger the App Hosting CI/CD pipeline. It will build your application, securely inject the secrets you configured, and deploy the new version.
+
 Your application should now be fully configured and running correctly on Firebase App Hosting.
 
 ## Firebase Security Rules

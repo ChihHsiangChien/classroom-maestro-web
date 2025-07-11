@@ -6,40 +6,31 @@ region: asia-east1
 # An explicit ID for your backend.
 backendId: classroom-maestro
 
-# Specifies the build and run settings for the backend.
-buildConfig:
-  # This tells App Hosting to copy the values from your local .env file
-  # and make them available as environment variables in the build and run environments.
-  # THIS IS CRITICAL for your Firebase configuration to work on the live server.
-  # GOOGLE_API_KEY is handled separately as a secret for security.
-  args: >
-    --action=build --environment-variables-from-file=.env
-
+# The following environment variables are made available to your app
+# at runtime. For a CI/CD-based deployment from GitHub, these values
+# must be configured as secrets in Google Cloud Secret Manager.
+# App Hosting will automatically inject the values of the secrets
+# with corresponding names.
 runConfig:
   # Increase this value to automatically spin up more instances in response to
   # increased traffic.
   maxInstances: 1
-  # The following environment variables are made available to your app
-  # during the build process and at runtime.
-  # These are based on the variables in your .env file.
-  # NEXT_PUBLIC_ variables are required for Firebase to work on the client side.
-  # For security, GOOGLE_API_KEY is handled separately as a secret.
-  environmentVariables:
-    NEXT_PUBLIC_FIREBASE_API_KEY: ${env.NEXT_PUBLIC_FIREBASE_API_KEY}
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
-    NEXT_PUBLIC_FIREBASE_APP_ID: ${env.NEXT_PUBLIC_FIREBASE_APP_ID}
-
-  # Specifies the secrets to be made available to your app at runtime.
-  # The GOOGLE_API_KEY is necessary for the AI features (Genkit) to function.
-  secrets: [GOOGLE_API_KEY]
-
-# Controls who can access your backend.
-ingressControls:
-  allowPublic: true
+  # The GOOGLE_API_KEY is necessary for the server-side AI features (Genkit)
+  # to function. All NEXT_PUBLIC_ variables are required for the Firebase
+  # client-side SDK to work.
+  secrets:
+    - GOOGLE_API_KEY
+    - NEXT_PUBLIC_FIREBASE_API_KEY
+    - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    - NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    - NEXT_PUBLIC_FIREBASE_APP_ID
 
 # Specifies the CPU and memory for your App Hosting backend.
 # 1 CPU is suitable for many general-purpose applications.
 cpu: 1
+
+# Controls who can access your backend.
+ingressControls:
+  allowPublic: true
