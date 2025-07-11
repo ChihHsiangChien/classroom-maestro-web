@@ -2,8 +2,10 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
-const firebaseConfig = {
+
+const firebaseConfigFromEnv = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
@@ -12,39 +14,41 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Check if the essential Firebase config values are provided and don't contain placeholder text.
-export let isFirebaseConfigured =
-  !!firebaseConfig.apiKey &&
-  !firebaseConfig.apiKey.includes("YOUR_") &&
-  !!firebaseConfig.projectId &&
-  !firebaseConfig.projectId.includes("YOUR_");
+export const isFirebaseConfigured =
+  !!firebaseConfigFromEnv.apiKey &&
+  !firebaseConfigFromEnv.apiKey.includes("YOUR_") &&
+  !!firebaseConfigFromEnv.projectId &&
+  !firebaseConfigFromEnv.projectId.includes("YOUR_");
+
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
-let googleProvider: GoogleAuthProvider | null = null;
 let db: Firestore | null = null;
+let googleProvider: GoogleAuthProvider | null = null;
 
-if (isFirebaseConfigured) {
+export async function initializeFirebase(): Promise<boolean> {
+  if (app) return true; // Already initialized
+
+  if (!isFirebaseConfigured) {
+    // This is an early exit for local dev with placeholder values
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+          "Firebase is not configured with valid values. App will not initialize."
+      );
+    }
+    return false;
+  }
+  
   try {
-    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    app = initializeApp(firebaseConfigFromEnv);
     auth = getAuth(app);
     db = getFirestore(app);
     googleProvider = new GoogleAuthProvider();
+    return true;
   } catch (e) {
-    console.error("Failed to initialize Firebase", e);
-    // Overwrite the flag if initialization fails, so the UI can show a helpful error.
-    isFirebaseConfigured = false;
-    app = null;
-    auth = null;
-    googleProvider = null;
-    db = null;
+    console.error("Failed to initialize Firebase with remote config", e);
+    return false;
   }
-} else {
-    if (process.env.NODE_ENV !== 'production') {
-        console.warn(
-            "Firebase is not configured. Please add your Firebase credentials to the .env file. The app will run in a limited mode."
-        );
-    }
 }
 
 export { app, auth, db, googleProvider };

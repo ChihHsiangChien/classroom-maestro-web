@@ -6,10 +6,16 @@ import { AuthProvider } from '@/contexts/auth-context';
 import { ClassroomProvider } from '@/contexts/classroom-context';
 import { CoursewareProvider } from '@/contexts/courseware-context';
 import { UsageProvider } from './usage-context';
-import { initializeFirebase, isFirebaseConfigured, AppStatus } from '@/lib/firebase';
+import { initializeFirebase, isFirebaseConfigured } from '@/lib/firebase';
 import { School, Terminal } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useI18n } from '@/lib/i18n/provider';
+
+export enum AppStatus {
+  LOADING,
+  READY,
+  CONFIG_ERROR,
+}
 
 function FullScreenLoader({ message }: { message: string }) {
     return (
@@ -74,4 +80,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <ClassroomProvider>
           <CoursewareProvider>
             {children}
-          </Coursea
+          </CoursewareProvider>
+        </ClassroomProvider>
+      </UsageProvider>
+    </AuthProvider>
+  );
+}
