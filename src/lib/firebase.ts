@@ -1,3 +1,4 @@
+
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
@@ -23,8 +24,8 @@ let googleProvider: GoogleAuthProvider | null = null;
 
 // This function is called by the main Provider component when the app starts.
 export async function initializeFirebase(): Promise<boolean> {
+  // If the main app is already initialized, we're good.
   if (getApps().length > 0) {
-    // If already initialized, just get the existing instances.
     app = getApp();
     auth = getAuth(app);
     db = getFirestore(app);
@@ -40,14 +41,22 @@ export async function initializeFirebase(): Promise<boolean> {
   }
   
   try {
-    // This is the dynamic part. We call the Cloud Function to get config values.
-    const functions = getFunctions(getApp());
+    // To call the Cloud Function, we need a functions instance. To get that, we need an app.
+    // So, we initialize a temporary, minimal app with just the project ID.
+    // This gives us just enough to make the call to fetch the full configuration.
+    const tempApp = initializeApp({ projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID });
+    const functions = getFunctions(tempApp);
     const getFirebaseConfig = httpsCallable(functions, 'getFirebaseConfig');
     const result = await getFirebaseConfig();
     const remoteConfig = result.data;
     
-    // Use the fetched config to initialize the app.
-    app = initializeApp(remoteConfig as object);
+    // Now that we have the full, correct configuration from our Cloud Function,
+    // we can initialize the REAL, default Firebase app that the rest of our application will use.
+    // Note: Since we're re-initializing on the same page, we pass the same temporary app instance
+    // to `initializeApp` which reconfigures it with the full set of options.
+    // The second `initializeApp` call effectively "promotes" our tempApp to the fully configured app.
+    app = initializeApp(remoteConfig as object, tempApp.name);
+    
     auth = getAuth(app);
     db = getFirestore(app);
     googleProvider = new GoogleAuthProvider();
