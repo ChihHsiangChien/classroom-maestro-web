@@ -8,13 +8,20 @@ import { getFunctions, httpsCallable, type Functions } from "firebase/functions"
 // This is crucial for CI/CD environments where frontend code cannot access
 // environment variables at build time.
 
-// We first check for placeholder values in .env. This is a synchronous check for local
-// development to ensure the developer has set up their environment.
-const hasPlaceholderValues =
-  process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.includes("YOUR_") ||
-  !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+// --- Smart Configuration Check ---
+// In production, we assume config will come from a Cloud Function, so this check should pass.
+// In development, we check if the developer has filled in their .env.local file.
+let isConfigured: boolean;
+if (process.env.NODE_ENV === 'production') {
+  isConfigured = true;
+} else {
+  const hasPlaceholderValues =
+    !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+    process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.includes("YOUR_");
+  isConfigured = !hasPlaceholderValues;
+}
+export const isFirebaseConfigured = isConfigured;
 
-export const isFirebaseConfigured = !hasPlaceholderValues;
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
@@ -34,13 +41,20 @@ export async function initializeFirebase(): Promise<boolean> {
         // In production (deployed on App Hosting), we must fetch config from our Cloud Function.
         console.log("Production environment detected. Fetching Firebase config from Cloud Function...");
         
-        // Create a temporary, minimal app instance to call the function.
-        const tempApp = initializeApp({ projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID }, 'temp-for-config');
+        // This is a minimal, temporary config just to be able to call the function.
+        // The projectId is usually available in the production environment.
+        const tempAppConfig = { projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID };
+        const tempApp = initializeApp(tempAppConfig, 'temp-for-config');
         const functions = getFunctions(tempApp, 'asia-east1');
         const getFirebaseConfig = httpsCallable(functions, 'getFirebaseConfig');
         
         const result = await getFirebaseConfig();
         const remoteConfig = result.data;
+
+        if (!remoteConfig || !(remoteConfig as any).apiKey) {
+            console.error("Fetched remote config is invalid:", remoteConfig);
+            return false;
+        }
 
         // Initialize the main, default Firebase app with the fetched config.
         app = initializeApp(remoteConfig as object);
@@ -50,6 +64,7 @@ export async function initializeFirebase(): Promise<boolean> {
         // In development, we use the .env.local file.
         console.log("Development environment detected. Initializing Firebase from .env.local.");
         
+        // This check is now redundant because of the top-level one, but kept for safety.
         if (!isFirebaseConfigured) {
             console.error("Firebase is not configured with valid values in .env.local. App will not initialize.");
             return false;
