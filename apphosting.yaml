@@ -16,6 +16,10 @@ runConfig:
   # to function. It is made available to your app at runtime.
   # For a CI/CD-based deployment from GitHub, this value
   # must be configured as a secret in Google Cloud Secret Manager.
+  # MECHANISM 1: RUNTIME SECRET INJECTION (for backend)
+  # This tells App Hosting to fetch the GOOGLE_API_KEY from Secret Manager
+  # and inject it as an environment variable (process.env.GOOGLE_API_KEY)
+  # when the server is running. This is used by Genkit for AI features.
   secrets:
     - GOOGLE_API_KEY
 
