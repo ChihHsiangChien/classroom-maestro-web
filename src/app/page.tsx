@@ -73,7 +73,7 @@ export default function Home() {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
         <School className="h-12 w-12 animate-pulse text-primary" />
-        <p className="mt-4 text-muted-foreground">Redirecting to dashboard...</p>
+        <p className="mt-4 text-muted-foreground">{t('dashboard.redirecting')}</p>
       </div>
     );
   }
