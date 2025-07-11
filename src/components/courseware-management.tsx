@@ -476,6 +476,8 @@ export function CoursewareManagement() {
       )
   }
 
+  const isAnnotation = editingActivity?.type === 'image-annotation';
+
   return (
     <>
       <div className="container mx-auto max-w-5xl py-8">
@@ -552,7 +554,10 @@ export function CoursewareManagement() {
       </Dialog>
       
       <Dialog open={isActivityEditorOpen} onOpenChange={(open) => { if (!open) setActivityEditorOpen(false)}}>
-          <DialogContent className="flex h-full max-h-[90vh] w-full max-w-2xl flex-col p-0">
+          <DialogContent className={cn(
+                "flex h-full max-h-[90vh] w-full flex-col p-0",
+                isAnnotation ? "max-w-5xl" : "max-w-2xl"
+          )}>
               <DialogHeader className="flex-shrink-0 border-b p-6 pb-4">
                 <DialogTitle>{editingActivity ? t('courseware.activity_editor_title_edit') : t('courseware.activity_editor_title_add')}</DialogTitle>
               </DialogHeader>
