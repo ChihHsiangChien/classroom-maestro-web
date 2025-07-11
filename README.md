@@ -59,7 +59,12 @@ After creating the secrets, you must grant your App Hosting backend permission t
 
 2.  **Grant Access**:
     *   Click **GRANT ACCESS**.
-    *   **New principals**: Search for and select the service account associated with your App Hosting backend. It usually has a name like `app-hosting-backend-....@...`.
+    *   **New principals**: In the text box, you need to add the service account for your App Hosting backend.
+        *   **How to find the principal**:
+            1. Open the [**IAM & Admin** page](https://console.cloud.google.com/iam-admin/iam) in a new tab.
+            2. In the list of principals, find the one with "App Hosting" in its name. It will look like `service-[YOUR-PROJECT-NUMBER]@gcp-sa-apphosting.iam.gserviceaccount.com`.
+            3. Copy this entire email-like address.
+            4. Paste it into the "New principals" box back on the Secret Manager page.
     *   **Role**: Search for and select the **Secret Manager Secret Accessor** role.
     *   Click **SAVE**.
 
