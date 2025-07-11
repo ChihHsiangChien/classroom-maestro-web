@@ -7,6 +7,14 @@ region: asia-east1
 backendId: classroom-maestro-backend
 
 # Specifies the build and run settings for the backend.
+buildConfig:
+  # This tells App Hosting to copy the values from your local .env file
+  # and make them available as environment variables in the build and run environments.
+  # THIS IS CRITICAL for your Firebase configuration to work on the live server.
+  # GOOGLE_API_KEY is handled separately as a secret for security.
+  args: >
+    --action=build --environment-variables-from-file=.env
+
 runConfig:
   # Increase this value to automatically spin up more instances in response to
   # increased traffic.
